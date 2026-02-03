@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Code, Database, Brain, GitBranch,
-  Variable, Hash, Terminal, BookOpen, Lightbulb,
-  CheckCircle, ArrowRight, Copy, Play, Download,
+  Variable, Terminal, BookOpen, Lightbulb,
+  CheckCircle, Copy,
   ExternalLink, Info, ChevronRight, Zap,
-  Book, Layers, Cpu, Server, Package,
-  MessageSquare, Video, HelpCircle, Users,
-  Globe, Wifi, Shield, Rocket, Trophy,
-  Search, Filter, Sliders
+  Book, Layers, Cpu, Server
 } from 'lucide-react';
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -35,7 +32,7 @@ export default function PrologGuide() {
   const { t, currentLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState('basics');
   const [copiedCode, setCopiedCode] = useState<number | null>(null);
-
+console.log(currentLanguage);
   // Теематчни класове
   const themeClasses = {
     light: {

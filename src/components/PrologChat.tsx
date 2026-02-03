@@ -33,7 +33,7 @@ const domainIcons: Record<string, string> = {
   mineralwater: "fas fa-tint",
   balkan: "fas fa-mountain"
 };
-
+console.log(domainIcons);
 export default function PrologChat() {
   const { codeId } = useParams<{ codeId?: string }>();
   const { user } = useAuth();

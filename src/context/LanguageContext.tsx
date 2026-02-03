@@ -11,6 +11,7 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  select_domain_to_view_code:string;
   // Категории
 prolog_programming: string;
 artificial_intelligence: string;
@@ -1333,7 +1334,7 @@ total_assignments_count: 'Total Assignments',
     my_assignments: 'My Assignments',
     articles: 'Articles',
     view_all: 'View All',
-    
+     select_domain_to_view_code:"Choose a knowledge domain to view Prolog code examples",
     // Login page преводи
     login_description: "Continue your journey in AI-powered STEM education and explore interactive programming concepts.",
     access_projects: "Access your projects",
@@ -2417,8 +2418,10 @@ success: "Успех",
     // Статистика
     total_students: 'Общо ученици',
     total_files: 'Общо файлове',
+    select_domain_to_view_code:"Изберете предметна област, за да видите примери на Prolog код"
   },
   es: {
+    select_domain_to_view_code:"Elige un dominio de conocimiento para ver ejemplos de código Prolog",
     // В обекта translations.es добавете:
 create_knowledge_title: "Crear Bases de Conocimiento",
 create_knowledge_desc: "Crea bases de conocimiento estructuradas a partir de tus materiales de aprendizaje y organiza la información para tus clases.",

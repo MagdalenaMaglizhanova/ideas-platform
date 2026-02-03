@@ -21,7 +21,6 @@ import {
   ArrowRight,
   User,
   School,
-  BookOpen,
   GraduationCap,
   Building,
   Award,
