@@ -11,6 +11,68 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  no_activity: string,
+  no_student_activities: string,
+  lesson_title_required: string,
+  
+  // Статистики и метрики
+  registered_students: string,
+  pending_approvals: string,
+  waiting_for_review: string,
+  student_performance: string,
+  lesson_progress: string,
+  completed_lessons: string,
+  
+  // Заглавия и секции
+  student_activities: string,
+  recent_assignments: string,
+  last_activity: string,
+  
+  // Форми и входни полета
+  lesson_title: string,
+  enter_lesson_title: string,
+  enter_description: string,
+  
+  // Действия и бутони
+  add_lesson: string,
+  
+  // Статуси
+  pending_approval: string,
+
+  // Основни действия и бутони
+  close: string,
+  download_code: string,
+  download: string,
+  view_grade: string,
+  view_download_submissions: string,
+  new_submission: string,
+  resubmit: string,
+  
+  // Времеви метаданни
+  graded_on: string,
+  submitted_on: string,
+  pending_evaluation: string,
+  
+  // Състояния на задачите
+  
+  assignment_not_graded: string,
+  
+  // Заглавия и секции
+  assignment_evaluation: string,
+  
+  // Статистики и метрики
+  code_execution_success: string,
+  consecutive_days_active: string,
+  keep_it_up: string,
+  pending_assignments: string,
+  needs_submission: string,
+  requires_attention: string,
+  
+  // Съобщения и текст
+  no_recent_activity: string,
+  
+  about_us:string,
+  prolog_demo:string,
   select_domain_to_view_code:string;
   // Категории
 prolog_programming: string;
@@ -284,7 +346,7 @@ review_submission: string;
 assignment_completion: string;
 header_copied: string;
 copy_header: string;
-prolog_guide: string;
+prolog: string;
 lessons: string;
   // Home page преводи
   ideas_acronym: string;
@@ -841,12 +903,62 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 // Преводите с правилната типизация
 const translations: Translations = {
   en: {
+    no_activity: "No activity",
+  no_student_activities: "No student activities yet",
+  lesson_title_required: "Lesson title is required",
+  
+  // Статистики и метрики
+  registered_students: "Registered students",
+  pending_approvals: "Pending Approvals",
+  waiting_for_review: "Waiting for review",
+  student_performance: "Student performance",
+  lesson_progress: "Lesson Progress",
+  completed_lessons: "Completed lessons",
+  
+  // Заглавия и секции
+  student_activities: "Student Activities",
+  recent_assignments: "Recent Assignments",
+  last_activity: "Last Activity",
+  
+  // Форми и входни полета
+  lesson_title: "Lesson Title",
+  enter_lesson_title: "Enter lesson title",
+  description: "Description",
+  enter_description: "Enter description (optional)",
+  
+  // Действия и бутони
+  add_lesson: "Add Lesson",
+  
+  // Статуси
+  pending_approval: "Pending",
+    close: "Close",
+    download_code: "Download Code",
+    download: "Download",
+    view_grade: "View Grade",
+    view_download_submissions: "View and download your submissions",
+    new_submission: "New Submission",
+    resubmit: "Resubmit",
+    graded_on: "Graded on",
+    submitted_on: "Submitted on",
+    pending_evaluation: "Pending Evaluation",
+    completed: "Completed",
+    assignment_not_graded: "This assignment has not been graded yet",
+    assignment_evaluation: "Assignment Evaluation",
+    code_execution_success: "Code execution success",
+    active_streak: "Active Streak",
+    consecutive_days_active: "Consecutive days active",
+    keep_it_up: "Keep it up!",
+    pending_assignments: "Pending",
+    needs_submission: "Needs submission or evaluation",
+    requires_attention: "Requires attention",
+    no_recent_activity: "No recent activity",
       prolog_programming: "Prolog Programming",
     artificial_intelligence: "Artificial Intelligence",
     databases: "Databases",
     algorithms: "Algorithms",
     logic_programming: "Logic Programming",
-    
+    about_us:"Abaut us",
+  prolog_demo:"Prolog Demo",
     // Заглавия и подзаглавия
     learning_topics: "Learning Topics",
     explore_materials: "Explore educational materials",
@@ -1119,7 +1231,7 @@ minutes_ago: "min ago",
 warning: "Warning",
 inactive: "Inactive",
     lessons: "Lessons",
-    prolog_guide: "Prolog Guide",
+    prolog: "Prolog",
 create_knowledge_title: "Create Knowledge Bases",
 create_knowledge_desc: "Create structured knowledge bases from your learning materials and organize information for your classes.",
 create_feature_1: "Structuring learning materials",
@@ -1188,7 +1300,7 @@ in_progress_assignments_count: 'In Progress Assignments',
 total_assignments_count: 'Total Assignments',
     // Home page преводи
     ideas_acronym: 'Intelligent Data Educational Analysis System',
-    hero_title_part1: 'Transform STEM Education',
+    hero_title_part1: 'Transform Education',
     hero_title_part2: 'with AI-Powered Learning',
     hero_description: 'Empower students with logical programming and artificial intelligence concepts through interactive, hands-on STEM projects.',
     view_demos: 'View Demos',
@@ -1320,7 +1432,6 @@ total_assignments_count: 'Total Assignments',
     make_first_submission: 'Make your first submission',
     all_assignments: 'All Assignments',
     in_progress: 'In Progress',
-    completed: 'Completed',
     pending: 'Pending',
     due: 'Due',
     tasks: 'tasks',
@@ -1481,7 +1592,6 @@ total_assignments_count: 'Total Assignments',
     central_balkan: 'Central Balkan',
     successful_executions: "Successful executions",
 assignments_completed: "Assignments completed",
-active_streak: "Active Streak",
 current_activity_streak: "Current activity streak",
 review: "Review",
 lines: "lines",
@@ -1539,7 +1649,6 @@ code_editor: "Code Editor",
     due_date: 'Due Date',
     objective: 'Objective',
     objective_placeholder: 'Describe the objective of the assignment...',
-    description: 'Description',
     description_placeholder: 'Brief description of the assignment...',
     background_image: 'Background Image',
     category: 'Category',
@@ -1719,7 +1828,7 @@ activity_knowledge_base: "Създадена нова база знания по
 activity_new_materials: "Качени нови учебни материали",
 activity_user_registered: "Регистрирани 24 нови потребителя",
 minutes_ago: "мин",
-prolog_guide: "Prolog Ръководство",
+prolog: "Prolog",
 lessons: "Уроци",
 create_knowledge_title: "Създавайте Бази Знания",
 create_knowledge_desc: "Създайте структурирани бази знания от проверени източници и организирайте правилно информацията.",
@@ -1789,7 +1898,7 @@ option: 'Опция',
 loading_assignments: 'Зареждане на задания...',
     // Home page преводи
     ideas_acronym: 'Интелигентна система за анализ на образователни бази от знания',
-    hero_title_part1: 'Трансформирайте STEM образованието',
+    hero_title_part1: 'Трансформирайте образованието',
     hero_title_part2: 'с изкуствен интелект',
     hero_description: 'Дайте възможност на учениците да изучават логическо програмиране и изкуствения интелект чрез интерактивни, практически STEM проекти.',
     view_demos: 'Вижте демонстрации',
@@ -2016,6 +2125,29 @@ loading_assignments: 'Зареждане на задания...',
     prolog_code_editor: 'Prolog код редактор',
     save_draft: 'Запази чернова',
     clear: 'Изчисти',
+    no_activity: "Няма активност",
+    no_student_activities: "Все още няма активност на студенти",
+    lesson_title_required: "Заглавието на урока е задължително",
+    
+    registered_students: "Регистрирани студенти",
+    pending_approvals: "Чакащи одобрения",
+    waiting_for_review: "Чака преглед",
+    student_performance: "Успеваемост на студентите",
+    lesson_progress: "Напредък в уроците",
+    completed_lessons: "Завършени уроци",
+    
+    student_activities: "Активност на студентите",
+    recent_assignments: "Последни задачи",
+    last_activity: "Последна активност",
+    
+    lesson_title: "Заглавие на урока",
+    enter_lesson_title: "Въведете заглавие на урока",
+    description: "Описание",
+    enter_description: "Въведете описание (незадължително)",
+    
+    add_lesson: "Добави урок",
+    
+    pending_approval: "Чакащо",
     write_prolog_code: 'Напишете Prolog код тук...',
     example: 'Пример',
     upload_code_button: 'Качи код',
@@ -2138,6 +2270,8 @@ current_activity_streak: "Текуща активна поредица",
 review: "Преглед",
 lines: "редове",
 code_editor: "Редактор на код",
+about_us:"За нас",
+  prolog_demo:"Prolog Demo",
     // Validation messages преводи
     password_mismatch: "Паролите не съвпадат",
     password_too_short: "Паролата трябва да бъде поне 6 символа",
@@ -2325,7 +2459,6 @@ success: "Успех",
     due_date: 'Краен срок',
     objective: 'Цел',
     objective_placeholder: 'Опишете целта на заданието...',
-    description: 'Описание',
     description_placeholder: 'Кратко описание на заданието...',
     background_image: 'Фоново изображение',
     category: 'Категория',
@@ -2357,6 +2490,25 @@ success: "Успех",
     manage_students_subtitle: 'Преглед на ученическите подадени материали и оценяване',
     search_students: 'Търсене на ученици...',
     refresh: 'Обнови',
+    close: "Затвори",
+    download_code: "Изтегли код",
+    download: "Изтегли",
+    view_grade: "Виж оценка",
+    view_download_submissions: "Преглед и изтегляне на вашите решения",
+    new_submission: "Ново решение",
+    resubmit: "Предай отново",
+    graded_on: "Оценено на",
+    submitted_on: "Предадено на",
+    pending_evaluation: "Чака оценяване",
+    assignment_not_graded: "Тази задача все още не е оценена",
+    assignment_evaluation: "Оценка на задачата",
+    code_execution_success: "Успешно изпълнение на код",
+    consecutive_days_active: "Последователни активни дни",
+    keep_it_up: "Продължавай така!",
+    pending_assignments: "Чакащи",
+    needs_submission: "Нуждае се от решение или оценяване",
+    requires_attention: "Нуждае се от внимание",
+    no_recent_activity: "Няма скорошна активност",
     export: 'Експорт',
     filter: 'Филтър',
     please_wait: 'Моля, изчакайте докато вземаме ученическата информация...',
@@ -2494,7 +2646,7 @@ option: 'Opción',
 loading_assignments: 'Cargando tareas...',
     // Home page преводи
     ideas_acronym: 'Sistema Inteligente de Análisis Educativo de Datos',
-    hero_title_part1: 'Transforma la Educación STEM',
+    hero_title_part1: 'Transforma la Educación',
     hero_title_part2: 'con Aprendizaje Impulsado por IA',
     hero_description: 'Empodera a los estudiantes con conceptos de programación lógica e inteligencia artificial a través de proyectos STEM interactivos y prácticos.',
     get_started_free: 'Comenzar Gratis',
@@ -2625,6 +2777,29 @@ add_assignment: "Agregar Tarea",
 upload_first_file: "Sube tu primer archivo",
 no_email: "Sin correo",
 na: "N/D",
+no_activity: "Sin actividad",
+    no_student_activities: "Aún no hay actividades de estudiantes",
+    lesson_title_required: "El título de la lección es obligatorio",
+    
+    registered_students: "Estudiantes registrados",
+    pending_approvals: "Aprobaciones pendientes",
+    waiting_for_review: "Esperando revisión",
+    student_performance: "Rendimiento estudiantil",
+    lesson_progress: "Progreso de lecciones",
+    completed_lessons: "Lecciones completadas",
+    
+    student_activities: "Actividades de estudiantes",
+    recent_assignments: "Tareas recientes",
+    last_activity: "Última actividad",
+    
+    lesson_title: "Título de la lección",
+    enter_lesson_title: "Ingrese título de la lección",
+    description: "Descripción",
+    enter_description: "Ingrese descripción (opcional)",
+    
+    add_lesson: "Agregar lección",
+    
+    pending_approval: "Pendiente",
 no_files_uploaded: "Este estudiante no ha subido archivos todavía.",
 add_detailed_feedback: "Añadir retroalimentación detallada...",
 example_expert_system: "Ejemplo: Crear un Sistema Experto",
@@ -2650,6 +2825,8 @@ start: "Comenzar",
 short_break: "Descanso Corto",
 short_break_desc: "La atención está decayendo - un descanso de 2 minutos ayudaría.",
 create: "Crear",
+about_us:"Sobre nosotros",
+prolog_demo:"Demostración de Prolog",
 // Категории
     prolog_programming: "Programación Prolog",
     artificial_intelligence: "Inteligencia Artificial",
@@ -2730,7 +2907,32 @@ create: "Crear",
     basics_queries_p2: "Las variables comienzan con mayúscula",
     basics_queries_p3: "Obtén múltiples soluciones",
     basics_queries_p4: "Usa backtracking",
+    close: "Cerrar",
+    download_code: "Descargar código",
+    download: "Descargar",
+    view_grade: "Ver calificación",
+    view_download_submissions: "Ver y descargar tus entregas",
+    new_submission: "Nueva entrega",
+    resubmit: "Volver a enviar",
     
+    graded_on: "Calificado el",
+    submitted_on: "Entregado el",
+    pending_evaluation: "Evaluación pendiente",
+    
+    completed: "Completado",
+    assignment_not_graded: "Esta tarea aún no ha sido calificada",
+    
+    assignment_evaluation: "Evaluación de tarea",
+    
+    code_execution_success: "Ejecución de código exitosa",
+    active_streak: "Racha activa",
+    consecutive_days_active: "Días activos consecutivos",
+    keep_it_up: "¡Sigue así!",
+    pending_assignments: "Pendientes",
+    needs_submission: "Necesita entrega o evaluación",
+    requires_attention: "Requiere atención",
+    
+    no_recent_activity: "Sin actividad reciente",
     // Примери на код
     prolog_basics_title: "Básicos de Prolog",
     prolog_basics_desc: "Hechos y Reglas en Prolog",
@@ -2830,7 +3032,6 @@ create: "Crear",
     make_first_submission: 'Haz tu primer envío',
     all_assignments: 'Todas las Tareas',
     in_progress: 'En Progreso',
-    completed: 'Completado',
     pending: 'Pendiente',
     due: 'Fecha límite',
     tasks: 'tareas',
@@ -3079,7 +3280,6 @@ made_with_love: 'Hecho con ❤️ para la educación',
     due_date: 'Fecha Límite',
     objective: 'Objetivo',
     objective_placeholder: 'Describa el objetivo de la tarea...',
-    description: 'Descripción',
     description_placeholder: 'Breve descripción de la tarea...',
     background_image: 'Imagen de Fondo',
     category: 'Categoría',
@@ -3145,11 +3345,10 @@ made_with_love: 'Hecho con ❤️ para la educación',
     of: 'de',
     showing_of: 'Mostrando {0} de {1}',
     lessons: "Lecciones",
-    prolog_guide: "Guía de Prolog",
+    prolog: "Prolog",
     student_account: "Cuenta de Estudiante",
     successful_executions: "Ejecuciones exitosas",
 assignments_completed: "Tareas completadas",
-active_streak: "Racha Activa",
 current_activity_streak: "Racha de actividad actual",
 review: "Revisar",
 lines: "líneas",

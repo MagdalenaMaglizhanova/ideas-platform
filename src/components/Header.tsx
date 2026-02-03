@@ -15,8 +15,9 @@ import {
   BarChart3,
   Zap,
   Lightbulb,
-  GraduationCap,
-  Code
+  Code,
+  Users,
+  Bot
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from "../context/AuthContext";
@@ -25,6 +26,18 @@ import { useLanguage } from "../context/LanguageContext";
 
 interface HeaderProps {
   isScrolled: boolean;
+}
+
+// Дефинираме интерфейс за навигационни елементи
+interface NavItem {
+  name: string;
+  icon: React.ReactNode;
+  path: string;
+  color: string;
+  alwaysVisible?: boolean;
+  noAuthRequired?: boolean;
+  requiresAuth?: boolean;
+  badge?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
@@ -62,27 +75,25 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
 
   const themeColors = getThemeColors();
 
-  // Функция за определяне на правилния dashboard път - СИНХРОНИЗИРАНО С App.tsx
+  // Функция за определяне на правилния dashboard път
   const getDashboardPath = () => {
     if (!user) {
-      return "/login"; // Ако не е логнат, пращай към логин
+      return "/login";
     }
     
-    // Ако няма userData (все още се зарежда), изчакай
     if (!userData) {
       return "/login";
     }
     
-    // Връща различен път според ролята
     switch (userData.role) {
       case 'admin':
-        return "/admin-dashboard"; // Този маршрут СЪЩЕСТВУВА в App.tsx
+        return "/admin-dashboard";
       case 'teacher':
-        return "/teacher-dashboard"; // Този маршрут СЪЩЕСТВУВА в App.tsx
+        return "/teacher-dashboard";
       case 'student':
-        return "/students-dashboard"; // Този маршрут СЪЩЕСТВУВА в App.tsx
+        return "/students-dashboard";
       default:
-        return "/teacher-dashboard"; // По подразбиране
+        return "/teacher-dashboard";
     }
   };
 
@@ -99,13 +110,12 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
   };
 
   const isDashboardActive = () => {
-    // Всички възможни пътища към dashboard компоненти
     const dashboardPaths = [
-      '/teacher-dashboard',    // Основен път
-      '/admin-dashboard',      // Админ dashboard
-      '/students-dashboard',   // Студентски dashboard
-      '/document-editor',      // Вложен компонент
-      '/lesson-planner'        // Вложен компонент
+      '/teacher-dashboard',
+      '/admin-dashboard',
+      '/students-dashboard',
+      '/document-editor',
+      '/lesson-planner'
     ];
     return dashboardPaths.includes(location.pathname);
   };
@@ -131,51 +141,152 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
     }
   };
 
-  // Навигационни елементи
-  const navItems = [
-    { 
-      name: t('home') || "Home", 
-      icon: <Home className="w-4 h-4" />,
-      path: '/',
-      color: 'from-blue-500 to-cyan-500',
-      alwaysVisible: true
-    },
-    { 
-      name: t('prolog_guide') || "Prolog Guide", 
-      icon: <Code className="w-4 h-4" />,
-      path: '/prolog-guide',
-      color: 'from-amber-500 to-orange-500',
-      alwaysVisible: true,
-      noAuthRequired: true
-    },
-    { 
-      name: t('lessons') || "Lessons", 
-      icon: <GraduationCap className="w-4 h-4" />,
-      path: '/lessons',
-      color: 'from-purple-500 to-pink-500',
-      alwaysVisible: true
-    },
-    // DASHBOARD елемент - показва се само за логнати потребители
-    { 
-      name: getDashboardLabel(), 
-      icon: <BarChart3 className="w-4 h-4" />,
-      path: getDashboardPath(), // Използва функцията за автоматично определяне
-      color: userData?.role === 'admin' 
-        ? 'from-yellow-500 to-orange-500' 
-        : userData?.role === 'teacher'
-        ? 'from-green-500 to-emerald-500'
-        : 'from-indigo-500 to-blue-500',
-      requiresAuth: true, // Изисква автентикация
-      badge: userData?.role === 'admin' ? 'ADMIN' : undefined
-    },
-    { 
-      name: t('prolog_chat') || "Prolog Chat", 
-      icon: <MessageSquare className="w-4 h-4" />,
-      path: '/prolog-chat',
-      color: 'from-violet-500 to-purple-500',
-      requiresAuth: true // Изисква автентикация
-    },
-  ];
+  // Функция за определяне на навигационните елементи според ролята
+  const getNavItems = (): NavItem[] => {
+    // Ако потребителят не е логнат, показваме само публичните елементи
+    if (!user) {
+      return [
+        { 
+          name: t('home') || "Home", 
+          icon: <Home className="w-4 h-4" />,
+          path: '/',
+          color: 'from-blue-500 to-cyan-500',
+          alwaysVisible: true,
+          noAuthRequired: true
+        },
+        { 
+          name: t('prolog') || "Prolog", 
+          icon: <Code className="w-4 h-4" />,
+          path: '/prolog-guide',
+          color: 'from-amber-500 to-orange-500',
+          alwaysVisible: true,
+          noAuthRequired: true
+        },
+        { 
+          name: t('about_us') || "About Us", 
+          icon: <Users className="w-4 h-4" />,
+          path: '/about-us',
+          color: 'from-purple-500 to-pink-500',
+          alwaysVisible: true,
+          noAuthRequired: true
+        },
+        { 
+          name: t('prolog_demo') || "Prolog Demo", 
+          icon: <Bot className="w-4 h-4" />,
+          path: '/demo-prolog-chat',
+          color: 'from-green-500 to-emerald-500',
+          alwaysVisible: true,
+          noAuthRequired: true
+        }
+      ];
+    }
+
+    // Ако потребителят е логнат, показваме само специфичните за ролята му елементи
+    switch (userData?.role) {
+      case 'admin':
+        return [
+          { 
+            name: t('home') || "Home", 
+            icon: <Home className="w-4 h-4" />,
+            path: '/',
+            color: 'from-blue-500 to-cyan-500',
+            alwaysVisible: true,
+            noAuthRequired: true
+          },
+          { 
+            name: getDashboardLabel(), 
+            icon: <BarChart3 className="w-4 h-4" />,
+            path: getDashboardPath(),
+            color: 'from-yellow-500 to-orange-500',
+            requiresAuth: true,
+            badge: 'ADMIN'
+          },
+          { 
+            name: t('prolog_chat') || "Prolog Chat", 
+            icon: <MessageSquare className="w-4 h-4" />,
+            path: '/prolog-chat',
+            color: 'from-violet-500 to-purple-500',
+            requiresAuth: true
+          }
+        ];
+      
+      case 'teacher':
+        return [
+          { 
+            name: t('home') || "Home", 
+            icon: <Home className="w-4 h-4" />,
+            path: '/',
+            color: 'from-blue-500 to-cyan-500',
+            alwaysVisible: true,
+            noAuthRequired: true
+          },
+          { 
+            name: getDashboardLabel(), 
+            icon: <BarChart3 className="w-4 h-4" />,
+            path: getDashboardPath(),
+            color: 'from-green-500 to-emerald-500',
+            requiresAuth: true,
+            badge: 'TEACHER'
+          },
+          { 
+            name: t('prolog_chat') || "Prolog Chat", 
+            icon: <MessageSquare className="w-4 h-4" />,
+            path: '/prolog-chat',
+            color: 'from-violet-500 to-purple-500',
+            requiresAuth: true
+          }
+        ];
+      
+      case 'student':
+        return [
+          { 
+            name: t('home') || "Home", 
+            icon: <Home className="w-4 h-4" />,
+            path: '/',
+            color: 'from-blue-500 to-cyan-500',
+            alwaysVisible: true,
+            noAuthRequired: true
+          },
+          { 
+            name: getDashboardLabel(), 
+            icon: <BarChart3 className="w-4 h-4" />,
+            path: getDashboardPath(),
+            color: 'from-indigo-500 to-blue-500',
+            requiresAuth: true,
+            badge: 'STUDENT'
+          },
+          { 
+            name: t('prolog_chat') || "Prolog Chat", 
+            icon: <MessageSquare className="w-4 h-4" />,
+            path: '/prolog-chat',
+            color: 'from-violet-500 to-purple-500',
+            requiresAuth: true
+          }
+        ];
+      
+      default:
+        // По подразбиране за логнати потребители без специфична роля
+        return [
+          { 
+            name: t('home') || "Home", 
+            icon: <Home className="w-4 h-4" />,
+            path: '/',
+            color: 'from-blue-500 to-cyan-500',
+            alwaysVisible: true,
+            noAuthRequired: true
+          },
+          { 
+            name: getDashboardLabel(), 
+            icon: <BarChart3 className="w-4 h-4" />,
+            path: getDashboardPath(),
+            color: 'from-blue-500 to-cyan-500',
+            requiresAuth: true
+          }
+        ];
+    }
+  };
+
+  const navItems = getNavItems();
 
   // Филтрирай навигацията според автентикацията
   const filteredNavItems = navItems.filter(item => 
@@ -314,7 +425,7 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                         isActive(item.path) || (item.path === getDashboardPath() && isDashboardActive())
-                          ? `bg-gradient-to-r ${item.color}`
+                          ? `bg-gradient-to-r ${item.color} text-white`
                           : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
                       }`}>
                         {item.icon}
@@ -326,9 +437,17 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             className={`px-1.5 py-0.5 text-xs rounded-full font-bold ${
-                              theme === 'dark'
-                                ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
-                                : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
+                              item.badge === 'ADMIN'
+                                ? theme === 'dark'
+                                  ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
+                                  : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
+                                : item.badge === 'TEACHER'
+                                ? theme === 'dark'
+                                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
+                                  : 'bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900'
+                                : theme === 'dark'
+                                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
+                                  : 'bg-gradient-to-r from-indigo-500 to-blue-500 text-gray-900'
                             }`}
                           >
                             {item.badge}
@@ -470,7 +589,9 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                           ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
                           : userData?.role === 'teacher'
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                          : 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                          : userData?.role === 'student'
+                          ? 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                          : 'bg-gradient-to-r from-blue-500 to-cyan-500'
                       }`}>
                         <User size={20} className="text-white" />
                       </div>
@@ -490,10 +611,13 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                             ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
                             : userData?.role === 'teacher'
                             ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                            : theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
+                            : userData?.role === 'student'
+                            ? theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
+                            : theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                         }`}>
                           {userData?.role === 'admin' ? 'Admin' : 
-                           userData?.role === 'teacher' ? 'Teacher' : 'Student'}
+                           userData?.role === 'teacher' ? 'Teacher' : 
+                           userData?.role === 'student' ? 'Student' : 'User'}
                         </span>
                       </div>
                       <ChevronDown size={16} className={`transition-transform ${
@@ -522,7 +646,9 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                                   ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
                                   : userData?.role === 'teacher'
                                   ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                                  : 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                                  : userData?.role === 'student'
+                                  ? 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                                  : 'bg-gradient-to-r from-blue-500 to-cyan-500'
                               }`}>
                                 <User size={24} className="text-white" />
                               </div>
@@ -542,12 +668,17 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                                       ? theme === 'dark'
                                         ? 'bg-green-900 text-green-300'
                                         : 'bg-green-100 text-green-800'
-                                      : theme === 'dark'
+                                      : userData?.role === 'student'
+                                      ? theme === 'dark'
                                         ? 'bg-indigo-900 text-indigo-300'
                                         : 'bg-indigo-100 text-indigo-800'
+                                      : theme === 'dark'
+                                        ? 'bg-blue-900 text-blue-300'
+                                        : 'bg-blue-100 text-blue-800'
                                   }`}>
                                     {userData?.role === 'admin' ? 'Administrator' : 
-                                     userData?.role === 'teacher' ? 'Teacher' : 'Student'}
+                                     userData?.role === 'teacher' ? 'Teacher' : 
+                                     userData?.role === 'student' ? 'Student' : 'User'}
                                   </span>
                                   {userData?.isVerified && (
                                     <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${
@@ -768,9 +899,13 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                               ? theme === 'dark'
                                 ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
                                 : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
+                              : item.badge === 'TEACHER'
+                              ? theme === 'dark'
+                                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
+                                : 'bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900'
                               : theme === 'dark'
-                                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                                : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-gray-900'
+                                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
+                                : 'bg-gradient-to-r from-indigo-500 to-blue-500 text-gray-900'
                           }`}>
                             {item.badge}
                           </span>
@@ -825,7 +960,9 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                               ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
                               : userData?.role === 'teacher'
                               ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                              : 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                              : userData?.role === 'student'
+                              ? 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                              : 'bg-gradient-to-r from-blue-500 to-cyan-500'
                           }`}>
                             <User size={24} className="text-white" />
                           </div>
@@ -845,12 +982,17 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                                   ? theme === 'dark'
                                     ? 'bg-green-500/20 text-green-300'
                                     : 'bg-green-500/20 text-green-700'
-                                  : theme === 'dark'
+                                  : userData?.role === 'student'
+                                  ? theme === 'dark'
                                     ? 'bg-indigo-500/20 text-indigo-300'
                                     : 'bg-indigo-500/20 text-indigo-700'
+                                  : theme === 'dark'
+                                    ? 'bg-blue-500/20 text-blue-300'
+                                    : 'bg-blue-500/20 text-blue-700'
                               }`}>
                                 {userData?.role === 'admin' ? 'Admin' : 
-                                 userData?.role === 'teacher' ? 'Teacher' : 'Student'}
+                                 userData?.role === 'teacher' ? 'Teacher' : 
+                                 userData?.role === 'student' ? 'Student' : 'User'}
                               </span>
                             </div>
                           </div>

@@ -47,7 +47,7 @@ const Hero = () => {
           transition={{ delay: 0.3 }}
           className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 leading-tight"
         >
-          {t('hero_title_part1') || 'Transform STEM Education'}
+          {t('hero_title_part1') || 'Transform Education'}
           <br />
           <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-white bg-clip-text text-transparent">
             {t('hero_title_part2') || 'with AI-Powered Learning'}
@@ -83,7 +83,7 @@ const Hero = () => {
           </Link>
 
           <a 
-            href="/demos" 
+            href="/demo-prolog-chat" 
             target="_blank" 
             rel="noopener noreferrer"
           >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom'; // ❌ Премахнете BrowserRouter
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useAnimation } from 'framer-motion';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -19,6 +19,14 @@ import AdminDashboard from './components/AdminDashboard';
 import StudentsDashboard from './components/StudentsDashboard';
 import PrologGuide from './components/PrologGuide';
 import DemoPrologChat from './components/DemoPrologChat';
+import AboutUs from './components/AboutUs';
+
+
+const teamPhotos = {
+  pic1: '/public/images/Picture1.png',
+  pic2: '/images/Picture2.png', 
+  pic3: '/images/Picture4.png'
+};
 
 // Компонент за начална страница
 const HomePage = () => {
@@ -61,9 +69,14 @@ const HomePage = () => {
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: string | null;
+  allowedRoles?: string[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole = null }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  requiredRole = null,
+  allowedRoles 
+}) => {
   const { user, userData, loading } = useAuth();
   
   if (loading) {
@@ -81,7 +94,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/login" replace={true} />;
   }
   
+  // Проверка за конкретна роля
   if (requiredRole && userData?.role !== requiredRole) {
+    return <Navigate to="/" replace={true} />;
+  }
+  
+  // Проверка за множество роли
+  if (allowedRoles && !allowedRoles.includes(userData?.role || '')) {
     return <Navigate to="/" replace={true} />;
   }
   
@@ -111,41 +130,52 @@ const AppContent = () => {
         {/* Публични маршрути */}
         <Route path="/" element={<HomePage />} />
         <Route path="/prolog-guide" element={<PrologGuide />} />
+        <Route path="/about-us" element={<AboutUs {...teamPhotos} />} />
+        <Route path="/demo-prolog-chat" element={<DemoPrologChat />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         
-        {/* Защитени маршрути */}
+        {/* Защитени маршрути за учители */}
         <Route path="/teacher-dashboard" element={
           <ProtectedRoute requiredRole="teacher">
             <TeacherDashboard />
           </ProtectedRoute>
         } />
         
+        <Route path="/lesson-planner" element={
+          <ProtectedRoute requiredRole="teacher">
+            <LessonPlanner />
+          </ProtectedRoute>
+        } />
+        
+        {/* Защитен маршрут за уроковете */}
         <Route path="/lessons" element={
           <ProtectedRoute requiredRole="teacher">
             <LessonPlanner />
           </ProtectedRoute>
         } />
         
-        <Route path="/prolog-chat" element={
-          <ProtectedRoute>
-            <PrologChat />
-          </ProtectedRoute>
-        } />
         
+        {/* Защитени маршрути за админи */}
         <Route path="/admin-dashboard" element={
           <ProtectedRoute requiredRole="admin">
             <AdminDashboard />
           </ProtectedRoute>
         } />
         
+        {/* Защитени маршрути за студенти */}
         <Route path="/students-dashboard" element={
           <ProtectedRoute requiredRole="student">
             <StudentsDashboard />
           </ProtectedRoute>
         } />
 
-        <Route path="/demos" element={<DemoPrologChat />} />
+        {/* Защитен маршрут за Prolog чата (достъпен за всички логнати) */}
+        <Route path="/prolog-chat" element={
+          <ProtectedRoute>
+            <PrologChat />
+          </ProtectedRoute>
+        } />
         
         {/* Catch-all route за debugging */}
         <Route path="*" element={
@@ -173,7 +203,7 @@ const App = () => {
     <ThemeProvider>
       <AuthProvider>
         <LanguageProvider>
-          <AppContent /> {/* ❌ Премахнете Router от тук */}
+          <AppContent />
         </LanguageProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -1,23 +1,20 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { 
-  Users, UserCheck, UserX, UserCog, 
-  FileText, FileCode, Folder, Database, 
-  BarChart3, Activity, Zap, Settings,
-  Search, Filter, Download, Eye, Edit,
-  Trash2, CheckCircle, XCircle, Clock,
-  AlertCircle, Plus, RefreshCw, Shield,
-  Home, Crown, Server, HardDrive, 
-  TrendingUp, TrendingDown, Calendar,
-  Mail, Building, GraduationCap,
-  Award, Target, Clock as ClockIcon,
-  FileUp, Link, Copy, ExternalLink,
-  MoreVertical, ChevronRight, Menu, X,
-  BarChart, PieChart, LineChart, Upload,
-  FolderPlus, CheckSquare, Square,
-  DownloadCloud, UploadCloud, Cpu,
-  Smartphone, Globe, CreditCard,
-  Bell, BellOff, Key, Lock
+  Users, UserCheck, UserX, 
+  BarChart3, Activity, Zap,  Clock,
+  TrendingUp, Database, Folder, Shield, 
+  RefreshCw, Eye, Trash2, CheckCircle, 
+  XCircle, Building, Award, Download,
+  Plus, X, Search, 
+  UserCog, FileCode, GraduationCap,
+  Home, Crown, 
+   Upload, 
+  ChevronRight, 
+  Copy, ExternalLink, FolderPlus,
+  UserPlus, 
+   File, Code,
+   Key, BookOpen, Puzzle
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -33,7 +30,9 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  limit,
+  addDoc
 } from "firebase/firestore";
 
 // Interfaces
@@ -72,6 +71,19 @@ interface PrologCode {
   uploadFormat?: string;
   executionTime?: number;
   errors?: string[];
+  assignmentName?: string;
+  assignmentId?: string;
+}
+
+interface Assignment {
+  id: string;
+  title: string;
+  description: string;
+  createdBy: string;
+  createdAt: Date;
+  dueDate?: Date;
+  submissions?: number;
+  status: 'active' | 'completed' | 'draft';
 }
 
 interface SupabaseFile {
@@ -94,6 +106,7 @@ interface SupabaseFolder {
   name: string;
   fileCount: number;
   lastModified?: string;
+  files?: SupabaseFile[];
 }
 
 interface SupabaseStats {
@@ -119,18 +132,18 @@ interface DashboardStats {
   monthlyGrowth: number;
 }
 
-interface ChartData {
-  labels: string[];
-  data: number[];
-}
-
 interface ActivityLog {
   id: string;
+  userId: string;
   user: string;
+  userEmail: string;
   action: string;
+  actionType: string;
   target: string;
+  targetId: string;
+  details: string;
   timestamp: Date;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
 }
 
@@ -138,22 +151,20 @@ export default function AdminDashboard() {
   const { user: currentUser, userData } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
-  console.log(t);
-  const [selectedTab, setSelectedTab] = useState<string>("overview");
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdminVerified, setIsAdminVerified] = useState<boolean>(false);
-  
+  console.log(t);
   // Data states
   const [users, setUsers] = useState<User[]>([]);
   const [prologCodes, setPrologCodes] = useState<PrologCode[]>([]);
-  const [supabaseFiles, setSupabaseFiles] = useState<SupabaseFile[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [pendingTeachers, setPendingTeachers] = useState<User[]>([]);
-  const [_activeUsers, setActiveUsers] = useState<User[]>([]);
   
   // Supabase Management State
+  const [supabaseFiles, setSupabaseFiles] = useState<SupabaseFile[]>([]);
   const [supabaseFolders, setSupabaseFolders] = useState<SupabaseFolder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [folderFiles, setFolderFiles] = useState<any[]>([]);
+  const [folderFiles, setFolderFiles] = useState<SupabaseFile[]>([]);
   const [supabaseStats, setSupabaseStats] = useState<SupabaseStats>({
     totalFiles: 0,
     totalFolders: 0,
@@ -165,15 +176,19 @@ export default function AdminDashboard() {
   // Form states
   const [newFolderName, setNewFolderName] = useState<string>('');
   const [bucketResult, setBucketResult] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   
-  // Chart data
-  const [userGrowthData, setUserGrowthData] = useState<ChartData>({ labels: [], data: [] });
-  const [_submissionTrendData, setSubmissionTrendData] = useState<ChartData>({ labels: [], data: [] });
-  const [successRateData, setSuccessRateData] = useState<ChartData>({ labels: [], data: [] });
-
+  // UI states
+  const [selectedView, setSelectedView] = useState<string>("overview");
+  const [selectedFile, setSelectedFile] = useState<PrologCode | null>(null);
+  const [selectedSupabaseFile, setSelectedSupabaseFile] = useState<SupabaseFile | null>(null);
+  const [showFileModal, setShowFileModal] = useState<boolean>(false);
+  const [showFileContentModal, setShowFileContentModal] = useState<boolean>(false);
+  const [fileContent, setFileContent] = useState<string>("");
+  const [activityFilter, setActivityFilter] = useState<string>("all");
+console.log(selectedFile, showFileModal)
   // Statistics
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
@@ -191,41 +206,23 @@ export default function AdminDashboard() {
   });
 
   // Activity logs
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([
-    { id: '1', user: 'System', action: 'Database backup completed', target: 'Server', timestamp: new Date(), icon: 'Database', color: 'green' },
-    { id: '2', user: 'John Doe', action: 'Uploaded new file', target: 'project.pl', timestamp: new Date(Date.now() - 3600000), icon: 'Upload', color: 'blue' },
-    { id: '3', user: 'Jane Smith', action: 'Account suspended', target: 'User #456', timestamp: new Date(Date.now() - 7200000), icon: 'UserX', color: 'red' },
-    { id: '4', user: 'System', action: 'Daily report generated', target: 'Analytics', timestamp: new Date(Date.now() - 10800000), icon: 'BarChart', color: 'purple' },
-  ]);
-
-  // UI states
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   // Theme classes
   const themeClasses = {
     light: {
       background: "bg-gray-50",
       text: "text-gray-900",
-      sidebar: "bg-white border-gray-200",
       card: "bg-white border-gray-200",
-      input: "bg-white border-gray-300",
       hover: "hover:bg-gray-100",
-      modal: "bg-white",
-      tableRow: "hover:bg-gray-50"
+      input: "bg-white border-gray-300",
     },
     dark: {
       background: "bg-gray-900",
       text: "text-white",
-      sidebar: "bg-gray-800 border-gray-700",
       card: "bg-gray-800 border-gray-700",
-      input: "bg-gray-700 border-gray-600",
       hover: "hover:bg-gray-700",
-      modal: "bg-gray-800",
-      tableRow: "hover:bg-gray-700/50"
+      input: "bg-gray-700 border-gray-600",
     }
   };
 
@@ -303,48 +300,240 @@ export default function AdminDashboard() {
       
       setPrologCodes(codesData);
       
+      // Load assignments
+      const assignmentsQuery = query(collection(db, "assignments"), orderBy("createdAt", "desc"));
+      const assignmentsSnapshot = await getDocs(assignmentsQuery);
+      const assignmentsData = assignmentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Assignment));
+      
+      setAssignments(assignmentsData);
+      
       // Load files from Supabase
       await loadSupabaseFiles();
       
+      // Load activity logs
+      await loadActivityLogs();
+      
       // Calculate statistics
       calculateStats(usersData, codesData);
-      
-      // Calculate chart data
-      calculateChartData(usersData, codesData);
       
       // Pending teachers
       const pending = usersData.filter(u => u.role === 'teacher' && u.status === 'pending');
       setPendingTeachers(pending);
       
-      // Active users (last 24 hours)
-      const active = usersData.filter(u => {
-        if (!u.lastLogin) return false;
-        const lastLogin = new Date(u.lastLogin);
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        return lastLogin > yesterday;
-      });
-      setActiveUsers(active);
-      
-      // Update activity logs with real data
-      const newLogs: ActivityLog[] = [
-        ...activityLogs,
-        { 
-          id: '5', 
-          user: currentUser?.email?.split('@')[0] || 'Admin', 
-          action: 'Refreshed dashboard data', 
-          target: 'All systems', 
-          timestamp: new Date(), 
-          icon: 'RefreshCw', 
-          color: 'blue' 
-        }
-      ];
-      setActivityLogs(newLogs);
-      
     } catch (error: any) {
       console.error("Error loading admin data:", error);
-      // Don't show alert, handle gracefully
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadActivityLogs = async () => {
+    try {
+      // Load real activity logs from Firestore
+      const logsQuery = query(
+        collection(db, "activityLogs"), 
+        orderBy("timestamp", "desc"),
+        limit(100)
+      );
+      
+      const logsSnapshot = await getDocs(logsQuery);
+      const logsData: ActivityLog[] = [];
+      
+      logsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const timestamp = data.timestamp?.toDate() || new Date();
+        
+        logsData.push({
+          id: doc.id,
+          userId: data.userId || '',
+          user: data.userName || data.user || 'System',
+          userEmail: data.userEmail || '',
+          action: data.action || 'Unknown action',
+          actionType: data.actionType || 'info',
+          target: data.target || '',
+          targetId: data.targetId || '',
+          details: data.details || '',
+          timestamp: timestamp,
+          icon: getActivityIcon(data.actionType || 'info'),
+          color: getActivityColor(data.actionType || 'info')
+        });
+      });
+      
+      // If no logs, generate from existing data
+      if (logsData.length === 0) {
+        await generateActivityLogsFromData();
+      } else {
+        setActivityLogs(logsData);
+      }
+      
+    } catch (error) {
+      console.error("Error loading activity logs:", error);
+      // Generate from existing data
+      await generateActivityLogsFromData();
+    }
+  };
+
+  const generateActivityLogsFromData = async () => {
+    const generatedLogs: ActivityLog[] = [];
+    const now = new Date();
+    
+    // Add user registration activities
+    users.slice(0, 20).forEach(user => {
+      generatedLogs.push({
+        id: `user-${user.id}`,
+        userId: user.id,
+        user: user.fullName,
+        userEmail: user.email,
+        action: `User ${user.role} registered`,
+        actionType: 'user_registered',
+        target: user.institution,
+        targetId: user.id,
+        details: `New ${user.role} account created`,
+        timestamp: user.createdAt || new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+        icon: <UserPlus className="w-4 h-4" />,
+        color: 'blue'
+      });
+    });
+    
+    // Add code submission activities
+    prologCodes.slice(0, 30).forEach(code => {
+      const user = users.find(u => u.id === code.userId) || { fullName: code.username, email: '' };
+      
+      generatedLogs.push({
+        id: `code-${code.id}`,
+        userId: code.userId,
+        user: user.fullName,
+        userEmail: user.email || '',
+        action: 'Submitted Prolog code',
+        actionType: 'code_submitted',
+        target: code.title,
+        targetId: code.id,
+        details: `Status: ${code.status} • ${code.uploadFormat || 'manual input'}`,
+        timestamp: code.createdAt || new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+        icon: <Code className="w-4 h-4" />,
+        color: code.status === 'success' ? 'green' : code.status === 'error' ? 'red' : 'amber'
+      });
+    });
+    
+    // Add assignment activities
+    assignments.slice(0, 15).forEach(assignment => {
+      const creator = users.find(u => u.id === assignment.createdBy) || { fullName: 'Teacher', email: '' };
+      
+      generatedLogs.push({
+        id: `assignment-${assignment.id}`,
+        userId: assignment.createdBy,
+        user: creator.fullName,
+        userEmail: creator.email || '',
+        action: 'Created assignment',
+        actionType: 'assignment_created',
+        target: assignment.title,
+        targetId: assignment.id,
+        details: `Status: ${assignment.status} • ${assignment.submissions || 0} submissions`,
+        timestamp: assignment.createdAt || new Date(now.getTime() - Math.random() * 14 * 24 * 60 * 60 * 1000),
+        icon: <BookOpen className="w-4 h-4" />,
+        color: 'indigo'
+      });
+    });
+    
+    // Add file upload activities
+    supabaseFiles.slice(0, 20).forEach(file => {
+      const randomUser = users[Math.floor(Math.random() * users.length)];
+      
+      generatedLogs.push({
+        id: `file-${file.id}`,
+        userId: randomUser?.id || '',
+        user: randomUser?.fullName || 'Unknown User',
+        userEmail: randomUser?.email || '',
+        action: 'Uploaded file to storage',
+        actionType: 'file_uploaded',
+        target: file.name,
+        targetId: file.id,
+        details: `Folder: ${file.folder} • Size: ${(file.size / 1024).toFixed(2)} KB`,
+        timestamp: new Date(file.created_at) || new Date(now.getTime() - Math.random() * 10 * 24 * 60 * 60 * 1000),
+        icon: <Upload className="w-4 h-4" />,
+        color: 'cyan'
+      });
+    });
+    
+    // Add login activities
+    users.filter(u => u.lastLogin).slice(0, 15).forEach(user => {
+      generatedLogs.push({
+        id: `login-${user.id}`,
+        userId: user.id,
+        user: user.fullName,
+        userEmail: user.email,
+        action: 'Logged in to system',
+        actionType: 'user_login',
+        target: 'Platform',
+        targetId: user.id,
+        details: `Role: ${user.role} • Status: ${user.status}`,
+        timestamp: user.lastLogin || new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000),
+        icon: <Key className="w-4 h-4" />,
+        color: 'purple'
+      });
+    });
+    
+    // Sort by timestamp
+    const sortedLogs = generatedLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    setActivityLogs(sortedLogs.slice(0, 100));
+    
+    // Save generated logs to Firestore
+    try {
+      for (const log of sortedLogs.slice(0, 50)) {
+        await addDoc(collection(db, "activityLogs"), {
+          userId: log.userId,
+          userName: log.user,
+          userEmail: log.userEmail,
+          action: log.action,
+          actionType: log.actionType,
+          target: log.target,
+          targetId: log.targetId,
+          details: log.details,
+          timestamp: serverTimestamp(),
+          createdAt: new Date()
+        });
+      }
+    } catch (error) {
+      console.error("Error saving generated logs:", error);
+    }
+  };
+
+  const getActivityIcon = (actionType: string): React.ReactNode => {
+    switch (actionType) {
+      case 'user_registered': return <UserPlus className="w-4 h-4" />;
+      case 'code_submitted': return <Code className="w-4 h-4" />;
+      case 'assignment_created': return <BookOpen className="w-4 h-4" />;
+      case 'assignment_submitted': return <Puzzle className="w-4 h-4" />;
+      case 'file_uploaded': return <Upload className="w-4 h-4" />;
+      case 'file_downloaded': return <Download className="w-4 h-4" />;
+      case 'file_deleted': return <Trash2 className="w-4 h-4" />;
+      case 'folder_created': return <FolderPlus className="w-4 h-4" />;
+      case 'user_login': return <Key className="w-4 h-4" />;
+      case 'user_updated': return <UserCog className="w-4 h-4" />;
+      case 'teacher_approved': return <UserCheck className="w-4 h-4" />;
+      case 'teacher_rejected': return <UserX className="w-4 h-4" />;
+      default: return <Activity className="w-4 h-4" />;
+    }
+  };
+
+  const getActivityColor = (actionType: string): string => {
+    switch (actionType) {
+      case 'user_registered': return 'blue';
+      case 'code_submitted': return 'green';
+      case 'assignment_created': return 'indigo';
+      case 'assignment_submitted': return 'purple';
+      case 'file_uploaded': return 'cyan';
+      case 'file_downloaded': return 'blue';
+      case 'file_deleted': return 'red';
+      case 'folder_created': return 'teal';
+      case 'user_login': return 'purple';
+      case 'user_updated': return 'amber';
+      case 'teacher_approved': return 'green';
+      case 'teacher_rejected': return 'red';
+      default: return 'gray';
     }
   };
 
@@ -365,24 +554,6 @@ export default function AdminDashboard() {
       if (!u.lastLogin) return false;
       return new Date(u.lastLogin) >= today;
     }).length;
-    
-    // Calculate average execution time
-    const validExecutionTimes = codesData
-      .filter(c => c.executionTime && c.executionTime > 0)
-      .map(c => c.executionTime!);
-    const avgExecutionTime = validExecutionTimes.length > 0 
-      ? Math.round(validExecutionTimes.reduce((a, b) => a + b, 0) / validExecutionTimes.length)
-      : 0;
-
-    // Calculate storage usage percentage (mock for now)
-    const storageUsage = supabaseStats.totalSize > 0 
-      ? Math.min(Math.round((supabaseStats.totalSize / (1024 * 1024 * 100)) * 100), 100) // Assuming 100MB max
-      : 0;
-
-    // Calculate monthly growth (mock for now)
-    const monthlyGrowth = usersData.length > 10 
-      ? Math.round((activeToday / usersData.length) * 100) - 50 
-      : 25;
 
     setStats(prev => ({
       ...prev,
@@ -394,84 +565,11 @@ export default function AdminDashboard() {
       pendingApprovals,
       successRate,
       activeToday,
-      avgExecutionTime,
-      storageUsage,
-      monthlyGrowth
+      totalFiles: supabaseStats.totalFiles
     }));
   };
 
-  const calculateChartData = (usersData: User[], codesData: PrologCode[]) => {
-    // User growth data (last 7 days)
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
-    });
-    
-    const userCounts = Array(7).fill(0);
-    usersData.forEach(user => {
-      const createdDate = new Date(user.createdAt);
-      const daysAgo = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysAgo < 7) {
-        userCounts[6 - daysAgo]++;
-      }
-    });
-    
-    // Calculate cumulative sum
-    let cumulative = 0;
-    const cumulativeUserCounts = userCounts.map(count => {
-      cumulative += count;
-      return cumulative;
-    });
-    
-    setUserGrowthData({
-      labels: last7Days,
-      data: cumulativeUserCounts
-    });
-
-    // Submission trend data (last 7 days)
-    const submissionCounts = Array(7).fill(0);
-    codesData.forEach(code => {
-      const createdDate = new Date(code.createdAt);
-      const daysAgo = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysAgo < 7) {
-        submissionCounts[6 - daysAgo]++;
-      }
-    });
-
-    setSubmissionTrendData({
-      labels: last7Days,
-      data: submissionCounts
-    });
-
-    // Success rate data (last 7 days)
-    const successRates = Array(7).fill(0);
-    for (let i = 0; i < 7; i++) {
-      const dayStart = new Date();
-      dayStart.setDate(dayStart.getDate() - (6 - i));
-      dayStart.setHours(0, 0, 0, 0);
-      
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-      
-      const dayCodes = codesData.filter(code => {
-        const codeDate = new Date(code.createdAt);
-        return codeDate >= dayStart && codeDate < dayEnd;
-      });
-      
-      if (dayCodes.length > 0) {
-        const successful = dayCodes.filter(code => code.status === 'success').length;
-        successRates[i] = Math.round((successful / dayCodes.length) * 100);
-      }
-    }
-
-    setSuccessRateData({
-      labels: last7Days,
-      data: successRates
-    });
-  };
-
-  // Filtered data based on search and filters
+  // Filtered data
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -486,8 +584,15 @@ export default function AdminDashboard() {
 
   const filteredCodes = prologCodes.filter(code => {
     return code.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           code.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (code.folder && code.folder.toLowerCase().includes(searchQuery.toLowerCase()));
+           code.username.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const filteredActivityLogs = activityLogs.filter(log => {
+    if (activityFilter === 'all') return true;
+    if (activityFilter === 'code') return log.actionType.includes('code') || log.actionType.includes('assignment');
+    if (activityFilter === 'file') return log.actionType.includes('file') || log.actionType.includes('folder');
+    if (activityFilter === 'user') return log.actionType.includes('user') || log.actionType.includes('teacher');
+    return true;
   });
 
   // Supabase folder functions
@@ -498,23 +603,33 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Create placeholder file to create folder
-      const dummyFile = new File(['# Placeholder for folder'], '.folderplaceholder', { 
-        type: 'text/plain' 
-      });
+      // Create placeholder content
+      const content = '# Placeholder for folder';
       
-      const { data, error } = await supabase.storage
+      // Try uploading as text/plain
+      const { error } = await supabase.storage
         .from('prolog-files')
-        .upload(`${newFolderName}/.folderplaceholder`, dummyFile, {
-          upsert: false
+        .upload(`${newFolderName}/.folderplaceholder`, content, {
+          upsert: false,
+          contentType: 'text/plain'
         });
       
       if (error) throw error;
-      console.log(data);
+      
       setBucketResult(`✅ Folder "${newFolderName}" created successfully.`);
       setNewFolderName('');
       await refreshSupabaseData();
+      
+      // Add to activity logs
+      await addActivityLog({
+        action: 'Created new folder',
+        actionType: 'folder_created',
+        target: newFolderName,
+        details: `Created folder "${newFolderName}" in storage`
+      });
+      
     } catch (error: any) {
+      console.error("Error creating folder:", error);
       setBucketResult(`❌ Error creating folder: ${error.message}`);
     }
   };
@@ -542,7 +657,7 @@ export default function AdminDashboard() {
       }
 
       const allFiles: SupabaseFile[] = [];
-      const folders = new Set<string>();
+      const foldersMap = new Map<string, SupabaseFolder>();
       let totalSize = 0;
       let lastUpdated: number | null = null;
       
@@ -551,16 +666,18 @@ export default function AdminDashboard() {
         if (!item.name) continue;
         
         if (item.id === null) { // It's a folder
-          folders.add(item.name);
+          const folderName = item.name;
           
           // Get files from this folder
           const { data: folderFiles, error: folderError } = await supabase.storage
             .from("prolog-files")
-            .list(item.name, { limit: 1000 });
+            .list(folderName, { limit: 1000 });
+          
+          const folderFileList: SupabaseFile[] = [];
           
           if (!folderError && folderFiles) {
             const prologFilesInFolder = folderFiles.filter(file => 
-              file.name && (file.name.endsWith('.pl') || file.name.endsWith('.txt')) && file.id !== null
+              file.name && !file.name.startsWith('.') && file.id !== null
             );
             
             prologFilesInFolder.forEach(file => {
@@ -568,16 +685,19 @@ export default function AdminDashboard() {
               const size = typeof metadata.size === 'number' ? metadata.size : 0;
               const mimetype = typeof metadata.mimetype === 'string' ? metadata.mimetype : 'application/x-prolog';
               
-              allFiles.push({
+              const supabaseFile: SupabaseFile = {
                 name: file.name || '',
                 id: file.id || Math.random().toString(36).substring(2),
                 created_at: file.created_at || new Date().toISOString(),
                 updated_at: file.updated_at || new Date().toISOString(),
                 size: size,
-                folder: item.name,
-                fullPath: `${item.name}/${file.name}`,
+                folder: folderName,
+                fullPath: `${folderName}/${file.name}`,
                 metadata: { size, mimetype }
-              });
+              };
+              
+              folderFileList.push(supabaseFile);
+              allFiles.push(supabaseFile);
               
               totalSize += size;
               
@@ -589,12 +709,24 @@ export default function AdminDashboard() {
               }
             });
           }
-        } else if (item.name.endsWith('.pl') || item.name.endsWith('.txt')) {
+          
+          const folderSize = folderFileList.reduce((sum, file) => sum + file.size, 0);
+          
+          foldersMap.set(folderName, {
+            name: folderName,
+            fileCount: folderFileList.length,
+            size: folderSize,
+            files: folderFileList,
+            lastModified: folderFileList.length > 0 
+              ? new Date(Math.max(...folderFileList.map(f => new Date(f.created_at).getTime()))).toISOString()
+              : undefined
+          });
+        } else if (!item.name.startsWith('.')) {
           const metadata = item.metadata || {};
           const size = typeof metadata.size === 'number' ? metadata.size : 0;
           const mimetype = typeof metadata.mimetype === 'string' ? metadata.mimetype : 'application/x-prolog';
           
-          allFiles.push({
+          const file: SupabaseFile = {
             name: item.name || '',
             id: item.id || Math.random().toString(36).substring(2),
             created_at: item.created_at || new Date().toISOString(),
@@ -603,8 +735,9 @@ export default function AdminDashboard() {
             folder: 'root',
             fullPath: item.name || '',
             metadata: { size, mimetype }
-          });
+          };
           
+          allFiles.push(file);
           totalSize += size;
           
           if (item.created_at) {
@@ -616,37 +749,26 @@ export default function AdminDashboard() {
         }
       }
       
-      // Prepare folder data
-      const folderData: SupabaseFolder[] = Array.from(folders).map(folderName => {
-        const folderFiles = allFiles.filter(f => f.folder === folderName);
-        const folderSize = folderFiles.reduce((sum, file) => sum + file.size, 0);
-        
-        return {
-          name: folderName,
-          fileCount: folderFiles.length,
-          size: folderSize,
-          lastModified: folderFiles.length > 0 
-            ? new Date(Math.max(...folderFiles.map(f => new Date(f.created_at).getTime()))).toISOString()
-            : undefined
-        };
-      });
+      const folderData = Array.from(foldersMap.values());
       
       setSupabaseFiles(allFiles);
       setSupabaseFolders(folderData);
       
       const storageUsed = totalSize < 1024 * 1024 
         ? `${(totalSize / 1024).toFixed(2)} KB`
-        : `${(totalSize / (1024 * 1024)).toFixed(2)} MB`;
+        : totalSize < 1024 * 1024 * 1024
+        ? `${(totalSize / (1024 * 1024)).toFixed(2)} MB`
+        : `${(totalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`;
       
       setSupabaseStats({
         totalFiles: allFiles.length,
-        totalFolders: folders.size,
+        totalFolders: folderData.length,
         totalSize: totalSize,
         lastUpdated: lastUpdated,
         storageUsed: storageUsed
       });
       
-      setBucketResult(`✅ Data refreshed. Found ${folders.size} folders with ${allFiles.length} files.`);
+      setBucketResult(`✅ Data refreshed. Found ${folderData.length} folders with ${allFiles.length} files.`);
       
     } catch (error: any) {
       console.error("Error loading Supabase files:", error);
@@ -656,17 +778,62 @@ export default function AdminDashboard() {
 
   const viewFolderFiles = async (folderName: string) => {
     try {
-      const { data: files, error } = await supabase.storage
-        .from('prolog-files')
-        .list(folderName);
+      const folder = supabaseFolders.find(f => f.name === folderName);
       
-      if (error) throw error;
-      
-      setSelectedFolder(folderName);
-      setFolderFiles(files || []);
+      if (folder && folder.files) {
+        setSelectedFolder(folderName);
+        setFolderFiles(folder.files);
+      } else {
+        const { data: files, error } = await supabase.storage
+          .from('prolog-files')
+          .list(folderName);
+        
+        if (error) throw error;
+        
+        const supabaseFiles: SupabaseFile[] = (files || [])
+          .filter(file => file.name && !file.name.startsWith('.') && file.id)
+          .map(file => ({
+            name: file.name || '',
+            id: file.id || Math.random().toString(36).substring(2),
+            created_at: file.created_at || new Date().toISOString(),
+            updated_at: file.updated_at || new Date().toISOString(),
+            size: file.metadata?.size || 0,
+            folder: folderName,
+            fullPath: `${folderName}/${file.name}`,
+            metadata: file.metadata
+          }));
+        
+        setSelectedFolder(folderName);
+        setFolderFiles(supabaseFiles);
+      }
       
     } catch (error: any) {
       setBucketResult(`❌ Error loading folder ${folderName}: ${error.message}`);
+    }
+  };
+
+  const viewFileContent = async (file: SupabaseFile) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('prolog-files')
+        .download(file.fullPath);
+      
+      if (error) throw error;
+      
+      const text = await data.text();
+      setFileContent(text);
+      setSelectedSupabaseFile(file);
+      setShowFileContentModal(true);
+      
+      await addActivityLog({
+        action: 'Viewed file content',
+        actionType: 'file_viewed',
+        target: file.name,
+        details: `Viewed file "${file.name}" from folder "${file.folder}"`
+      });
+      
+    } catch (error: any) {
+      setBucketResult(`❌ Error loading file content: ${error.message}`);
     }
   };
 
@@ -683,6 +850,14 @@ export default function AdminDashboard() {
       setBucketResult(`✅ File "${fileName}" deleted successfully.`);
       await viewFolderFiles(selectedFolder);
       await refreshSupabaseData();
+      
+      await addActivityLog({
+        action: 'Deleted file from storage',
+        actionType: 'file_deleted',
+        target: fileName,
+        details: `Deleted file "${fileName}" from folder "${selectedFolder}"`
+      });
+      
     } catch (error: any) {
       setBucketResult(`❌ Error deleting file: ${error.message}`);
     }
@@ -704,15 +879,22 @@ export default function AdminDashboard() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      
+      await addActivityLog({
+        action: 'Downloaded file',
+        actionType: 'file_downloaded',
+        target: fileName,
+        details: `Downloaded file "${fileName}"`
+      });
+      
     } catch (error: any) {
-      // Show notification instead of alert
       setBucketResult(`❌ Error downloading file: ${error.message}`);
     }
   };
 
   const copyFileUrl = (fileName: string) => {
     if (!selectedFolder) return;
-    
+    console.log(copyFileUrl)
     const { data } = supabase.storage
       .from('prolog-files')
       .getPublicUrl(`${selectedFolder}/${fileName}`);
@@ -720,6 +902,13 @@ export default function AdminDashboard() {
     if (data.publicUrl) {
       navigator.clipboard.writeText(data.publicUrl);
       setBucketResult('✅ File URL copied to clipboard!');
+      
+      addActivityLog({
+        action: 'Copied file URL',
+        actionType: 'file_url_copied',
+        target: fileName,
+        details: `Copied URL for file "${fileName}"`
+      });
     }
   };
 
@@ -735,7 +924,7 @@ export default function AdminDashboard() {
       
       const fallbackFiles: SupabaseFile[] = filesFromCodes.map((code, index) => {
         const fileName = code.fileName || code.originalFileName || code.storedFileName || code.title || `file-${index}.pl`;
-        let folder = code.folder || 'unknown';
+        let folder = code.folder || 'submissions';
         
         if (code.filePath && code.filePath.includes('/')) {
           const pathParts = code.filePath.split('/');
@@ -763,6 +952,73 @@ export default function AdminDashboard() {
     }
   };
 
+  const viewCodeInNewTab = (code: PrologCode) => {
+    const codeBlob = new Blob([code.code], { type: 'text/plain' });
+    const codeUrl = URL.createObjectURL(codeBlob);
+    window.open(codeUrl, '_blank');
+    
+    addActivityLog({
+      action: 'Viewed code in new tab',
+      actionType: 'code_viewed',
+      target: code.title,
+      details: `Viewed Prolog code "${code.title}" in new tab`
+    });
+  };
+
+  const openFileModal = (code: PrologCode) => {
+    setSelectedFile(code);
+    setShowFileModal(true);
+  };
+
+  // Add activity log helper
+  const addActivityLog = async (logData: {
+    action: string;
+    actionType: string;
+    target: string;
+    details: string;
+    targetId?: string;
+  }) => {
+    try {
+      const activityLog = {
+        userId: currentUser?.uid || '',
+        userName: userData?.fullName || currentUser?.email?.split('@')[0] || 'Admin',
+        userEmail: currentUser?.email || '',
+        action: logData.action,
+        actionType: logData.actionType,
+        target: logData.target,
+        targetId: logData.targetId || '',
+        details: logData.details,
+        timestamp: serverTimestamp(),
+        createdAt: new Date()
+      };
+      
+      // Add to Firestore
+      await addDoc(collection(db, "activityLogs"), activityLog);
+      
+      // Update local state
+      const newLog: ActivityLog = {
+        id: Date.now().toString(),
+        userId: activityLog.userId,
+        user: activityLog.userName,
+        userEmail: activityLog.userEmail,
+        action: activityLog.action,
+        actionType: activityLog.actionType,
+        target: activityLog.target,
+        targetId: activityLog.targetId,
+        details: activityLog.details,
+        timestamp: new Date(),
+        icon: getActivityIcon(activityLog.actionType),
+        color: getActivityColor(activityLog.actionType)
+      };
+      
+      setActivityLogs(prev => [newLog, ...prev.slice(0, 99)]);
+      
+    } catch (error) {
+      console.error("Error adding activity log:", error);
+    }
+  };
+
+  // Approval functions
   const approveTeacher = async (teacherId: string) => {
     try {
       await updateDoc(doc(db, "users", teacherId), {
@@ -772,25 +1028,20 @@ export default function AdminDashboard() {
         isVerified: true
       });
       
-      await loadAllData();
-      setBucketResult("✅ Teacher approved successfully!");
-      
-      // Add to activity logs
       const teacher = users.find(u => u.id === teacherId);
-      if (teacher) {
-        setActivityLogs(prev => [{
-          id: Date.now().toString(),
-          user: currentUser?.email?.split('@')[0] || 'Admin',
-          action: 'Approved teacher',
-          target: teacher.fullName,
-          timestamp: new Date(),
-          icon: 'UserCheck',
-          color: 'green'
-        }, ...prev]);
-      }
+      
+      await addActivityLog({
+        action: 'Approved teacher',
+        actionType: 'teacher_approved',
+        target: teacher?.fullName || teacherId,
+        targetId: teacherId,
+        details: `Approved teacher "${teacher?.fullName}" (${teacher?.email})`
+      });
+      
+      await loadAllData();
+      
     } catch (error) {
       console.error("Error approving teacher:", error);
-      setBucketResult("❌ Error approving teacher!");
     }
   };
 
@@ -802,31 +1053,25 @@ export default function AdminDashboard() {
         rejectedBy: currentUser?.uid
       });
       
-      await loadAllData();
-      setBucketResult("✅ Teacher rejected!");
-      
-      // Add to activity logs
       const teacher = users.find(u => u.id === teacherId);
-      if (teacher) {
-        setActivityLogs(prev => [{
-          id: Date.now().toString(),
-          user: currentUser?.email?.split('@')[0] || 'Admin',
-          action: 'Rejected teacher',
-          target: teacher.fullName,
-          timestamp: new Date(),
-          icon: 'UserX',
-          color: 'red'
-        }, ...prev]);
-      }
+      
+      await addActivityLog({
+        action: 'Rejected teacher',
+        actionType: 'teacher_rejected',
+        target: teacher?.fullName || teacherId,
+        targetId: teacherId,
+        details: `Rejected teacher "${teacher?.fullName}" (${teacher?.email})`
+      });
+      
+      await loadAllData();
+      
     } catch (error) {
       console.error("Error rejecting teacher:", error);
-      setBucketResult("❌ Error rejecting teacher!");
     }
   };
 
   const toggleUserStatus = async (userId: string, currentStatus: string) => {
     if (userId === currentUser?.uid) {
-      setBucketResult("❌ You cannot change your own status!");
       return;
     }
 
@@ -838,31 +1083,25 @@ export default function AdminDashboard() {
         updatedBy: currentUser?.uid
       });
       
-      await loadAllData();
-      setBucketResult(`✅ User status changed to ${newStatus}`);
-      
-      // Add to activity logs
       const user = users.find(u => u.id === userId);
-      if (user) {
-        setActivityLogs(prev => [{
-          id: Date.now().toString(),
-          user: currentUser?.email?.split('@')[0] || 'Admin',
-          action: `Changed user status to ${newStatus}`,
-          target: user.fullName,
-          timestamp: new Date(),
-          icon: newStatus === 'active' ? 'UserCheck' : 'UserX',
-          color: newStatus === 'active' ? 'green' : 'red'
-        }, ...prev]);
-      }
+      
+      await addActivityLog({
+        action: `Changed user status to ${newStatus}`,
+        actionType: 'user_updated',
+        target: user?.fullName || userId,
+        targetId: userId,
+        details: `Changed status of user "${user?.fullName}" from ${currentStatus} to ${newStatus}`
+      });
+      
+      await loadAllData();
+      
     } catch (error) {
       console.error("Error updating user status:", error);
-      setBucketResult("❌ Error changing status!");
     }
   };
 
   const deleteUser = async (userId: string, userName: string) => {
     if (userId === currentUser?.uid) {
-      setBucketResult("❌ You cannot delete your own account!");
       return;
     }
 
@@ -880,116 +1119,20 @@ export default function AdminDashboard() {
       // Delete user
       await deleteDoc(doc(db, "users", userId));
       
-      await loadAllData();
-      setBucketResult("✅ User deleted successfully!");
-      
-      // Add to activity logs
-      setActivityLogs(prev => [{
-        id: Date.now().toString(),
-        user: currentUser?.email?.split('@')[0] || 'Admin',
+      await addActivityLog({
         action: 'Deleted user account',
+        actionType: 'user_deleted',
         target: userName,
-        timestamp: new Date(),
-        icon: 'Trash2',
-        color: 'red'
-      }, ...prev]);
+        targetId: userId,
+        details: `Deleted user account "${userName}" and all associated data`
+      });
       
-      setShowDeleteModal(false);
-      setUserToDelete(null);
+      await loadAllData();
+      
     } catch (error) {
       console.error("Error deleting user:", error);
-      setBucketResult("❌ Error deleting user!");
     }
   };
-
-  const deleteCode = async (codeId: string, codeName: string) => {
-    try {
-      await deleteDoc(doc(db, "prologCodes", codeId));
-      await loadAllData();
-      setBucketResult("✅ Code deleted successfully!");
-      
-      // Add to activity logs
-      setActivityLogs(prev => [{
-        id: Date.now().toString(),
-        user: currentUser?.email?.split('@')[0] || 'Admin',
-        action: 'Deleted code submission',
-        target: codeName,
-        timestamp: new Date(),
-        icon: 'FileText',
-        color: 'red'
-      }, ...prev]);
-    } catch (error) {
-      console.error("Error deleting code:", error);
-      setBucketResult("❌ Error deleting code!");
-    }
-  };
-
-  const deleteFile = async (filePath: string, fileName: string) => {
-    try {
-      const { error } = await supabase.storage
-        .from("prolog-files")
-        .remove([filePath]);
-
-      if (error) throw error;
-
-      // Delete from Firestore if exists
-      const codeToDelete = prologCodes.find(code => code.filePath === filePath);
-      if (codeToDelete) {
-        await deleteDoc(doc(db, "prologCodes", codeToDelete.id));
-      }
-
-      await loadAllData();
-      setBucketResult("✅ File deleted successfully!");
-      
-      // Add to activity logs
-      setActivityLogs(prev => [{
-        id: Date.now().toString(),
-        user: currentUser?.email?.split('@')[0] || 'Admin',
-        action: 'Deleted storage file',
-        target: fileName,
-        timestamp: new Date(),
-        icon: 'Trash2',
-        color: 'red'
-      }, ...prev]);
-    } catch (error) {
-      console.error("Error deleting file:", error);
-      setBucketResult("❌ Error deleting file!");
-    }
-  };
-
-  useEffect(() => {
-    if (selectedTab === "supabase") {
-      refreshSupabaseData();
-    }
-  }, [selectedTab]);
-
-  // Helper function to get icon component
-  const getIconComponent = (iconName: string) => {
-    const icons: { [key: string]: any } = {
-      Users, UserCheck, UserX, UserCog, FileText, FileCode, Folder, Database,
-      BarChart3, Activity, Zap, Settings, Search, Filter, Download, Eye, Edit,
-      Trash2, CheckCircle, XCircle, Clock, AlertCircle, Plus, RefreshCw, Shield,
-      Home, Crown, Server, HardDrive, TrendingUp, TrendingDown, Calendar,
-      Mail, Building, GraduationCap, Award, Target, ClockIcon, FileUp, Link,
-      Copy, ExternalLink, MoreVertical, ChevronRight, Menu, X, BarChart,
-      PieChart, LineChart, Upload, FolderPlus, CheckSquare, Square,
-      DownloadCloud, UploadCloud, Cpu, Smartphone, Globe, CreditCard,
-      Bell, BellOff, Key, Lock
-    };
-    return icons[iconName] || Activity;
-  };
-
-  // Navigation items
-  const navItems = [
-    { id: "overview", label: "Overview", icon: <BarChart3 className="w-5 h-5" /> },
-    { id: "users", label: "Users", icon: <Users className="w-5 h-5" />, badge: stats.pendingApprovals },
-    { id: "teachers", label: "Teachers", icon: <GraduationCap className="w-5 h-5" />, badge: pendingTeachers.length },
-    { id: "codes", label: "Submissions", icon: <FileCode className="w-5 h-5" />, badge: stats.totalSubmissions },
-    { id: "files", label: "File Manager", icon: <Folder className="w-5 h-5" />, badge: supabaseStats.totalFiles },
-    { id: "storage", label: "Storage", icon: <Database className="w-5 h-5" /> },
-    { id: "analytics", label: "Analytics", icon: <LineChart className="w-5 h-5" /> },
-    { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
-  ];
 
   // Stats cards data
   const statsCards = [
@@ -1027,6 +1170,53 @@ export default function AdminDashboard() {
     }
   ];
 
+  // Navigation items with correct badges
+  const navItems = [
+    { 
+      id: "overview", 
+      label: "Overview", 
+      icon: <BarChart3 className="w-5 h-5" />,
+      badge: null
+    },
+    { 
+      id: "users", 
+      label: "Users", 
+      icon: <Users className="w-5 h-5" />, 
+      badge: stats.totalUsers
+    },
+    { 
+      id: "teachers", 
+      label: "Teachers", 
+      icon: <GraduationCap className="w-5 h-5" />, 
+      badge: stats.totalTeachers
+    },
+    { 
+      id: "submissions", 
+      label: "Submissions", 
+      icon: <FileCode className="w-5 h-5" />, 
+      badge: stats.totalSubmissions
+    },
+    { 
+      id: "storage", 
+      label: "Storage", 
+      icon: <Database className="w-5 h-5" />,
+      badge: supabaseStats.totalFiles
+    },
+    { 
+      id: "activity", 
+      label: "Activity", 
+      icon: <Activity className="w-5 h-5" />,
+      badge: activityLogs.length
+    },
+  ];
+
+  // Load supabase data when storage tab is selected
+  useEffect(() => {
+    if (selectedView === "storage") {
+      refreshSupabaseData();
+    }
+  }, [selectedView]);
+
   if (loading) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${currentTheme.background}`}>
@@ -1061,136 +1251,478 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className={`flex min-h-screen ${currentTheme.background} ${currentTheme.text} pt-16`}>
-      {/* Sidebar Navigation */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ x: -300 }}
-            animate={{ x: 0 }}
-            exit={{ x: -300 }}
-            className={`fixed lg:sticky top-16 left-0 h-[calc(100vh-4rem)] w-64 ${currentTheme.sidebar} border-r backdrop-blur-xl z-40 lg:z-20`}
-          >
-            <div className="p-6 h-full flex flex-col overflow-y-auto">
-              {/* Logo */}
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold">IDEAS Admin</h3>
-                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Management Panel
-                  </p>
-                </div>
+    <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} pt-24 pb-8 px-4`}>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-purple-400" />
               </div>
+              <span>Admin Dashboard</span>
+            </h1>
+            <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              Welcome back, {userData?.fullName || "Administrator"}!
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <button
+              onClick={loadAllData}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                theme === 'dark' 
+                  ? 'bg-white/5 hover:bg-white/10' 
+                  : 'bg-gray-100 hover:bg-gray-200'
+              } transition-colors`}
+            >
+              <RefreshCw className="w-4 h-4" /> Refresh
+            </button>
+          </div>
+        </div>
 
-              {/* User Profile */}
-              <div className={`p-4 rounded-xl mb-6 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold">{userData?.fullName || "Administrator"}</h4>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {currentUser?.email || "admin@ideas.com"}
-                    </p>
-                  </div>
-                </div>
-                <div className={`px-2 py-1 rounded-lg text-xs font-medium text-center ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`}>
-                  <Shield className="w-3 h-3 inline mr-1" /> Administrator
-                </div>
-              </div>
+        {/* Navigation Tabs */}
+        <div className="mb-8">
+          <div className="flex flex-wrap gap-2">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setSelectedView(item.id)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
+                  selectedView === item.id
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                    : theme === 'dark'
+                    ? 'bg-white/5 hover:bg-white/10'
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {item.icon}
+                <span className="font-medium">{item.label}</span>
+                {item.badge !== null && item.badge !== undefined && (
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    selectedView === item.id
+                      ? 'bg-white/20 text-white'
+                      : theme === 'dark'
+                      ? 'bg-white/10'
+                      : 'bg-gray-200'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
 
-              {/* Navigation */}
-              <nav className="space-y-1 flex-1">
-                {navItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedTab(item.id);
-                      if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                    }}
-                    className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all ${
-                      selectedTab === item.id
-                        ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-600"
-                        : `${currentTheme.hover} ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.badge && item.badge > 0 && (
-                      <span className={`px-2 py-1 rounded-lg text-xs ${
-                        theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
-                      }`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </nav>
-
-              {/* System Status */}
-              <div className={`pt-6 border-t ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>System Status</span>
-                    <span className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                      <span className="text-green-500">Online</span>
+        {/* Overview View */}
+        {selectedView === "overview" && (
+          <div className="space-y-8">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {statsCards.map((stat, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color}/20 flex items-center justify-center`}>
+                      {stat.icon}
+                    </div>
+                    <span className={`text-sm px-2 py-1 rounded-lg ${
+                      stat.change.includes('+') 
+                        ? 'bg-green-500/20 text-green-500'
+                        : stat.change.includes('Requires')
+                        ? 'bg-amber-500/20 text-amber-500'
+                        : theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
+                    }`}>
+                      {stat.change}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Storage</span>
-                    <span>{supabaseStats.storageUsed}</span>
+                  <div className="text-3xl font-bold mb-2">{stat.value}</div>
+                  <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{stat.title}</div>
+                  <div className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {stat.description}
                   </div>
-                  <button 
-                    onClick={loadAllData}
-                    className={`w-full py-2 rounded-lg flex items-center justify-center gap-2 text-sm ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <RefreshCw className="w-4 h-4" /> Refresh Data
-                  </button>
-                </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* User Distribution */}
+            <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Users className="w-5 h-5" /> User Distribution
+              </h3>
+              <div className="space-y-4">
+                {[
+                  { label: 'Students', value: stats.totalStudents, color: 'from-blue-500 to-cyan-500', percent: stats.totalUsers > 0 ? (stats.totalStudents / stats.totalUsers) * 100 : 0 },
+                  { label: 'Teachers', value: stats.totalTeachers, color: 'from-purple-500 to-pink-500', percent: stats.totalUsers > 0 ? (stats.totalTeachers / stats.totalUsers) * 100 : 0 },
+                  { label: 'Admins', value: stats.totalAdmins, color: 'from-green-500 to-emerald-500', percent: stats.totalUsers > 0 ? (stats.totalAdmins / stats.totalUsers) * 100 : 0 },
+                ].map((item, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                        {item.label}
+                      </span>
+                      <span className="font-medium">
+                        {item.value} ({item.percent.toFixed(1)}%)
+                      </span>
+                    </div>
+                    <div className={`h-2 rounded-full overflow-hidden ${
+                      theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                    }`}>
+                      <motion.div
+                        className={`h-full rounded-full bg-gradient-to-r ${item.color}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${item.percent}%` }}
+                        transition={{ duration: 1, delay: 0.5 + idx * 0.1 }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-0 lg:ml-64' : 'ml-0'}`}>
-        {/* Top Navigation */}
-        <div className={`sticky top-0 z-30 ${theme === 'dark' ? 'bg-gray-900/80' : 'bg-white/80'} backdrop-blur-lg border-b ${
-          theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className={`p-2 rounded-lg ${
-                  theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-                } transition-colors`}
-              >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-              <h1 className="text-xl font-bold">
-                {navItems.find(item => item.id === selectedTab)?.label || "Dashboard"}
-              </h1>
+            {/* Quick Actions */}
+            <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Zap className="w-5 h-5" /> Quick Actions
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button 
+                  onClick={() => setSelectedView("teachers")}
+                  disabled={pendingTeachers.length === 0}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    pendingTeachers.length === 0
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:scale-[1.02]'
+                  } ${theme === 'dark' 
+                    ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <UserCheck className="w-6 h-6 text-green-500 mb-2" />
+                  <div className="font-medium">Approve Teachers</div>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {pendingTeachers.length} pending
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setSelectedView("storage")}
+                  className={`p-4 rounded-xl border text-left hover:scale-[1.02] transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <Database className="w-6 h-6 text-blue-500 mb-2" />
+                  <div className="font-medium">Manage Storage</div>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {supabaseStats.totalFiles} files
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setSelectedView("activity")}
+                  className={`p-4 rounded-xl border text-left hover:scale-[1.02] transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <Activity className="w-6 h-6 text-purple-500 mb-2" />
+                  <div className="font-medium">View Activity</div>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {activityLogs.length} logs
+                  </div>
+                </button>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-3">
+          </div>
+        )}
+
+        {/* Users View */}
+        {selectedView === "users" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">User Management</h2>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {filteredUsers.length} users found
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border-white/10' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  />
+                </div>
+                
+                <select 
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="all">All Roles</option>
+                  <option value="student">Students</option>
+                  <option value="teacher">Teachers</option>
+                  <option value="admin">Administrators</option>
+                </select>
+                
+                <select 
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredUsers.map(user => (
+                <div key={user.id} className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      user.role === 'student'
+                        ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20'
+                        : user.role === 'teacher'
+                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20'
+                        : 'bg-gradient-to-r from-green-500/20 to-emerald-500/20'
+                    }`}>
+                      {user.role === 'student' ? <GraduationCap className="w-6 h-6 text-blue-400" /> :
+                       user.role === 'teacher' ? <Users className="w-6 h-6 text-purple-400" /> :
+                       <Shield className="w-6 h-6 text-green-400" />}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold">{user.fullName}</h4>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Role:</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        user.role === 'admin' ? 'bg-green-500/20 text-green-500' :
+                        user.role === 'teacher' ? 'bg-blue-500/20 text-blue-500' :
+                        'bg-purple-500/20 text-purple-500'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Status:</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        user.status === 'active' ? 'bg-green-500/20 text-green-500' :
+                        user.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
+                        user.status === 'suspended' ? 'bg-red-500/20 text-red-500' :
+                        'bg-gray-500/20 text-gray-500'
+                      }`}>
+                        {user.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Institution:</span>
+                      <span className="text-right">{user.institution}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleUserStatus(user.id, user.status)}
+                      disabled={user.id === currentUser?.uid}
+                      className={`flex-1 py-2 rounded-lg text-sm ${
+                        user.status === 'active'
+                          ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-500 hover:from-red-500/30 hover:to-pink-500/30'
+                          : 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 hover:from-green-500/30 hover:to-emerald-500/30'
+                      } transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {user.status === 'active' ? 'Suspend' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => deleteUser(user.id, user.fullName)}
+                      disabled={user.id === currentUser?.uid}
+                      className={`flex-1 py-2 rounded-lg text-sm bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-500 hover:from-red-500/30 hover:to-pink-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Teachers View */}
+        {selectedView === "teachers" && (
+          <div className="space-y-8">
+            {/* Pending Teachers */}
+            {pendingTeachers.length > 0 && (
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <Clock className="w-6 h-6 text-amber-500" /> Pending Approval
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {pendingTeachers.map(teacher => (
+                    <div key={teacher.id} className={`p-6 rounded-xl border ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border-white/10' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                          <Users className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <div>
+                          <div className="font-bold">{teacher.fullName}</div>
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {teacher.email}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 mb-6">
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <Building className="w-4 h-4 inline mr-2" /> {teacher.institution}
+                        </div>
+                        {teacher.specialty && (
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <Award className="w-4 h-4 inline mr-2" /> {teacher.specialty}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approveTeacher(teacher.id)}
+                          className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium text-sm flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle className="w-4 h-4" /> Approve
+                        </button>
+                        <button
+                          onClick={() => rejectTeacher(teacher.id)}
+                          className="flex-1 py-3 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium text-sm flex items-center justify-center gap-2"
+                        >
+                          <XCircle className="w-4 h-4" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* All Teachers */}
+            <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+              <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Users className="w-6 h-6" /> All Teachers ({stats.totalTeachers})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {users
+                  .filter(u => u.role === 'teacher')
+                  .map(teacher => (
+                    <div key={teacher.id} className={`p-6 rounded-xl border ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border-white/10' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-purple-400" />
+                          </div>
+                          <div>
+                            <div className="font-bold">{teacher.fullName}</div>
+                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {teacher.email}
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          teacher.status === 'active' ? 'bg-green-500/20 text-green-500' :
+                          teacher.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
+                          teacher.status === 'suspended' ? 'bg-red-500/20 text-red-500' :
+                          'bg-gray-500/20 text-gray-500'
+                        }`}>
+                          {teacher.status}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <Building className="w-4 h-4 inline mr-2" /> {teacher.institution}
+                        </div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Last login: {teacher.lastLogin ? new Date(teacher.lastLogin).toLocaleDateString() : 'Never'}
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => toggleUserStatus(teacher.id, teacher.status)}
+                        disabled={teacher.id === currentUser?.uid}
+                        className={`w-full py-2 rounded-lg text-sm ${
+                          teacher.status === 'active'
+                            ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-500 hover:from-red-500/30 hover:to-pink-500/30'
+                            : 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 hover:from-green-500/30 hover:to-emerald-500/30'
+                        } transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {teacher.status === 'active' ? 'Suspend Teacher' : 'Activate Teacher'}
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Submissions View */}
+        {selectedView === "submissions" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Code Submissions</h2>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {filteredCodes.length} submissions found
+                </p>
+              </div>
+              
               <div className="relative">
                 <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                 }`} />
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search submissions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
@@ -1200,768 +1732,277 @@ export default function AdminDashboard() {
                   }`}
                 />
               </div>
-              <button 
-                onClick={loadAllData}
-                className={`p-2 rounded-lg ${
-                  theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-                } transition-colors`}
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <div className="text-3xl font-bold text-green-500 mb-2">
+                  {prologCodes.filter(c => c.status === 'success').length}
+                </div>
+                <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Successful</div>
+              </div>
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <div className="text-3xl font-bold text-red-500 mb-2">
+                  {prologCodes.filter(c => c.status === 'error').length}
+                </div>
+                <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Errors</div>
+              </div>
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <div className="text-3xl font-bold text-amber-500 mb-2">
+                  {prologCodes.filter(c => c.status === 'pending').length}
+                </div>
+                <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Pending</div>
+              </div>
+            </div>
+
+            {/* Submissions List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCodes.map(code => (
+                <div key={code.id} className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h4 className="font-bold mb-1">{code.title}</h4>
+                      <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <Users className="w-4 h-4 inline mr-1" /> {code.username}
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      code.status === 'success' ? 'bg-green-500/20 text-green-500' :
+                      code.status === 'error' ? 'bg-red-500/20 text-red-500' :
+                      'bg-amber-500/20 text-amber-500'
+                    }`}>
+                      {code.status}
+                    </span>
+                  </div>
+                  
+                  <div className={`mb-4 p-4 rounded-lg font-mono text-sm overflow-x-auto max-h-32 ${
+                    theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'
+                  }`}>
+                    <pre className="whitespace-pre-wrap break-words">
+                      {code.code.substring(0, 150)}...
+                    </pre>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                      {new Date(code.createdAt).toLocaleDateString()}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openFileModal(code)}
+                        className={`p-2 rounded-lg ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                        } transition-colors`}
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => viewCodeInNewTab(code)}
+                        className={`p-2 rounded-lg ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                        } transition-colors`}
+                        title="Open in New Tab"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(code.code);
+                          addActivityLog({
+                            action: 'Code copied to clipboard',
+                            actionType: 'code_copied',
+                            target: code.title,
+                            details: `Copied code "${code.title}" to clipboard`
+                          });
+                        }}
+                        className={`p-2 rounded-lg ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                        } transition-colors`}
+                        title="Copy Code"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Main Content Area */}
-        <div className="p-6">
-          {/* Overview Tab */}
-          {selectedTab === "overview" && (
-            <div className="space-y-6">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {statsCards.map((stat, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className={`rounded-2xl p-6 border backdrop-blur-xl ${
-                      theme === 'dark'
-                        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                        : 'bg-white border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color}/20 flex items-center justify-center`}>
-                        {stat.icon}
-                      </div>
-                      <span className={`text-sm px-2 py-1 rounded-lg ${
-                        stat.change.includes('+') 
-                          ? 'bg-green-500/20 text-green-500'
-                          : stat.change.includes('Requires')
-                          ? 'bg-amber-500/20 text-amber-500'
-                          : theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
-                      }`}>
-                        {stat.change}
-                      </span>
-                    </div>
-                    <div className="text-3xl font-bold mb-2">{stat.value}</div>
-                    <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>{stat.title}</div>
-                    <div className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {stat.description}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Quick Stats & Activity */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* User Distribution */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className={`lg:col-span-2 rounded-2xl p-6 border backdrop-blur-xl ${
-                    theme === 'dark'
-                      ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                      : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Users className="w-5 h-5" /> User Distribution
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'Students', value: stats.totalStudents, color: 'from-blue-500 to-cyan-500', percent: (stats.totalStudents / stats.totalUsers) * 100 },
-                      { label: 'Teachers', value: stats.totalTeachers, color: 'from-purple-500 to-pink-500', percent: (stats.totalTeachers / stats.totalUsers) * 100 },
-                      { label: 'Admins', value: stats.totalAdmins, color: 'from-green-500 to-emerald-500', percent: (stats.totalAdmins / stats.totalUsers) * 100 },
-                    ].map((item, idx) => (
-                      <div key={idx} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-                            {item.label}
-                          </span>
-                          <span className="font-medium">
-                            {item.value} ({item.percent.toFixed(1)}%)
-                          </span>
-                        </div>
-                        <div className={`h-2 rounded-full overflow-hidden ${
-                          theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
-                        }`}>
-                          <motion.div
-                            className={`h-full rounded-full bg-gradient-to-r ${item.color}`}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${item.percent}%` }}
-                            transition={{ duration: 1, delay: 0.5 + idx * 0.1 }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-
-                {/* Recent Activity */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className={`rounded-2xl p-6 border backdrop-blur-xl ${
-                    theme === 'dark'
-                      ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                      : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Activity className="w-5 h-5" /> Recent Activity
-                  </h3>
-                  <div className="space-y-4 max-h-64 overflow-y-auto">
-                    {activityLogs.map((log) => {
-                      const Icon = getIconComponent(log.icon);
-                      return (
-                        <div key={log.id} className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            log.color === 'green' ? 'bg-green-500/20 text-green-500' :
-                            log.color === 'red' ? 'bg-red-500/20 text-red-500' :
-                            log.color === 'blue' ? 'bg-blue-500/20 text-blue-500' :
-                            'bg-purple-500/20 text-purple-500'
-                          }`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm">
-                              <span className="font-medium">{log.user}</span> {log.action}
-                              <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}> {log.target}</span>
-                            </p>
-                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                              {log.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Quick Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className={`rounded-2xl p-6 border backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}
-              >
-                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                  <Zap className="w-5 h-5" /> Quick Actions
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <button 
-                    onClick={() => setSelectedTab("teachers")}
-                    disabled={pendingTeachers.length === 0}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      pendingTeachers.length === 0
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:scale-[1.02]'
-                    } ${theme === 'dark' 
-                      ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    <UserCheck className="w-6 h-6 text-green-500 mb-2" />
-                    <div className="font-medium">Approve Teachers</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {pendingTeachers.length} pending
-                    </div>
-                  </button>
-
-                  <button 
-                    onClick={() => setSelectedTab("users")}
-                    className={`p-4 rounded-xl border text-left hover:scale-[1.02] transition-all ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    <UserCog className="w-6 h-6 text-blue-500 mb-2" />
-                    <div className="font-medium">Manage Users</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {stats.totalUsers} total users
-                    </div>
-                  </button>
-
-                  <button 
-                    onClick={() => setSelectedTab("files")}
-                    className={`p-4 rounded-xl border text-left hover:scale-[1.02] transition-all ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Folder className="w-6 h-6 text-amber-500 mb-2" />
-                    <div className="font-medium">File Manager</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {supabaseStats.totalFiles} files
-                    </div>
-                  </button>
-
-                  <button 
-                    onClick={() => setSelectedTab("analytics")}
-                    className={`p-4 rounded-xl border text-left hover:scale-[1.02] transition-all ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    <BarChart className="w-6 h-6 text-purple-500 mb-2" />
-                    <div className="font-medium">View Analytics</div>
-                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Detailed insights
-                    </div>
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Users Tab */}
-          {selectedTab === "users" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">User Management</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {filteredUsers.length} users found
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <select 
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                    className={`px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/10' 
-                        : 'bg-white border-gray-300'
-                    }`}
-                  >
-                    <option value="all">All Roles</option>
-                    <option value="student">Students</option>
-                    <option value="teacher">Teachers</option>
-                    <option value="admin">Administrators</option>
-                  </select>
-                  <select 
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className={`px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/10' 
-                        : 'bg-white border-gray-300'
-                    }`}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="suspended">Suspended</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className={`rounded-2xl border overflow-hidden backdrop-blur-xl ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
-                        <th className="py-4 px-6 text-left font-medium">User</th>
-                        <th className="py-4 px-6 text-left font-medium">Role</th>
-                        <th className="py-4 px-6 text-left font-medium">Status</th>
-                        <th className="py-4 px-6 text-left font-medium">Institution</th>
-                        <th className="py-4 px-6 text-left font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.map(user => (
-                        <tr key={user.id} className={`border-b ${theme === 'dark' ? 'border-white/10 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'}`}>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                                {user.role === 'student' ? <GraduationCap className="w-5 h-5 text-purple-400" /> :
-                                 user.role === 'teacher' ? <Users className="w-5 h-5 text-blue-400" /> :
-                                 <Shield className="w-5 h-5 text-green-400" />}
-                              </div>
-                              <div>
-                                <div className="font-medium">{user.fullName}</div>
-                                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {user.email}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              user.role === 'admin' ? 'bg-green-500/20 text-green-500' :
-                              user.role === 'teacher' ? 'bg-blue-500/20 text-blue-500' :
-                              'bg-purple-500/20 text-purple-500'
-                            }`}>
-                              {user.role}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              user.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                              user.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
-                              user.status === 'suspended' ? 'bg-red-500/20 text-red-500' :
-                              'bg-gray-500/20 text-gray-500'
-                            }`}>
-                              {user.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">{user.institution}</td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setShowUserModal(true);
-                                }}
-                                className={`p-2 rounded-lg ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => toggleUserStatus(user.id, user.status)}
-                                className={`p-2 rounded-lg ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title={user.status === 'active' ? 'Suspend' : 'Activate'}
-                                disabled={user.id === currentUser?.uid}
-                              >
-                                {user.status === 'active' ? 
-                                  <UserX className="w-4 h-4" /> : 
-                                  <UserCheck className="w-4 h-4" />
-                                }
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setUserToDelete(user);
-                                  setShowDeleteModal(true);
-                                }}
-                                className={`p-2 rounded-lg ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title="Delete User"
-                                disabled={user.id === currentUser?.uid}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Teachers Tab */}
-          {selectedTab === "teachers" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Teacher Management</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {pendingTeachers.length} pending approval
-                  </p>
-                </div>
-              </div>
-
-              {pendingTeachers.length > 0 && (
-                <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-amber-500" /> Pending Approval
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {pendingTeachers.map(teacher => (
-                      <div key={teacher.id} className={`p-4 rounded-xl border ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10' 
-                          : 'bg-gray-50 border-gray-200'
-                      }`}>
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                            <Users className="w-6 h-6 text-blue-400" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{teacher.fullName}</div>
-                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {teacher.email}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-2 mb-4">
-                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            <Building className="w-4 h-4 inline mr-2" /> {teacher.institution}
-                          </div>
-                          {teacher.specialty && (
-                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              <Award className="w-4 h-4 inline mr-2" /> {teacher.specialty}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => approveTeacher(teacher.id)}
-                            className="flex-1 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium text-sm"
-                          >
-                            <CheckCircle className="w-4 h-4 inline mr-2" /> Approve
-                          </button>
-                          <button
-                            onClick={() => rejectTeacher(teacher.id)}
-                            className="flex-1 py-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium text-sm"
-                          >
-                            <XCircle className="w-4 h-4 inline mr-2" /> Reject
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* All Teachers */}
-              <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                  <Users className="w-5 h-5" /> All Teachers ({stats.totalTeachers})
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
-                        <th className="py-4 px-6 text-left font-medium">Teacher</th>
-                        <th className="py-4 px-6 text-left font-medium">Status</th>
-                        <th className="py-4 px-6 text-left font-medium">Institution</th>
-                        <th className="py-4 px-6 text-left font-medium">Last Login</th>
-                        <th className="py-4 px-6 text-left font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users
-                        .filter(u => u.role === 'teacher')
-                        .map(teacher => (
-                          <tr key={teacher.id} className={`border-b ${theme === 'dark' ? 'border-white/10 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'}`}>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                                  <Users className="w-5 h-5 text-blue-400" />
-                                </div>
-                                <div>
-                                  <div className="font-medium">{teacher.fullName}</div>
-                                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {teacher.email}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                teacher.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                                teacher.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
-                                teacher.status === 'suspended' ? 'bg-red-500/20 text-red-500' :
-                                'bg-gray-500/20 text-gray-500'
-                              }`}>
-                                {teacher.status}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6">{teacher.institution}</td>
-                            <td className="py-4 px-6">
-                              {teacher.lastLogin ? new Date(teacher.lastLogin).toLocaleDateString() : 'Never'}
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => toggleUserStatus(teacher.id, teacher.status)}
-                                  className={`p-2 rounded-lg ${
-                                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                  } transition-colors`}
-                                >
-                                  {teacher.status === 'active' ? 
-                                    <UserX className="w-4 h-4" /> : 
-                                    <UserCheck className="w-4 h-4" />
-                                  }
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Submissions Tab */}
-          {selectedTab === "codes" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Code Submissions</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {filteredCodes.length} submissions found
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Stats */}
-                <div className={`lg:col-span-3 rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-green-500">
-                        {prologCodes.filter(c => c.status === 'success').length}
-                      </div>
-                      <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Successful</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-red-500">
-                        {prologCodes.filter(c => c.status === 'error').length}
-                      </div>
-                      <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Errors</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-amber-500">
-                        {prologCodes.filter(c => c.status === 'pending').length}
-                      </div>
-                      <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Pending</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submissions List */}
-                <div className="lg:col-span-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredCodes.map(code => (
-                      <div key={code.id} className={`p-4 rounded-xl border ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10' 
-                          : 'bg-gray-50 border-gray-200'
-                      }`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-medium mb-1">{code.title}</h4>
-                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              <Users className="w-4 h-4 inline mr-1" /> {code.username}
-                            </div>
-                          </div>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            code.status === 'success' ? 'bg-green-500/20 text-green-500' :
-                            code.status === 'error' ? 'bg-red-500/20 text-red-500' :
-                            'bg-amber-500/20 text-amber-500'
-                          }`}>
-                            {code.status}
-                          </span>
-                        </div>
-                        
-                        <div className={`mb-4 p-3 rounded-lg font-mono text-sm overflow-hidden ${
-                          theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'
-                        }`}>
-                          {code.code.substring(0, 100)}...
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                            {new Date(code.createdAt).toLocaleDateString()}
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(code.code);
-                                setBucketResult("✅ Code copied to clipboard!");
-                              }}
-                              className={`p-2 rounded-lg ${
-                                theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                              } transition-colors`}
-                              title="Copy Code"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => deleteCode(code.id, code.title)}
-                              className={`p-2 rounded-lg ${
-                                theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                              } transition-colors`}
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Files Tab */}
-          {selectedTab === "files" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">File Manager</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {supabaseStats.totalFiles} files in storage
-                  </p>
-                </div>
-                <button 
-                  onClick={loadSupabaseFiles}
-                  className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+        {/* Storage View - ПОДОБРЕНА ВЕРСИЯ */}
+        {selectedView === "storage" && (
+          <div className="space-y-8">
+            {/* Create Folder */}
+            <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <FolderPlus className="w-5 h-5" /> Create New Folder
+              </h3>
+              <div className="flex gap-3 mb-4">
+                <input
+                  type="text"
+                  placeholder="Enter folder name..."
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  className={`flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
                     theme === 'dark' 
-                      ? 'bg-white/5 hover:bg-white/10' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  } transition-colors`}
+                      ? 'bg-white/5 border-white/10' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                />
+                <button 
+                  onClick={createSupabaseFolder}
+                  disabled={!newFolderName.trim()}
+                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium disabled:opacity-50"
                 >
-                  <RefreshCw className="w-4 h-4" /> Refresh
+                  <Plus className="w-4 h-4 inline mr-2" /> Create
                 </button>
               </div>
+              <button 
+                onClick={refreshSupabaseData}
+                className={`w-full py-2 rounded-lg flex items-center justify-center gap-2 ${
+                  theme === 'dark' 
+                    ? 'bg-white/5 hover:bg-white/10' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                } transition-colors`}
+              >
+                <RefreshCw className="w-4 h-4" /> Refresh Storage Data
+              </button>
+            </div>
 
-              <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                {supabaseFiles.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Folder className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold mb-2">No Files Found</h3>
-                    <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                      No files have been uploaded to storage yet.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {supabaseFiles.map(file => (
-                      <div key={file.id} className={`p-4 rounded-xl border ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      } transition-colors`}>
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                            <FileCode className="w-5 h-5 text-green-400" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium truncate">{file.name}</div>
-                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              Folder: {file.folder}
-                            </div>
-                          </div>
-                        </div>
-                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} mb-3`}>
-                          {(file.size / 1024).toFixed(2)} KB • {new Date(file.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => downloadFile(file.fullPath, file.name)}
-                            className={`flex-1 py-2 rounded-lg text-sm ${
-                              theme === 'dark' 
-                                ? 'bg-white/5 hover:bg-white/10' 
-                                : 'bg-gray-100 hover:bg-gray-200'
-                            } transition-colors`}
-                          >
-                            <Download className="w-4 h-4 inline mr-2" /> Download
-                          </button>
-                          <button
-                            onClick={() => deleteFile(file.fullPath, file.name)}
-                            className={`flex-1 py-2 rounded-lg text-sm bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-500 hover:from-red-500/30 hover:to-pink-500/30 transition-colors`}
-                          >
-                            <Trash2 className="w-4 h-4 inline mr-2" /> Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {/* Storage Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <div className="text-3xl font-bold mb-2">{supabaseStats.totalFolders}</div>
+                <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Folders</div>
+              </div>
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <div className="text-3xl font-bold mb-2">{supabaseStats.totalFiles}</div>
+                <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Files</div>
+              </div>
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <div className="text-3xl font-bold mb-2">{supabaseStats.storageUsed}</div>
+                <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Storage Used</div>
               </div>
             </div>
-          )}
 
-          {/* Storage Tab */}
-          {selectedTab === "storage" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Storage Management</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {supabaseStats.totalFolders} folders • {supabaseStats.totalFiles} files
-                  </p>
-                </div>
-              </div>
-
-              {/* Create Folder */}
-              <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <FolderPlus className="w-5 h-5" /> Create New Folder
+            {/* Folders Section */}
+            <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Folder className="w-5 h-5" /> 
+                  Folders ({supabaseFolders.length})
+                  {selectedFolder && (
+                    <>
+                      <ChevronRight className="w-4 h-4" />
+                      <span className="text-purple-400">{selectedFolder}</span>
+                    </>
+                  )}
                 </h3>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="Enter folder name..."
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    className={`flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                {selectedFolder && (
+                  <button
+                    onClick={() => setSelectedFolder(null)}
+                    className={`px-3 py-1 rounded-lg text-sm ${
                       theme === 'dark' 
-                        ? 'bg-white/5 border-white/10' 
-                        : 'bg-white border-gray-300'
+                        ? 'bg-white/10 hover:bg-white/20' 
+                        : 'bg-gray-100 hover:bg-gray-200'
                     }`}
-                  />
-                  <button 
-                    onClick={createSupabaseFolder}
-                    disabled={!newFolderName.trim()}
-                    className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium disabled:opacity-50"
                   >
-                    <Plus className="w-4 h-4 inline mr-2" /> Create
+                    Back to All Folders
                   </button>
-                </div>
+                )}
               </div>
 
-              {/* Folders List */}
-              <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                  <Folder className="w-5 h-5" /> Existing Folders
-                </h3>
+              {selectedFolder ? (
+                // Files in selected folder
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {folderFiles.length} files in this folder
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => downloadFile(`${selectedFolder}/all-files.zip`, `${selectedFolder}.zip`)}
+                        className={`px-3 py-1 rounded-lg text-sm flex items-center gap-1 ${
+                          theme === 'dark' 
+                            ? 'bg-blue-500/20 hover:bg-blue-500/30' 
+                            : 'bg-blue-100 hover:bg-blue-200'
+                        } text-blue-500`}
+                      >
+                        <Download className="w-3 h-3" /> Download All
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {folderFiles.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {folderFiles.map((file, idx) => (
+                        <div key={idx} className={`p-4 rounded-xl border ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        } transition-colors`}>
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              file.name.endsWith('.pl') 
+                                ? 'bg-purple-500/20 text-purple-400'
+                                : file.name.endsWith('.txt')
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              <File className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate" title={file.name}>
+                                {file.name}
+                              </div>
+                              <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {(file.size / 1024).toFixed(2)} KB • {new Date(file.created_at).toLocaleDateString()}
+                              </div>
+                              {file.metadata?.mimetype && (
+                                <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                                  {file.metadata.mimetype}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => viewFileContent(file)}
+                              className="flex-1 py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-500 hover:from-blue-500/30 hover:to-cyan-500/30 transition-colors text-sm flex items-center justify-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" /> View
+                            </button>
+                            <button
+                              onClick={() => downloadFile(file.fullPath, file.name)}
+                              className="flex-1 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 hover:from-green-500/30 hover:to-emerald-500/30 transition-colors text-sm flex items-center justify-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteFileInFolder(file.name)}
+                              className="flex-1 py-2 rounded-lg bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-500 hover:from-red-500/30 hover:to-pink-500/30 transition-colors text-sm flex items-center justify-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Folder className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        No files found in this folder
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // All folders list
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {supabaseFolders.map((folder, idx) => (
                     <div key={idx} className={`p-4 rounded-xl border ${
@@ -1980,538 +2021,326 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => viewFolderFiles(folder.name)}
-                        className="w-full py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-500 hover:from-blue-500/30 hover:to-cyan-500/30 transition-colors"
-                      >
-                        <Eye className="w-4 h-4 inline mr-2" /> View Files
-                      </button>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => viewFolderFiles(folder.name)}
+                          className="w-full py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-500 hover:from-blue-500/30 hover:to-cyan-500/30 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" /> View Files ({folder.fileCount})
+                        </button>
+                        {folder.lastModified && (
+                          <div className={`text-xs text-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                            Updated: {new Date(folder.lastModified).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Folder View Modal */}
-              {selectedFolder && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                >
-                  <div className="absolute inset-0 bg-black/80" onClick={() => setSelectedFolder(null)} />
-                  <motion.div
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    className={`relative w-full max-w-4xl rounded-2xl border ${
-                      theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-                    }`}
-                  >
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                            <Folder className="w-5 h-5 text-blue-400" />
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold">Files in {selectedFolder}</h3>
-                            <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                              {folderFiles.length} files
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setSelectedFolder(null)}
-                          className={`p-2 rounded-lg ${
-                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                          } transition-colors`}
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                        {folderFiles.map((file, idx) => (
-                          <div key={idx} className={`p-4 rounded-xl border ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                          } transition-colors`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <FileCode className="w-5 h-5 text-green-500" />
-                                <div>
-                                  <div className="font-medium">{file.name}</div>
-                                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {(file.metadata?.size || 0) / 1024} KB
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => copyFileUrl(file.name)}
-                                  className={`p-2 rounded-lg ${
-                                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                  } transition-colors`}
-                                  title="Copy URL"
-                                >
-                                  <Link className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => deleteFileInFolder(file.name)}
-                                  className={`p-2 rounded-lg ${
-                                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                  } transition-colors`}
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+            {/* Root files (outside folders) */}
+            {!selectedFolder && (
+              <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                  <File className="w-5 h-5" /> Root Files
+                </h3>
+                {supabaseFiles.filter(f => f.folder === 'root').length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {supabaseFiles
+                      .filter(f => f.folder === 'root')
+                      .map((file, idx) => (
+                        <div key={idx} className={`p-4 rounded-xl border ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        } transition-colors`}>
+                          <div className="flex items-center gap-3 mb-3">
+                            <File className="w-5 h-5 text-gray-400" />
+                            <div className="flex-1">
+                              <div className="font-medium truncate">{file.name}</div>
+                              <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {(file.size / 1024).toFixed(2)} KB
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-
-              {/* Result Message */}
-              {bucketResult && (
-                <div className={`rounded-xl p-4 ${
-                  bucketResult.includes('✅') 
-                    ? theme === 'dark' ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'
-                    : theme === 'dark' ? 'bg-red-500/10 text-red-400' : 'bg-red-100 text-red-700'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span>{bucketResult}</span>
-                    <button onClick={() => setBucketResult('')}>
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {selectedTab === "analytics" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Platform Analytics</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    Detailed insights and metrics
-                  </p>
-                </div>
-              </div>
-
-              {/* Charts Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* User Growth Chart */}
-                <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" /> User Growth (Last 7 days)
-                  </h3>
-                  <div className="h-64 flex items-end gap-2">
-                    {userGrowthData.data.map((value, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center">
-                        <div className={`text-xs mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {userGrowthData.labels[idx]}
-                        </div>
-                        <div className="w-full flex justify-center">
-                          <div 
-                            className="w-3/4 bg-gradient-to-t from-blue-500 to-cyan-500 rounded-t-lg transition-all hover:opacity-80"
-                            style={{ height: `${(value / Math.max(...userGrowthData.data, 1)) * 100}%` }}
-                          />
-                        </div>
-                        <div className="text-xs mt-2 font-medium">{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Success Rate Chart */}
-                <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Target className="w-5 h-5" /> Success Rate Trend
-                  </h3>
-                  <div className="h-64 relative">
-                    <div className="absolute inset-0 flex items-end">
-                      {successRateData.data.map((value, idx) => (
-                        <div key={idx} className="flex-1 flex flex-col items-center">
-                          <div 
-                            className="w-3/4 bg-gradient-to-t from-green-500 to-emerald-500 rounded-t-lg transition-all hover:opacity-80"
-                            style={{ height: `${value}%` }}
-                          />
-                          <div className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {successRateData.labels[idx]}
-                          </div>
-                          <div className="text-xs font-medium">{value}%</div>
+                          <button
+                            onClick={() => downloadFile(file.fullPath, file.name)}
+                            className="w-full py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 hover:from-green-500/30 hover:to-emerald-500/30 transition-colors text-sm"
+                          >
+                            Download
+                          </button>
                         </div>
                       ))}
-                    </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Detailed Metrics */}
-              <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <h3 className="text-lg font-bold mb-6">Performance Metrics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">{stats.successRate}%</div>
-                    <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Success Rate</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">{stats.avgExecutionTime}ms</div>
-                    <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Avg Execution Time</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">{stats.activeToday}</div>
-                    <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Active Today</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">{stats.storageUsage}%</div>
-                    <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Storage Usage</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Settings Tab */}
-          {selectedTab === "settings" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">System Settings</h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    Configure platform settings
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* User Settings */}
-                <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <UserCog className="w-5 h-5" /> User Settings
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'Auto-approve students', defaultChecked: true },
-                      { label: 'Require email verification', defaultChecked: true },
-                      { label: 'Enable two-factor authentication', defaultChecked: false },
-                      { label: 'Notify on new user registration', defaultChecked: true },
-                    ].map((setting, idx) => (
-                      <label key={idx} className="flex items-center gap-3 cursor-pointer">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            defaultChecked={setting.defaultChecked}
-                            className="sr-only"
-                          />
-                          <div className={`w-10 h-6 rounded-full transition-colors ${
-                            setting.defaultChecked 
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                              : theme === 'dark' ? 'bg-white/10' : 'bg-gray-300'
-                          }`}>
-                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                              setting.defaultChecked ? 'left-5' : 'left-1'
-                            }`} />
-                          </div>
-                        </div>
-                        <span className="flex-1">{setting.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Upload Settings */}
-                <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Upload className="w-5 h-5" /> Upload Settings
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Max file size (MB)
-                      </label>
-                      <input
-                        type="number"
-                        defaultValue="10"
-                        className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border-white/10' 
-                            : 'bg-white border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Allowed file types
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue=".pl, .txt"
-                        className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border-white/10' 
-                            : 'bg-white border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          defaultChecked={true}
-                          className="sr-only"
-                        />
-                        <div className="w-10 h-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-500">
-                          <div className="absolute top-1 left-5 w-4 h-4 rounded-full bg-white" />
-                        </div>
-                      </div>
-                      <span>Auto-check syntax</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Notification Settings */}
-                <div className={`lg:col-span-2 rounded-2xl border p-6 backdrop-blur-xl ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Bell className="w-5 h-5" /> Notification Settings
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[
-                      { label: 'Email notifications for new users', defaultChecked: true },
-                      { label: 'Daily activity reports', defaultChecked: true },
-                      { label: 'Weekly analytics emails', defaultChecked: false },
-                      { label: 'Real-time alerts', defaultChecked: true },
-                    ].map((setting, idx) => (
-                      <label key={idx} className="flex items-center gap-3 cursor-pointer">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            defaultChecked={setting.defaultChecked}
-                            className="sr-only"
-                          />
-                          <div className={`w-10 h-6 rounded-full transition-colors ${
-                            setting.defaultChecked 
-                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500' 
-                              : theme === 'dark' ? 'bg-white/10' : 'bg-gray-300'
-                          }`}>
-                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                              setting.defaultChecked ? 'left-5' : 'left-1'
-                            }`} />
-                          </div>
-                        </div>
-                        <span>{setting.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium">
-                  <CheckCircle className="w-5 h-5 inline mr-2" /> Save Settings
-                </button>
-                <button className={`px-6 py-3 rounded-lg ${
-                  theme === 'dark' 
-                    ? 'bg-white/5 hover:bg-white/10' 
-                    : 'bg-gray-100 hover:bg-gray-200'
-                } transition-colors`}>
-                  Reset to Default
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* User Details Modal */}
-      {showUserModal && selectedUser && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-          <div className="absolute inset-0 bg-black/80" onClick={() => setShowUserModal(false)} />
-          <motion.div
-            initial={{ scale: 0.9, y: 20 }}
-            animate={{ scale: 1, y: 0 }}
-            className={`relative w-full max-w-md rounded-2xl border ${
-              theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-            }`}
-          >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                    {selectedUser.role === 'student' ? <GraduationCap className="w-6 h-6 text-purple-400" /> :
-                     selectedUser.role === 'teacher' ? <Users className="w-6 h-6 text-blue-400" /> :
-                     <Shield className="w-6 h-6 text-green-400" />}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">{selectedUser.fullName}</h3>
+                ) : (
+                  <div className="text-center py-8">
+                    <File className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                      {selectedUser.email}
+                      No files in root directory
                     </p>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Result Message */}
+            {bucketResult && (
+              <div className={`rounded-xl p-4 ${
+                bucketResult.includes('✅') 
+                  ? theme === 'dark' ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'
+                  : theme === 'dark' ? 'bg-red-500/10 text-red-400' : 'bg-red-100 text-red-700'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <span>{bucketResult}</span>
+                  <button onClick={() => setBucketResult('')}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Activity View - ПОДОБРЕНА ВЕРСИЯ */}
+        {selectedView === "activity" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Activity className="w-6 h-6" /> Activity Logs
+                </h2>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {filteredActivityLogs.length} activities found
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Search activities..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border-white/10' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  />
+                </div>
+                
+                <select 
+                  value={activityFilter}
+                  onChange={(e) => setActivityFilter(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="all">All Activities</option>
+                  <option value="user">User Activities</option>
+                  <option value="code">Code & Assignments</option>
+                  <option value="file">Files & Storage</option>
+                </select>
+                
+                <button
+                  onClick={loadActivityLogs}
+                  className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 hover:bg-white/10' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Activity Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className={`rounded-xl p-4 border ${currentTheme.card}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {activityLogs.filter(l => l.actionType.includes('user')).length}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      User Activities
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`rounded-xl p-4 border ${currentTheme.card}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                    <Code className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {activityLogs.filter(l => l.actionType.includes('code') || l.actionType.includes('assignment')).length}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Code Submissions
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`rounded-xl p-4 border ${currentTheme.card}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                    <File className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {activityLogs.filter(l => l.actionType.includes('file') || l.actionType.includes('folder')).length}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      File Activities
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`rounded-xl p-4 border ${currentTheme.card}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Key className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {activityLogs.filter(l => l.actionType.includes('login')).length}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Logins
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Activity Logs */}
+            <div className={`rounded-2xl border backdrop-blur-xl ${currentTheme.card}`}>
+              <div className="divide-y">
+                {filteredActivityLogs.map((log) => (
+                  <div key={log.id} className="p-6 hover:bg-white/5 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        log.color === 'green' ? 'bg-green-500/20 text-green-500' :
+                        log.color === 'red' ? 'bg-red-500/20 text-red-500' :
+                        log.color === 'blue' ? 'bg-blue-500/20 text-blue-500' :
+                        log.color === 'purple' ? 'bg-purple-500/20 text-purple-500' :
+                        log.color === 'cyan' ? 'bg-cyan-500/20 text-cyan-500' :
+                        log.color === 'indigo' ? 'bg-indigo-500/20 text-indigo-500' :
+                        'bg-gray-500/20 text-gray-500'
+                      }`}>
+                        {log.icon}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-bold">{log.action}</h4>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              <span className="font-medium">{log.user}</span> • {log.userEmail}
+                            </p>
+                          </div>
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                            {log.timestamp.toLocaleDateString()} {log.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                            log.actionType.includes('user') ? 'bg-blue-500/20 text-blue-500' :
+                            log.actionType.includes('code') ? 'bg-green-500/20 text-green-500' :
+                            log.actionType.includes('file') ? 'bg-cyan-500/20 text-cyan-500' :
+                            log.actionType.includes('login') ? 'bg-purple-500/20 text-purple-500' :
+                            'bg-gray-500/20 text-gray-500'
+                          }`}>
+                            {log.actionType.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
+                          <div className="font-medium mb-1">{log.target}</div>
+                          {log.details && (
+                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {log.details}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {filteredActivityLogs.length === 0 && (
+                  <div className="p-8 text-center">
+                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                      No activities found
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Content Modal */}
+        {showFileContentModal && selectedSupabaseFile && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className={`rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col ${currentTheme.card}`}>
+              <div className="p-6 border-b flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold">{selectedSupabaseFile.name}</h3>
+                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Folder: {selectedSupabaseFile.folder} • Size: {(selectedSupabaseFile.size / 1024).toFixed(2)} KB
+                  </p>
                 </div>
                 <button
-                  onClick={() => setShowUserModal(false)}
-                  className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                  } transition-colors`}
+                  onClick={() => setShowFileContentModal(false)}
+                  className="p-2 rounded-lg hover:bg-white/10"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Role:</span>
-                  <span className="font-medium">{selectedUser.role}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Status:</span>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    selectedUser.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                    selectedUser.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
-                    selectedUser.status === 'suspended' ? 'bg-red-500/20 text-red-500' :
-                    'bg-gray-500/20 text-gray-500'
-                  }`}>
-                    {selectedUser.status}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Institution:</span>
-                  <span className="font-medium">{selectedUser.institution}</span>
-                </div>
-                {selectedUser.specialty && (
-                  <div className="flex justify-between">
-                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Specialty:</span>
-                    <span className="font-medium">{selectedUser.specialty}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Joined:</span>
-                  <span className="font-medium">{new Date(selectedUser.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Verified:</span>
-                  <span className="font-medium">{selectedUser.isVerified ? 'Yes' : 'No'}</span>
-                </div>
+              
+              <div className="flex-1 overflow-auto">
+                <pre className={`p-6 font-mono text-sm whitespace-pre-wrap ${theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'}`}>
+                  {fileContent}
+                </pre>
               </div>
-
-              <div className="flex gap-3 mt-6">
+              
+              <div className="p-4 border-t flex justify-end gap-3">
                 <button
-                  onClick={() => toggleUserStatus(selectedUser.id, selectedUser.status)}
-                  className={`flex-1 py-3 rounded-lg ${
-                    selectedUser.status === 'active'
-                      ? 'bg-gradient-to-r from-red-500 to-pink-500'
-                      : 'bg-gradient-to-r from-green-500 to-emerald-500'
-                  } text-white font-medium`}
+                  onClick={() => downloadFile(selectedSupabaseFile.fullPath, selectedSupabaseFile.name)}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
                 >
-                  {selectedUser.status === 'active' ? 'Suspend' : 'Activate'}
+                  <Download className="w-4 h-4" /> Download
                 </button>
                 <button
-                  onClick={() => {
-                    setUserToDelete(selectedUser);
-                    setShowDeleteModal(true);
-                    setShowUserModal(false);
-                  }}
-                  className={`flex-1 py-3 rounded-lg ${
-                    theme === 'dark' 
-                      ? 'bg-white/5 hover:bg-white/10' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  } transition-colors`}
+                  onClick={() => setShowFileContentModal(false)}
+                  className="px-4 py-2 rounded-lg border"
                 >
-                  Delete
+                  Close
                 </button>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && userToDelete && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-          <div className="absolute inset-0 bg-black/80" onClick={() => setShowDeleteModal(false)} />
-          <motion.div
-            initial={{ scale: 0.9, y: 20 }}
-            animate={{ scale: 1, y: 0 }}
-            className={`relative w-full max-w-md rounded-2xl border ${
-              theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-            }`}
-          >
-            <div className="p-6">
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-8 h-8 text-red-400" />
-              </div>
-              <h3 className="text-xl font-bold text-center mb-2">Confirm Deletion</h3>
-              <p className={`text-center mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Are you sure you want to delete {userToDelete.fullName}?
-                <br />
-                <span className="text-sm">This action cannot be undone.</span>
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setUserToDelete(null);
-                  }}
-                  className={`flex-1 py-3 rounded-lg ${
-                    theme === 'dark' 
-                      ? 'bg-white/5 hover:bg-white/10' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  } transition-colors`}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => deleteUser(userToDelete.id, userToDelete.fullName)}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

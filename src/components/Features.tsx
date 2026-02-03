@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom'; // Добавен import
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { Database, Search, ArrowRight, Users, BookOpen } from 'lucide-react';
 
 const Features = () => {
   const { t } = useLanguage();
-  const navigate = useNavigate(); // Добавено
+  const navigate = useNavigate();
 
   return (
     <motion.div
@@ -45,28 +45,6 @@ const Features = () => {
               {t('create_knowledge_desc') || 'Създайте структурирани бази знания от вашите учебни материали и организирайте информацията за вашите класове.'}
             </p>
             
-            {/* Преимущества */}
-            <div className="space-y-3 mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                <span className="text-gray-300 text-left">
-                  {t('create_feature_1') || 'Структуриране на учебни материали'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                <span className="text-gray-300 text-left">
-                  {t('create_feature_2') || 'Семантични връзки между концепции'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                <span className="text-gray-300 text-left">
-                  {t('create_feature_3') || 'Категоризация и тагове'}
-                </span>
-              </div>
-            </div>
-            
             {/* Бутон */}
             <motion.button
               onClick={() => navigate('/prolog-guide')} // Променено на navigate
@@ -103,28 +81,6 @@ const Features = () => {
             <p className="text-gray-300 mb-6 text-lg">
               {t('use_knowledge_desc') || 'Търсете и използвайте вече създадени бази знания за вашите образователни проекти и изследвания.'}
             </p>
-            
-            {/* Преимущества */}
-            <div className="space-y-3 mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                <span className="text-gray-300 text-left">
-                  {t('use_feature_1') || 'Бързо търсене в базите знания'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                <span className="text-gray-300 text-left">
-                  {t('use_feature_2') || 'Персонализирани препоръки'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                <span className="text-gray-300 text-left">
-                  {t('use_feature_3') || 'Достъп до общността знания'}
-                </span>
-              </div>
-            </div>
             
             {/* Бутон - оправен */}
             <motion.button
