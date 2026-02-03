@@ -23,7 +23,7 @@ import AboutUs from './components/AboutUs';
 
 
 const teamPhotos = {
-  pic1: '/public/images/Picture1.png',
+  pic1: '/images/Picture1.png',
   pic2: '/images/Picture2.png', 
   pic3: '/images/Picture4.png'
 };

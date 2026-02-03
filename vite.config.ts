@@ -1,10 +1,10 @@
-// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
   css: {
-    postcss: './postcss.config.js', // Явно задай PostCSS конфигурацията
+    postcss: './postcss.config.js',
   },
+  base: '/', 
 })
