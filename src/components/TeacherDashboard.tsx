@@ -8,7 +8,7 @@ import {
   BookOpen, Calendar,
   CheckCircle, Upload, FileCode, FileText,
   Folder, Search, Download, Eye,
-  Edit, Trash2, Star, MoreVertical,
+  Edit, Trash2, Star, 
   GraduationCap, FolderOpen,
   Plus, RefreshCw, FileUp,
   FileTextIcon,
@@ -52,6 +52,7 @@ import {
 } from "firebase/firestore";
 import { supabase } from "../services/supabase";
 import MessagesTab from "../components/MessagesTab";
+import AssignmentGradingModal from "./AssignmentGradingModal";
 
 // Интерфейс за решение на предизвикателство
 interface ChallengeSubmission {
@@ -355,6 +356,274 @@ export default function TeacherDashboard() {
   const [selectedPoints, setSelectedPoints] = useState<{[key: string]: number}>({});
   const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
   const [editingStudent, setEditingStudent] = useState<string | null>(null);
+console.log(selectedPoints, feedbackText, editingStudent, setEditingStudent )
+  // В началото на компонента, след state променливите
+const [gradingModal, setGradingModal] = useState<{
+  isOpen: boolean;
+  studentName: string;
+  studentId: string;
+  files: StudentFile[];
+  assignmentId?: string;
+}>({
+  isOpen: false,
+  studentName: '',
+  studentId: '',
+  files: [],
+  assignmentId: undefined
+});
+
+// Нова функция за запазване на оценката
+const handleSaveGrade = async (gradingData: {
+  points: number;
+  feedback: string;
+  assignmentId: string;
+  fileId: string;
+  studentId: string;
+}): Promise<void> => {  // Промяна тук: добави : Promise<void>
+  try {
+    console.log("Saving grade...", gradingData);
+
+    // 🔥 1. ВИНАГИ използвай serverTimestamp()
+    const serverTime = serverTimestamp();
+
+    // Намираме информация за файла и студента
+    const fileDoc = await getDoc(doc(db, "prologCodes", gradingData.fileId));
+    const fileData = fileDoc.exists() ? fileDoc.data() : null;
+    
+    const studentDoc = await getDoc(doc(db, "users", gradingData.studentId));
+    const studentData = studentDoc.exists() ? studentDoc.data() : null;
+    
+    const assignmentDoc = await getDoc(doc(db, "assignments", gradingData.assignmentId));
+    const assignmentData = assignmentDoc.exists() ? assignmentDoc.data() : null;
+
+    // 1. Актуализирай файла в prologCodes
+    const fileRef = doc(db, "prologCodes", gradingData.fileId);
+    await updateDoc(fileRef, {
+      points: gradingData.points,
+      feedback: gradingData.feedback,
+      gradedAt: serverTime,
+      gradedBy: user?.uid,
+      status: 'graded',
+      teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher"
+    });
+
+    // 2. Запиши в grades колекцията с ПЪЛНА ИНФОРМАЦИЯ
+    const gradeRef = doc(collection(db, "grades"));
+    
+    // Подготовка на данните
+    const gradeData = {
+      // Основни данни от gradingData
+      ...gradingData,
+      
+      // Информация за файла
+      fileName: fileData?.originalFileName || fileData?.title || "Unknown file",
+      fileCreatedAt: fileData?.createdAt,
+      fileFolder: fileData?.folder || "general",
+      
+      // Информация за студента
+      studentName: studentData?.fullName || 
+                  studentData?.email?.split('@')[0] || 
+                  "Unknown Student",
+      studentEmail: studentData?.email || "",
+      studentClass: studentData?.class || "N/A",
+      
+      // Информация за заданието
+      assignmentTitle: assignmentData?.title || "General Assignment",
+      assignmentDescription: assignmentData?.description || "No description",
+      assignmentDifficulty: assignmentData?.difficulty || "medium",
+      assignmentPoints: assignmentData?.points || 100,
+      
+      // Информация за учителя
+      teacherId: user?.uid,
+      teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher",
+      teacherInstitution: userData?.institution || "Unknown",
+      
+      // Timestamps
+      gradedAt: serverTime,
+      createdAt: serverTime,
+      
+      // Допълнителни метаданни
+      maxPoints: 10, // Фиксирано за системата
+      gradePercentage: (gradingData.points / 10) * 100,
+      status: 'graded',
+      
+      // Поле за категоризация
+      category: assignmentData?.category || fileData?.folder || "general",
+      subject: assignmentData?.subject || "prolog"
+    };
+
+    await setDoc(gradeRef, gradeData);
+
+    // 3. Актуализирай потребителската информация БЕЗ serverTimestamp() в масива
+    const userRef = doc(db, "users", gradingData.studentId);
+    const userDocSnap = await getDoc(userRef);
+    
+    if (userDocSnap.exists()) {
+      const currentUser = userDocSnap.data();
+      const currentGrades = currentUser.grades || [];
+      
+      // Създаване на нов grade обект БЕЗ serverTimestamp в него
+      const newGrade = {
+        points: gradingData.points,
+        feedback: gradingData.feedback,
+        assignmentId: gradingData.assignmentId,
+        assignmentTitle: assignmentData?.title || "General Assignment",
+        fileId: gradingData.fileId,
+        fileName: fileData?.originalFileName || "Unknown file",
+        gradedAt: new Date().toISOString(), // Използвай ISO string вместо serverTimestamp
+        gradedBy: user?.uid,
+        teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher",
+        maxPoints: 10,
+        gradeId: gradeRef.id // Записваме и ID-то на оценката в grades колекцията
+      };
+      
+      // Провери дали вече съществува оценка за този файл
+      const existingGradeIndex = currentGrades.findIndex((g: any) => 
+        g.fileId === gradingData.fileId && g.assignmentId === gradingData.assignmentId
+      );
+      
+      if (existingGradeIndex >= 0) {
+        // Актуализирай съществуващата оценка
+        currentGrades[existingGradeIndex] = newGrade;
+      } else {
+        // Добави нова оценка
+        currentGrades.push(newGrade);
+      }
+      
+      // Актуализирай масива с оценки
+      await updateDoc(userRef, {
+        grades: currentGrades,
+        lastGraded: serverTime, // timestamp на ниво документ
+        totalGrades: currentGrades.length,
+        averageGrade: currentGrades.length > 0 
+          ? currentGrades.reduce((sum: number, grade: any) => sum + (grade.points || 0), 0) / currentGrades.length
+          : 0
+      });
+    }
+
+    // 4. Актуализирай локалния state
+    setStudents(prev => prev.map(student => {
+      if (student.uid === gradingData.studentId) {
+        const updatedFiles = student.files.map(file => 
+          file.id === gradingData.fileId 
+            ? { 
+                ...file, 
+                points: gradingData.points, 
+                feedback: gradingData.feedback,
+                gradedAt: new Date(), // Локално време за UI
+                gradedBy: user?.uid,
+                teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher"
+              }
+            : file
+        );
+        
+        // Изчисляване на новата средна оценка
+        const newAveragePoints = updatedFiles.length > 0 
+          ? updatedFiles.reduce((sum, file) => sum + (file.points || 0), 0) / updatedFiles.length
+          : 0;
+        
+        return {
+          ...student,
+          files: updatedFiles,
+          averagePoints: newAveragePoints,
+          status: newAveragePoints >= 7 ? 'active' : 
+                  newAveragePoints >= 5 ? 'warning' : 'inactive'
+        };
+      }
+      return student;
+    }));
+
+    // 5. Добави нотификация за студента
+    try {
+      const notificationRef = doc(collection(db, 'messages'));
+      await setDoc(notificationRef, {
+        senderId: user?.uid,
+        senderName: "System",
+        receiverId: gradingData.studentId,
+        receiverName: studentData?.fullName || studentData?.email?.split('@')[0] || "Student",
+        content: `Your work "${fileData?.originalFileName || 'file'}" has been graded. Points: ${gradingData.points}/10. Feedback: ${gradingData.feedback.substring(0, 50)}${gradingData.feedback.length > 50 ? '...' : ''}`,
+        timestamp: serverTime,
+        read: false,
+        type: 'grade_notification',
+        gradeId: gradeRef.id,
+        assignmentTitle: assignmentData?.title || "General Assignment"
+      });
+      
+      console.log("Grade notification sent to student");
+    } catch (notificationError) {
+      console.error("Error sending grade notification:", notificationError);
+      // Продължаваме дори ако нотификацията не успее
+    }
+
+    // 6. Добави в activity logs
+    try {
+      await addDoc(collection(db, "activityLogs"), {
+        userId: gradingData.studentId,
+        userName: studentData?.fullName || studentData?.email?.split('@')[0] || "Student",
+        teacherId: user?.uid,
+        teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher",
+        action: "Grade Assigned",
+        details: `Assigned ${gradingData.points}/10 points for "${fileData?.originalFileName || 'file'}"`,
+        target: `grade_${gradeRef.id}`,
+        actionType: "grading",
+        timestamp: serverTime,
+        metadata: {
+          points: gradingData.points,
+          assignmentId: gradingData.assignmentId,
+          fileId: gradingData.fileId,
+          assignmentTitle: assignmentData?.title || "General Assignment"
+        }
+      });
+    } catch (logError) {
+      console.error("Error adding activity log:", logError);
+    }
+
+    setUploadStatus("✅ Grade saved successfully! Student has been notified.");
+    
+    // ✅ Промяна: НЕ връщаме нищо или връщаме undefined
+    return;
+    
+  } catch (error) {
+    console.error("Error saving grade:", error);
+    
+    // Подробно логване на грешката
+    const errorDetails = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    } : String(error);
+    
+    console.error("Error details:", errorDetails);
+    
+    setUploadStatus("❌ Error saving grade! Check console for details.");
+    
+    // Промяна: Хвърляме грешка без да връщаме нищо
+    throw new Error(`Failed to save grade: ${errorDetails}`);
+  }
+};
+// Helper функция за изчисляване на средна оценка
+
+const calculateAveragePoints = (grades: any[]): number => {
+  if (grades.length === 0) return 0;
+  
+  // Сумирайте или `points` или `grade` в зависимост от структурата
+  const sum = grades.reduce((total, grade) => {
+    return total + (grade.points || grade.grade || 0);
+  }, 0);
+  
+  return parseFloat((sum / grades.length).toFixed(1));
+};
+
+// Функция за отваряне на модала за оценяване
+const openGradingModal = (student: Student, assignmentId?: string) => {
+  setGradingModal({
+    isOpen: true,
+    studentName: student.username,
+    studentId: student.uid || '',
+    files: student.files,
+    assignmentId
+  });
+};
   
   // UI states
   const [activeRecommendation, setActiveRecommendation] = useState<number | null>(null);
@@ -1846,22 +2115,7 @@ const handleRejectChallenge = async (challengeId: string) => {
     }));
   };
 
-  const handleSaveGrade = async (student: Student) => {
-    const points = selectedPoints[student.username] || 0;
-    const feedback = feedbackText[student.username] || "";
-    console.log(feedback)
-    try {
-      alert(`${t?.('grade_saved') || 'Grade saved'}: ${points}/10 ${t?.('for') || 'for'} ${student.username}`);
-      
-      setStudents(prev => prev.map(s => 
-        s.username === student.username 
-          ? { ...s, averagePoints: points } 
-          : s
-      ));
-    } catch (error) {
-      console.error("Error saving grade:", error);
-    }
-  };
+  
 
   const handleAddFeedbackTag = (studentId: string, tag: string) => {
     setFeedbackText(prev => ({
@@ -1869,7 +2123,7 @@ const handleRejectChallenge = async (challengeId: string) => {
       [studentId]: (prev[studentId] || "") + (prev[studentId] ? '\n' : '') + tag
     }));
   };
-
+console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
   const downloadFile = (file: StudentFile) => {
     const element = document.createElement('a');
     const fileBlob = new Blob([file.code], { type: 'text/plain' });
@@ -3582,191 +3836,343 @@ const handleRejectChallenge = async (challengeId: string) => {
         )}
 
         {/* Students View */}
-        {selectedTab === "students" && (userData?.role === 'teacher' || userData?.role === 'admin') && (
-          <div className="mb-8">
-            <div className={`rounded-2xl p-6 border ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                : 'bg-white border-gray-200'
-            } backdrop-blur-xl`}>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">
-                    {t?.('my_students') || "My Students"} ({students.filter(s => s.role === 'student').length})
-                  </h2>
-                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {t?.('manage_students_subtitle') || "Review student submissions and assign grades"}
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
-                    <input
-                      type="text"
-                      placeholder={t?.('search_students') || "Search students..."}
-                      className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10' 
-                          : 'bg-white border-gray-300'
-                      }`}
-                    />
+{selectedTab === "students" && (userData?.role === 'teacher' || userData?.role === 'admin') && (
+  <div className="mb-8">
+    <div className={`rounded-2xl p-6 border ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+        : 'bg-white border-gray-200'
+    } backdrop-blur-xl`}>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold">
+            {t?.('my_students') || "My Students"} ({students.filter(s => s.role === 'student').length})
+          </h2>
+          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+            {t?.('manage_students_subtitle') || "Review student submissions and assign grades"}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+            }`} />
+            <input
+              type="text"
+              placeholder={t?.('search_students') || "Search students..."}
+              className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                theme === 'dark' 
+                  ? 'bg-white/5 border-white/10' 
+                  : 'bg-white border-gray-300'
+              }`}
+            />
+          </div>
+          <button
+            onClick={loadAllStudentsData}
+            disabled={loadingStudents}
+            className={`px-4 py-2 rounded-lg ${
+              theme === 'dark' 
+                ? 'bg-white/5 hover:bg-white/10' 
+                : 'bg-gray-100 hover:bg-gray-200'
+            } transition-colors disabled:opacity-50`}
+          >
+            {loadingStudents ? (
+              <span className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-500"></div>
+                {t?.('loading') || "Loading..."}
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                {t?.('refresh') || "Refresh"}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {loadingStudents ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+        </div>
+      ) : students.length === 0 ? (
+        <div className="text-center py-12">
+          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold mb-2">
+            {t?.('no_students_found') || "No Students Found"}
+          </h3>
+          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+            {t?.('no_students_description') || "No students with uploaded files found in the system."}
+          </p>
+          <button
+            onClick={loadAllStudentsData}
+            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+          >
+            {t?.('try_again') || "Try Again"}
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
+                <th className="py-3 px-4 text-left font-medium">{t?.('student') || "Student"}</th>
+                <th className="py-3 px-4 text-left font-medium">{t?.('class') || "Class"}</th>
+                <th className="py-3 px-4 text-left font-medium">{t?.('files') || "Files"}</th>
+                <th className="py-3 px-4 text-left font-medium">{t?.('last_activity') || "Last Activity"}</th>
+                <th className="py-3 px-4 text-left font-medium">{t?.('avg_points') || "Avg Points"}</th>
+                <th className="py-3 px-4 text-left font-medium">{t?.('status') || "Status"}</th>
+                <th className="py-3 px-4 text-left font-medium">{t?.('actions') || "Actions"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student, index) => (
+                <tr key={student.username} className={`border-b ${
+                  theme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'
+                }`}>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+                        style={{ backgroundColor: getColorByIndex(index) }}
+                      >
+                        {student.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-medium">{student.username}</div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {student.email || t?.('no_email') || "No email"}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className={`px-3 py-1 rounded-full text-sm ${
+                      theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                    }`}>
+                      {student.class || t?.('na') || "N/A"}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{student.totalFiles}</span>
+                      {student.totalFiles > 0 && (
+                        <span className={`text-xs ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          ({student.files.filter(f => f.points !== undefined).length} graded)
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">{student.lastActivity}</td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{student.averagePoints?.toFixed(1) || "0.0"}/10</span>
+                      <div className={`w-16 h-2 rounded-full overflow-hidden ${
+                        theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
+                      }`}>
+                        <div
+                          className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                          style={{ width: `${(student.averagePoints || 0) * 10}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      student.status === 'active' ? 'bg-green-500/20 text-green-500' :
+                      student.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
+                      'bg-red-500/20 text-red-500'
+                    }`}>
+                      {student.status === 'active' ? t?.('active') || "Active" :
+                       student.status === 'warning' ? t?.('warning') || "Warning" :
+                       t?.('inactive') || "Inactive"}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openGradingModal(student)}
+                        className={`p-2 rounded ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                        } transition-colors`}
+                        title={t?.('grade') || "Grade"}
+                      >
+                        <GraduationCap className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setViewingStudentFiles(student.username)}
+                        className={`p-2 rounded ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                        } transition-colors`}
+                        title={t?.('view_files') || "View Files"}
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* Grading Modal */}
+{gradingModal.isOpen && (
+  <AssignmentGradingModal
+    studentName={gradingModal.studentName}
+    studentId={gradingModal.studentId}
+    files={gradingModal.files}
+    assignmentId={gradingModal.assignmentId}
+    onClose={() => setGradingModal({ isOpen: false, studentName: '', studentId: '', files: [] })}
+    onSave={handleSaveGrade}
+  />
+)}
+
+{/* View Student Files Modal - АКТУАЛИЗИРАН */}
+{viewingStudentFiles && (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+  >
+    <div className="absolute inset-0 bg-black/80" onClick={() => setViewingStudentFiles(null)} />
+    <motion.div
+      initial={{ scale: 0.9, y: 20 }}
+      animate={{ scale: 1, y: 0 }}
+      className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl border overflow-hidden ${
+        theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+      }`}
+    >
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+              <FolderOpen className="w-5 h-5 text-green-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">
+                {t?.('student_files') || "Student Files"}: {viewingStudentFiles}
+              </h3>
+              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                {students.find(s => s.username === viewingStudentFiles)?.files.length || 0} {t?.('files') || "files"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setViewingStudentFiles(null)}
+            className={`p-2 rounded-lg ${
+              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+            } transition-colors`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {students.find(s => s.username === viewingStudentFiles)?.files.map((file) => (
+            <div
+              key={file.id}
+              className={`p-4 rounded-xl border ${
+                theme === 'dark' 
+                  ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+              } transition-colors`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                    <FileCode className="w-5 h-5 text-green-400" />
                   </div>
+                  <div className="flex-1">
+                    <div className="font-medium mb-1">{file.originalFileName}</div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        <Folder className="w-4 h-4 inline mr-1" /> {file.folder}
+                      </span>
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        <Calendar className="w-4 h-4 inline mr-1" />
+                        {new Date(file.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
+                      </span>
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        {(file.fileSize / 1024).toFixed(2)} KB
+                      </span>
+                      {file.points !== undefined && (
+                        <span className="px-2 py-1 rounded bg-green-500/20 text-green-500 text-xs font-medium">
+                          {file.points}/10
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
                   <button
-                    onClick={loadAllStudentsData}
-                    disabled={loadingStudents}
-                    className={`px-4 py-2 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors disabled:opacity-50`}
+                    onClick={() => openFileInNewTab(file)}
+                    className={`p-2 rounded-lg ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                    } transition-colors`}
+                    title={t?.('view_code') || "View Code"}
                   >
-                    {loadingStudents ? (
-                      <span className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-500"></div>
-                        {t?.('loading') || "Loading..."}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4" />
-                        {t?.('refresh') || "Refresh"}
-                      </span>
-                    )}
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => downloadFile(file)}
+                    className={`p-2 rounded-lg ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                    } transition-colors`}
+                    title={t?.('download_file') || "Download File"}
+                  >
+                    <Download className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-
-              {loadingStudents ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-                </div>
-              ) : students.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">
-                    {t?.('no_students_found') || "No Students Found"}
-                  </h3>
-                  <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t?.('no_students_description') || "No students with uploaded files found in the system."}
-                  </p>
-                  <button
-                    onClick={loadAllStudentsData}
-                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                  >
-                    {t?.('try_again') || "Try Again"}
-                  </button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('student') || "Student"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('class') || "Class"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('files') || "Files"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('last_activity') || "Last Activity"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('avg_points') || "Avg Points"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('status') || "Status"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('actions') || "Actions"}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((student, index) => (
-                        <tr key={student.username} className={`border-b ${
-                          theme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'
-                        }`}>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-                                style={{ backgroundColor: getColorByIndex(index) }}
-                              >
-                                {student.username.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="font-medium">{student.username}</div>
-                                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {student.email || t?.('no_email') || "No email"}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-3 py-1 rounded-full text-sm ${
-                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                            }`}>
-                              {student.class || t?.('na') || "N/A"}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{student.totalFiles}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">{student.lastActivity}</td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{student.averagePoints?.toFixed(1) || "0.0"}/10</span>
-                              <div className={`w-16 h-2 rounded-full overflow-hidden ${
-                                theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
-                              }`}>
-                                <div
-                                  className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                                  style={{ width: `${(student.averagePoints || 0) * 10}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              student.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                              student.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                              'bg-red-500/20 text-red-500'
-                            }`}>
-                              {student.status === 'active' ? t?.('active') || "Active" :
-                               student.status === 'warning' ? t?.('warning') || "Warning" :
-                               t?.('inactive') || "Inactive"}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setEditingStudent(student.username)}
-                                className={`p-2 rounded ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title={t?.('grade') || "Grade"}
-                              >
-                                <GraduationCap className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setViewingStudentFiles(student.username)}
-                                className={`p-2 rounded ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title={t?.('view_files') || "View Files"}
-                              >
-                                <FolderOpen className="w-4 h-4" />
-                              </button>
-                              <button className={`p-2 rounded ${
-                                theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                              } transition-colors`}>
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
+          ))}
+        </div>
+
+        {students.find(s => s.username === viewingStudentFiles)?.files.length === 0 && (
+          <div className="text-center py-12">
+            <Folder className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-bold mb-2">{t?.('no_files_found') || "No Files Found"}</h4>
+            <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+              {t?.('no_files_uploaded') || "This student hasn't uploaded any files yet."}
+            </p>
           </div>
         )}
 
+        {/* Бутон за оценяване в модала за файлове */}
+        {students.find(s => s.username === viewingStudentFiles) && 
+ students.find(s => s.username === viewingStudentFiles)!.files.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-white/10 dark:border-gray-700">
+            <div className="flex justify-center">
+              <button
+                onClick={() => {
+                  const student = students.find(s => s.username === viewingStudentFiles);
+                  if (student) {
+                    setViewingStudentFiles(null);
+                    setTimeout(() => {
+                      openGradingModal(student);
+                    }, 300);
+                  }
+                }}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+              >
+                <GraduationCap className="w-5 h-5" />
+                {t?.('grade_all_work') || "Grade All Work"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  </motion.div>
+)}
         {/* Submissions View */}
         {selectedTab === "submissions" && (
           <div className="mb-8">
@@ -4900,144 +5306,31 @@ const handleRejectChallenge = async (challengeId: string) => {
                   </div>
                 )}
               </div>
+              {/* В края на viewingStudentFiles модала, преди затварящия тег </div> */}
+<div className="mt-6 pt-6 border-t border-white/10 dark:border-gray-700">
+  <div className="flex justify-center">
+    <button
+      onClick={() => {
+        const student = students.find(s => s.username === viewingStudentFiles);
+        if (student) {
+          setViewingStudentFiles(null);
+          setTimeout(() => {
+            openGradingModal(student);
+          }, 300);
+        }
+      }}
+      className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+    >
+      <GraduationCap className="w-5 h-5" />
+      {t?.('grade_all_work') || "Grade All Work"}
+    </button>
+  </div>
+</div>
             </motion.div>
           </motion.div>
         )}
 
-        {/* Edit Student Grade Modal */}
-        {editingStudent && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setEditingStudent(null)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-2xl rounded-2xl border overflow-hidden ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <GraduationCap className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        {t?.('grade_student') || "Grade Student"}: {editingStudent}
-                      </h3>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setEditingStudent(null)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="font-medium mb-4">{t?.('assign_points') || "Assign Points"}</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((points) => (
-                        <button
-                          key={points}
-                          onClick={() => handleQuickPoints(editingStudent, points)}
-                          className={`px-4 py-2 rounded-lg transition-colors ${
-                            selectedPoints[editingStudent] === points
-                              ? 'bg-green-500 text-white'
-                              : theme === 'dark' 
-                                ? 'bg-white/5 hover:bg-white/10' 
-                                : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        >
-                          {points}
-                        </button>
-                      ))}
-                    </div>
-                    <div className={`mt-4 p-3 rounded-lg ${
-                      theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                    }`}>
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {t?.('selected_points') || "Selected Points"}:
-                      </span>
-                      <span className="ml-2 text-xl font-bold text-green-500">
-                        {selectedPoints[editingStudent] || 0}/10
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-4">{t?.('feedback') || "Feedback"}</h4>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {[
-                        { text: t?.('excellent_work') || 'Excellent Work!', color: 'bg-green-500' },
-                        { text: t?.('needs_correction') || 'Needs Correction', color: 'bg-yellow-500' },
-                        { text: t?.('missing_requirements') || 'Missing Requirements', color: 'bg-red-500' },
-                        { text: t?.('creative_solution') || 'Creative Solution', color: 'bg-blue-500' }
-                      ].map((tag, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleAddFeedbackTag(editingStudent, tag.text)}
-                          className={`px-3 py-1 rounded-full text-sm text-white ${tag.color}`}
-                        >
-                          {tag.text}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      value={feedbackText[editingStudent] || ''}
-                      onChange={(e) => setFeedbackText(prev => ({
-                        ...prev,
-                        [editingStudent]: e.target.value
-                      }))}
-                      placeholder={t?.('add_detailed_feedback') || "Add detailed feedback..."}
-                      className={`w-full h-32 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setEditingStudent(null)}
-                      className={`flex-1 py-3 rounded-lg ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 hover:bg-white/10' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      } transition-colors`}
-                    >
-                      {t?.('cancel') || "Cancel"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const student = students.find(s => s.username === editingStudent);
-                        if (student) {
-                          handleSaveGrade(student);
-                        }
-                        setEditingStudent(null);
-                      }}
-                      className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                    >
-                      <CheckCircle className="w-5 h-5 inline mr-2" />
-                      {t?.('save_grade') || "Save Grade"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
+        
         {/* Assignment Form Modal */}
         {showAssignmentForm && (userData?.role === 'teacher' || userData?.role === 'admin') && (
           <motion.div

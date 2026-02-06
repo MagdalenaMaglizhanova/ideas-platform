@@ -11,6 +11,30 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  good_logic: string;
+improve_comments: string;
+grade_assignment: string;
+saving: string;
+no_file_selected: string;
+grade_all_work: string;
+my_grades: string;
+view_all_grades: string;
+refresh_grades: string;
+click_to_view_grades: string;
+see_detailed_grades_feedback: string;
+open_grades_view: string;
+grades_received: string;
+no_grades_yet: string;
+complete_assignments_to_get_grades: string;
+total_grades: string;
+average_grade: string;
+excellent_grades: string;
+graded_by: string;
+recently: string;
+viewing_grade_details: string;
+full_feedback: string;
+score: string;
+grade_distribution: string;
   challenge_not_found: string;
 already_joined_challenge: string;
 select_challenge_first: string;
@@ -29,6 +53,7 @@ no_challenge_selected: string;
 select_challenge_first_desc: string;
 go_to_challenges: string;
 switch_to_assignments: string;
+select_file_to_grade: string;
 switch_to_challenges: string;
 submit_solution: string;
   please_login: string;
@@ -1263,6 +1288,30 @@ const translations: Translations = {
   student_performance: "Student performance",
   lesson_progress: "Lesson Progress",
   completed_lessons: "Completed lessons",
+  good_logic: "Good logic structure",
+  improve_comments: "Improve comments",
+  grade_assignment: "Grade Assignment",
+  saving: "Saving...",
+  no_file_selected: "No file selected",
+  grade_all_work: "Grade All Work",
+  my_grades: "My Grades",
+  view_all_grades: "View All Grades",
+  refresh_grades: "Refresh Grades",
+  click_to_view_grades: "Click to view grades",
+  see_detailed_grades_feedback: "See all your grades and detailed feedback from teachers",
+  open_grades_view: "Open Grades View",
+  grades_received: "Grades Received",
+  no_grades_yet: "No grades yet",
+  complete_assignments_to_get_grades: "Complete assignments to get grades",
+  total_grades: "Total Grades",
+  average_grade: "Average Grade",
+  excellent_grades: "Excellent Grades",
+  graded_by: "Graded by",
+  recently: "Recently",
+  viewing_grade_details: "Viewing Grade Details",
+  full_feedback: "Full Feedback",
+  score: "Score",
+  grade_distribution: "Grade Distribution",
   
   // Заглавия и секции
   student_activities: "Student Activities",
@@ -1692,6 +1741,7 @@ minimum_rules: "Minimum Rules",
 create_new_assignment: "Create New Assignment",
 challenge_algorithms: "Algorithm Challenge",
 new_course_ml: "New Course: Machine Learning",
+select_file_to_grade: "Select file to grade",
 student_file_project: "Student File: project.pl",
 homework_check: "Homework Check",
 visual_examples: "Visual Examples",
@@ -2597,6 +2647,7 @@ total_assignments_count: 'Общо задания',
     
     // Заглавия и подзаглавия
     learning_topics: "Учебни теми",
+    select_file_to_grade: "Изберете файл за оценяване",
     explore_materials: "Разгледайте учебни материали",
     all_topics: "Всички теми",
     all_learning_topics: "Всички учебни теми",
@@ -2939,6 +2990,30 @@ total_assignments_count: 'Общо задания',
     upload_prolog_code: 'Качване на Prolog код',
     upload_prolog_file: 'Качване на Prolog файл',
     my_submissions: 'Моите подадени материали',
+     good_logic: "Добра логическа структура",
+  improve_comments: "Подобряване на коментарите",
+  grade_assignment: "Оцени Задача",
+  saving: "Запазване...",
+  no_file_selected: "Няма избран файл",
+  grade_all_work: "Оцени Всички Работи",
+  my_grades: "Моите Оценки",
+  view_all_grades: "Виж Всички Оценки",
+  refresh_grades: "Обнови Оценките",
+  click_to_view_grades: "Кликнете за преглед на оценките",
+  see_detailed_grades_feedback: "Вижте всички ваши оценки и подробна обратна връзка от учителите",
+  open_grades_view: "Отвори Преглед на Оценките",
+  grades_received: "Получени Оценки",
+  no_grades_yet: "Все още няма оценки",
+  complete_assignments_to_get_grades: "Завършете задачи, за да получите оценки",
+  total_grades: "Общо Оценки",
+  average_grade: "Средна Оценка",
+  excellent_grades: "Отлични Оценки",
+  graded_by: "Оценено от",
+  recently: "Наскоро",
+  viewing_grade_details: "Преглед на детайли на оценка",
+  full_feedback: "Пълна обратна връзка",
+  score: "Резултат",
+  grade_distribution: "Разпределение на оценките",
     active: 'Активно',
     no_data: 'Няма данни',
     successful: 'Успешни',
@@ -3427,6 +3502,7 @@ from: "от",
   },
   es: {
     select_domain_to_view_code:"Elige un dominio de conocimiento para ver ejemplos de código Prolog",
+    select_file_to_grade: "Seleccionar archivo para calificar",
     // В обекта translations.es добавете:
 create_knowledge_title: "Crear Bases de Conocimiento",
 create_knowledge_desc: "Crea bases de conocimiento estructuradas a partir de tus materiales de aprendizaje y organiza la información para tus clases.",
@@ -3702,6 +3778,30 @@ loading_assignments: 'Cargando tareas...',
   total: "total",
   in_community: "en comunidad",
   mark_all_read: "Marcar todo como leído",
+  good_logic: "Buena estructura lógica",
+  improve_comments: "Mejorar comentarios",
+  grade_assignment: "Calificar Tarea",
+  saving: "Guardando...",
+  no_file_selected: "Ningún archivo seleccionado",
+  grade_all_work: "Calificar Todo el Trabajo",
+  my_grades: "Mis Calificaciones",
+  view_all_grades: "Ver Todas las Calificaciones",
+  refresh_grades: "Actualizar Calificaciones",
+  click_to_view_grades: "Haga clic para ver calificaciones",
+  see_detailed_grades_feedback: "Ve todas tus calificaciones y comentarios detallados de los profesores",
+  open_grades_view: "Abrir Vista de Calificaciones",
+  grades_received: "Calificaciones Recibidas",
+  no_grades_yet: "Aún no hay calificaciones",
+  complete_assignments_to_get_grades: "Completa tareas para obtener calificaciones",
+  total_grades: "Calificaciones Totales",
+  average_grade: "Calificación Promedio",
+  excellent_grades: "Calificaciones Excelentes",
+  graded_by: "Calificado por",
+  recently: "Recientemente",
+  viewing_grade_details: "Viendo Detalles de Calificación",
+  full_feedback: "Comentario Completo",
+  score: "Puntuación",
+  grade_distribution: "Distribución de Calificaciones",
   mark_all: "Marcar todo",
   new: "Nuevo",
   all: "Todos",

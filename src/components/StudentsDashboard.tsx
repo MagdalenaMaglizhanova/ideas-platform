@@ -283,6 +283,10 @@ export default function StudentsDashboard(): JSX.Element {
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  // В началото на компонента, след другите state променливи
+const [showGradesModal, setShowGradesModal] = useState(false);
+const [studentGrades, setStudentGrades] = useState<any[]>([]);
+const [loadingGrades, setLoadingGrades] = useState(false);
   
   const [communities, setCommunities] = useState<Community[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -1184,6 +1188,12 @@ Requirements:
       badge: stats.pendingAssignments
     },
     { 
+    id: "grades", 
+    label: t?.('my_grades') || "My Grades", 
+    icon: <Award className="w-5 h-5" />,
+    badge: null
+  },
+    { 
       id: "progress", 
       label: t?.('progress') || "Progress", 
       icon: <TrendingUp className="w-5 h-5" />,
@@ -1417,6 +1427,85 @@ Requirements:
       }
     }
   };
+  const loadStudentGrades = async () => {
+  if (!user?.uid) return;
+  
+  setLoadingGrades(true);
+  try {
+    // Зареждаме оценки от grades колекцията
+    const gradesQuery = query(
+      collection(db, "grades"),
+      where("studentId", "==", user.uid),
+      orderBy("gradedAt", "desc")
+    );
+    
+    const snapshot = await getDocs(gradesQuery);
+    const gradesData: any[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      gradesData.push({
+        id: doc.id,
+        assignmentId: data.assignmentId,
+        assignmentTitle: data.assignmentTitle || "Unknown Assignment",
+        points: data.points,
+        maxPoints: 10, // Винаги е 10 за момента
+        feedback: data.feedback,
+        gradedAt: data.gradedAt,
+        gradedBy: data.teacherName || "Teacher",
+        fileId: data.fileId,
+        // Добавяме информация за файла
+        fileName: data.fileName || "Unknown file"
+      });
+    });
+    
+    // Зареждаме и оценки от prologCodes за стари записи
+    const codesQuery = query(
+      collection(db, "prologCodes"),
+      where("userId", "==", user.uid),
+      where("points", "!=", null), // Само тези с оценки
+      orderBy("points", "desc")
+    );
+    
+    const codesSnapshot = await getDocs(codesQuery);
+    
+    codesSnapshot.forEach((doc) => {
+      const data = doc.data();
+      // Проверяваме дали вече имаме тази оценка
+      const existingGrade = gradesData.find(g => g.fileId === doc.id);
+      
+      if (!existingGrade && data.points !== undefined) {
+        gradesData.push({
+          id: doc.id,
+          assignmentId: data.assignmentId || "general",
+          assignmentTitle: data.assignmentTitle || data.title || "Untitled Assignment",
+          points: data.points,
+          maxPoints: 10,
+          feedback: data.feedback || "No feedback provided",
+          gradedAt: data.gradedAt || data.createdAt,
+          gradedBy: data.gradedBy || "Teacher",
+          fileId: doc.id,
+          fileName: data.originalFileName || data.title || "Unknown file"
+        });
+      }
+    });
+    
+    // Сортираме по дата на оценяване (най-новите първи)
+    gradesData.sort((a, b) => {
+      const dateA = a.gradedAt?.toMillis?.() || 0;
+      const dateB = b.gradedAt?.toMillis?.() || 0;
+      return dateB - dateA;
+    });
+    
+    setStudentGrades(gradesData);
+    console.log("Loaded student grades:", gradesData.length);
+    
+  } catch (error) {
+    console.error("Error loading student grades:", error);
+  } finally {
+    setLoadingGrades(false);
+  }
+};
 
   const loadMyTeachers = () => {
     if (!user || communities.length === 0) return [];
@@ -2072,6 +2161,18 @@ console.log(applyTemplate)
                 )}
               </button>
             </div>
+            <button
+    onClick={async () => {
+      setShowGradesModal(true);
+      await loadStudentGrades();
+    }}
+    className={`relative p-2 rounded-lg ${
+      theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+    }`}
+    title={t?.('my_grades') || "My Grades"}
+  >
+    <Award className="w-5 h-5" />
+  </button>
             <button 
               className={`p-2 rounded-lg ${
                 theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
@@ -3310,7 +3411,54 @@ console.log(applyTemplate)
             )}
           </div>
         )}
-
+{/* ⬇⬇⬇ ДОБАВЕТЕ ТОВА СЛЕД ГОРНИЯ КОД ⬇⬇⬇ */}
+{selectedTab === "grades" && (
+  <div className="mb-8">
+    <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Award className="w-6 h-6" />
+            {t?.('my_grades') || "My Grades"}
+          </h2>
+          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+            {t?.('view_all_grades') || "View all your grades and feedback"}
+          </p>
+        </div>
+        <button
+          onClick={async () => {
+            setShowGradesModal(true);
+            await loadStudentGrades();
+          }}
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          {t?.('refresh_grades') || "Refresh Grades"}
+        </button>
+      </div>
+      
+      <div className="text-center py-12">
+        <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-xl font-bold mb-2">
+          {t?.('click_to_view_grades') || "Click to View Your Grades"}
+        </h3>
+        <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          {t?.('see_detailed_grades_feedback') || "See all your grades and detailed feedback from teachers"}
+        </p>
+        <button
+          onClick={async () => {
+            setShowGradesModal(true);
+            await loadStudentGrades();
+          }}
+          className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2 mx-auto"
+        >
+          <Award className="w-5 h-5" />
+          {t?.('open_grades_view') || "Open Grades View"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         {/* Submissions View */}
         {selectedTab === "submissions" && (
           <div className="mb-8">
@@ -3589,7 +3737,279 @@ console.log(applyTemplate)
             </motion.div>
           )}
         </AnimatePresence>
-
+{/* Grades Modal */}
+<AnimatePresence>
+  {showGradesModal && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={() => setShowGradesModal(false)}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className={`rounded-2xl p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col ${
+          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6 flex-shrink-0">
+          <div>
+            <h3 className="text-2xl font-bold flex items-center gap-2">
+              <Award className="w-6 h-6" />
+              {t?.('my_grades') || "My Grades"}
+            </h3>
+            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              {studentGrades.length} {t?.('grades_received') || "grades received"}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowGradesModal(false)}
+            className={`p-2 rounded-lg ${
+              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+            }`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {loadingGrades ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          </div>
+        ) : studentGrades.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-12">
+            <Award className="w-16 h-16 text-gray-400 mb-4" />
+            <h4 className="text-lg font-medium mb-2">
+              {t?.('no_grades_yet') || "No grades yet"}
+            </h4>
+            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              {t?.('complete_assignments_to_get_grades') || "Complete assignments to receive grades"}
+            </p>
+            <button
+              onClick={() => {
+                setShowGradesModal(false);
+                setSelectedTab("assignments");
+              }}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+            >
+              {t?.('view_assignments') || "View Assignments"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            {/* Статистика за оценките */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">
+                  {studentGrades.length}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('total_grades') || "Total Grades"}
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">
+                  {studentGrades.reduce((sum, grade) => sum + grade.points, 0) / studentGrades.length}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('average_grade') || "Average Grade"}
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">
+                  {studentGrades.filter(g => g.points >= 7).length}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('excellent_grades') || "Excellent Grades (≥7)"}
+                </div>
+              </div>
+            </div>
+            
+            {/* Списък с оценки */}
+            <div className="space-y-4">
+              {studentGrades.map((grade, index) => (
+                <motion.div
+                  key={grade.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`p-4 rounded-xl border ${
+                    theme === 'dark' 
+                      ? 'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700 hover:border-gray-600' 
+                      : 'bg-white border-gray-200 hover:border-gray-300'
+                  } transition-colors`}
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
+                          grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
+                          grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
+                          'bg-red-500/20 text-red-500'
+                        }`}>
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold">{grade.assignmentTitle}</h4>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {grade.fileName}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {grade.feedback && (
+                        <div className={`mt-3 p-3 rounded-lg ${
+                          theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
+                        }`}>
+                          <p className="text-sm whitespace-pre-wrap">
+                            {grade.feedback.length > 150 
+                              ? `${grade.feedback.substring(0, 150)}...` 
+                              : grade.feedback}
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-4 mt-3 text-sm">
+                        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                          {t?.('graded_by') || "Graded by"}: {grade.gradedBy}
+                        </span>
+                        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                          {grade.gradedAt?.toDate 
+                            ? new Date(grade.gradedAt.toDate()).toLocaleDateString()
+                            : t?.('recently') || "Recently"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="text-center">
+                        <div className={`text-3xl font-bold ${
+                          grade.points >= 9 ? 'text-green-500' :
+                          grade.points >= 7 ? 'text-yellow-500' :
+                          grade.points >= 5 ? 'text-orange-500' :
+                          'text-red-500'
+                        }`}>
+                          {grade.points}/{grade.maxPoints}
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
+                          grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
+                          grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
+                          'bg-red-500/20 text-red-500'
+                        }`}>
+                          {grade.points >= 9 ? t?.('excellent') || 'Excellent' :
+                           grade.points >= 7 ? t?.('good') || 'Good' :
+                           grade.points >= 5 ? t?.('average') || 'Average' :
+                           t?.('needs_improvement') || 'Needs Improvement'}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            // TODO: View submission details
+                            alert(`${t?.('viewing_grade_details') || "Viewing grade details for"}: ${grade.assignmentTitle}`);
+                          }}
+                          className={`px-3 py-1 rounded text-sm ${
+                            theme === 'dark' 
+                              ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
+                              : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+                          }`}
+                        >
+                          {t?.('details') || "Details"}
+                        </button>
+                        {grade.feedback && grade.feedback.length > 150 && (
+                          <button
+                            onClick={() => {
+                              alert(`${t?.('full_feedback') || "Full Feedback"}:\n\n${grade.feedback}`);
+                            }}
+                            className={`px-3 py-1 rounded text-sm ${
+                              theme === 'dark' 
+                                ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' 
+                                : 'bg-green-100 hover:bg-green-200 text-green-600'
+                            }`}
+                          >
+                            {t?.('full_feedback') || "Full Feedback"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Прогрес бар за оценката */}
+                  <div className="mt-4">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span>{t?.('score') || "Score"}</span>
+                      <span>{grade.points}/{grade.maxPoints}</span>
+                    </div>
+                    <div className={`h-2 rounded-full overflow-hidden ${
+                      theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}>
+                      <div
+                        className={`h-full rounded-full ${
+                          grade.points >= 9 ? 'bg-green-500' :
+                          grade.points >= 7 ? 'bg-yellow-500' :
+                          grade.points >= 5 ? 'bg-orange-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${(grade.points / grade.maxPoints) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            
+            {/* Графика за разпределение на оценките */}
+            {studentGrades.length >= 3 && (
+              <div className={`mt-8 p-6 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <h4 className="font-bold mb-4">{t?.('grade_distribution') || "Grade Distribution"}</h4>
+                <div className="flex items-end h-32 gap-2">
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(point => {
+                    const count = studentGrades.filter(g => Math.round(g.points) === point).length;
+                    const maxCount = Math.max(...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(p => 
+                      studentGrades.filter(g => Math.round(g.points) === p).length
+                    ));
+                    const height = maxCount > 0 ? (count / maxCount) * 80 : 0;
+                    
+                    return (
+                      <div key={point} className="flex-1 flex flex-col items-center">
+                        <div
+                          className={`w-full rounded-t ${
+                            point >= 9 ? 'bg-green-500' :
+                            point >= 7 ? 'bg-yellow-500' :
+                            point >= 5 ? 'bg-orange-500' :
+                            'bg-red-500'
+                          }`}
+                          style={{ height: `${height}px` }}
+                        />
+                        <div className="text-xs mt-1">{point}</div>
+                        <div className="text-xs font-medium">{count}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
         {/* Evaluation Modal */}
         <AnimatePresence>
           {showEvaluationModal && selectedSubmission && (
