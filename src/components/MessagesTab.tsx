@@ -1374,726 +1374,728 @@ export default function MessagesTab() {
   const messageTypeOptions = getMessageTypeOptions;
 
   return (
-    <div className={`min-h-screen ${currentTheme.bg} ${currentTheme.text} p-6`}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            {renderHeader()}
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2">
+  <div className={`min-h-screen ${currentTheme.bg} ${currentTheme.text} p-4 md:p-6 overflow-x-hidden w-full`}>
+    <div className="w-full max-w-full mx-auto">
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 w-full">
+        <div className="flex items-center gap-4 min-w-0">
+          {renderHeader()}
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setComposeOpen(true)}
+            className="px-4 py-2 md:px-6 md:py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:shadow-lg transition-shadow flex items-center gap-2 flex-shrink-0"
+          >
+            <Edit className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
+            <span className="hidden md:inline">{t?.('new_message') || "Ново съобщение"}</span>
+            <span className="inline md:hidden">{t?.('new') || "Ново"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* View Toggle */}
+      {renderViewToggle()}
+
+      {/* Main Content - Grid система */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 w-full min-w-0">
+        
+        {/* Left Sidebar - 3 колони на xl */}
+        <div className="xl:col-span-3 w-full min-w-0">
+          {/* User Statistics */}
+          {renderUserStatsPanel()}
+
+          {/* User List */}
+          <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 w-full min-w-0`}>
+            <div className="flex items-center justify-between mb-4 min-w-0">
+              <h3 className="font-bold truncate min-w-0">{renderUserListHeader()}</h3>
+              <span className={`text-sm ${currentTheme.textSecondary} flex-shrink-0 ml-2`}>
+                {filteredUsers.length} {t?.('found') || 'намерени'}
+              </span>
+            </div>
             
-            <button
-              onClick={() => setComposeOpen(true)}
-              className="px-4 py-2 md:px-6 md:py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:shadow-lg transition-shadow flex items-center gap-2"
-            >
-              <Edit className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden md:inline">{t?.('new_message') || "Ново съобщение"}</span>
-              <span className="inline md:hidden">{t?.('new') || "Ново"}</span>
-            </button>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.uid}
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors min-w-0 ${
+                    currentTheme.hover
+                  }`}
+                  onClick={() => {
+                    setNewMessage({
+                      to: user.username,
+                      subject: '',
+                      content: '',
+                      type: 'direct',
+                      selectedUsers: [user.uid]
+                    });
+                    setComposeOpen(true);
+                  }}
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${
+                    user.role === 'teacher' 
+                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-500'
+                      : 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-500'
+                  }`}>
+                    {getUserInitials(user.username)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{user.username}</div>
+                    <div className={`text-sm truncate ${currentTheme.textSecondary}`}>
+                      {user.email}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                        user.role === 'teacher'
+                          ? 'bg-purple-500/20 text-purple-500'
+                          : 'bg-blue-500/20 text-blue-500'
+                      }`}>
+                        {user.role === 'teacher' ? t?.('teacher') || 'Учител' : t?.('student') || 'Ученик'}
+                      </span>
+                      {user.communityId && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500 flex-shrink-0">
+                          {t?.('community') || "Общност"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <MessageCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                </div>
+              ))}
+              
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className={currentTheme.textSecondary}>
+                    {currentUserRole === 'teacher' && activeView === 'myCommunity'
+                      ? t?.('no_students_in_community') || "Няма ученици в тази общност"
+                      : currentUserRole === 'student'
+                      ? t?.('no_community_members') || "Няма други членове в вашата общност"
+                      : t?.('no_users_found') || "Няма намерени потребители"
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* View Toggle */}
-        {renderViewToggle()}
-
-        {/* Main Content */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left Sidebar - Users & Communities */}
-          <div className="w-full lg:w-80 flex-shrink-0">
-            {/* User Statistics */}
-            {renderUserStatsPanel()}
-
-            {/* User List */}
-            <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">{renderUserListHeader()}</h3>
-                <span className={`text-sm ${currentTheme.textSecondary}`}>
-                  {filteredUsers.length} {t?.('found') || 'намерени'}
-                </span>
-              </div>
-              
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                {filteredUsers.map((user) => (
-                  <div
-                    key={user.uid}
-                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                      currentTheme.hover
-                    }`}
-                    onClick={() => {
-                      setNewMessage({
-                        to: user.username,
-                        subject: '',
-                        content: '',
-                        type: 'direct',
-                        selectedUsers: [user.uid]
-                      });
-                      setComposeOpen(true);
-                    }}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                      user.role === 'teacher' 
-                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-500'
-                        : 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-500'
-                    }`}>
-                      {getUserInitials(user.username)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{user.username}</div>
-                      <div className={`text-sm truncate ${currentTheme.textSecondary}`}>
-                        {user.email}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          user.role === 'teacher'
-                            ? 'bg-purple-500/20 text-purple-500'
-                            : 'bg-blue-500/20 text-blue-500'
-                        }`}>
-                          {user.role === 'teacher' ? t?.('teacher') || 'Учител' : t?.('student') || 'Ученик'}
-                        </span>
-                        {user.communityId && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
-                            {t?.('community') || "Общност"}
+        {/* Middle Section - 6 колони на xl */}
+        <div className="xl:col-span-6 w-full min-w-0">
+          <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full min-w-0">
+            
+            {/* Folders - фиксирана ширина */}
+            <div className="w-full lg:w-48 flex-shrink-0 min-w-0">
+              <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 mb-6 w-full`}>
+                <div className="space-y-1">
+                  {folders.map((folder) => {
+                    let count = 0;
+                    
+                    if (folder.id === 'inbox') {
+                      count = messages.filter(m => 
+                        m.receiverId === currentUser?.uid && 
+                        !m.read && 
+                        !m.labels?.includes(t?.('trash') || 'Кошче') &&
+                        !isOptimisticMessage(m)
+                      ).length;
+                    } else if (folder.id === 'starred') {
+                      count = messages.filter(m => m.status === 'starred').length;
+                    } else if (folder.id === 'sent') {
+                      count = messages.filter(m => 
+                        m.senderId === currentUser?.uid && 
+                        !m.labels?.includes(t?.('trash') || 'Кошче')
+                      ).length;
+                    } else if (folder.id === 'trash') {
+                      count = messages.filter(m => m.labels?.includes(t?.('trash') || 'Кошче')).length;
+                    } else if (folder.id === 'drafts') {
+                      count = messages.filter(m => m.status === 'draft').length;
+                    }
+                    
+                    return (
+                      <button
+                        key={folder.id}
+                        onClick={() => setSelectedFolder(folder.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors min-w-0 ${
+                          selectedFolder === folder.id
+                            ? theme === 'dark' 
+                              ? 'bg-blue-500/20 text-blue-400' 
+                              : 'bg-blue-50 text-blue-600'
+                            : `${currentTheme.hover}`
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`${folder.color} flex-shrink-0`}>
+                            {folder.icon}
+                          </div>
+                          <span className="font-medium truncate">{folder.name}</span>
+                        </div>
+                        {count > 0 && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
+                            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
+                            {count}
                           </span>
                         )}
-                      </div>
-                    </div>
-                    <MessageCircle className="w-4 h-4 text-gray-400" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Messages Area - гъвкава ширина */}
+            <div className="flex-1 w-full min-w-0">
+              {/* Search Bar */}
+              <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 mb-6 w-full`}>
+                <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+                  <div className="flex-1 relative w-full min-w-0">
+                    <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${currentTheme.textSecondary} flex-shrink-0`} />
+                    <input
+                      type="text"
+                      placeholder={t?.('search_messages') || "Търсене на съобщения..."}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50 min-w-0`}
+                    />
                   </div>
-                ))}
-                
-                {filteredUsers.length === 0 && (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className={currentTheme.textSecondary}>
-                      {currentUserRole === 'teacher' && activeView === 'myCommunity'
-                        ? t?.('no_students_in_community') || "Няма ученици в тази общност"
-                        : currentUserRole === 'student'
-                        ? t?.('no_community_members') || "Няма други членове в вашата общност"
-                        : t?.('no_users_found') || "Няма намерени потребители"
-                      }
+                  
+                  <div className="flex items-center gap-2 w-full md:w-auto min-w-0">
+                    <button
+                      onClick={selectAllMessages}
+                      className={`px-4 py-2 rounded-lg ${currentTheme.hover} flex-1 md:flex-none min-w-0 truncate`}
+                    >
+                      {selectedMessages.length === filteredMessages.length ? t?.('deselect') || 'Отмени' : t?.('select_all') || 'Избери всички'}
+                    </button>
+                    {selectedMessages.length > 0 && (
+                      <button
+                        onClick={handleDeleteSelectedMessages}
+                        className="px-4 py-2 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/30 flex-1 md:flex-none min-w-0 truncate"
+                      >
+                        <Trash2 className="w-4 h-4 inline mr-2 flex-shrink-0" />
+                        {t?.('delete') || "Изтрий"} ({selectedMessages.length})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Messages List */}
+              <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border overflow-hidden w-full`}>
+                {filteredMessages.length === 0 ? (
+                  <div className="py-16 text-center w-full">
+                    <MessageCircle className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold mb-2">
+                      {selectedFolder === 'inbox' 
+                        ? t?.('no_new_messages') || 'Нямате нови съобщения' 
+                        : t?.('no_messages_found') || 'Няма намерени съобщения'}
+                    </h3>
+                    <p className={`mb-6 ${currentTheme.textSecondary} px-4`}>
+                      {selectedFolder === 'inbox' 
+                        ? t?.('no_messages_inbox') || 'Когато получите съобщения, те ще се появят тук'
+                        : t?.('try_different_folder') || 'Опитайте с различна папка или търсене'}
                     </p>
+                    <button
+                      onClick={() => setComposeOpen(true)}
+                      className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium"
+                    >
+                      <Edit className="w-5 h-5 inline mr-2" />
+                      {t?.('new_message') || "Ново съобщение"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[600px] overflow-y-auto w-full">
+                    {filteredMessages.map((message) => {
+                      const isOptimistic = isOptimisticMessage(message);
+                      
+                      return (
+                        <div
+                          key={`${message.id}_${message.timestamp?.toMillis?.() || message.timestamp}`}
+                          className={`flex items-center gap-4 p-4 cursor-pointer transition-colors group w-full min-w-0 ${
+                            selectedMessage?.id === message.id
+                              ? theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'
+                              : `${currentTheme.hover}`
+                          } ${!message.read && message.receiverId === currentUser?.uid ? 'font-semibold' : ''} ${
+                            isOptimistic ? 'opacity-70' : ''
+                          }`}
+                          onClick={() => {
+                            setSelectedMessage(message);
+                            if (!message.read && message.receiverId === currentUser?.uid && !isOptimistic) {
+                              handleMarkAsRead(message.id, true);
+                            }
+                          }}
+                        >
+                          {/* Checkbox */}
+                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedMessages.includes(message.id)}
+                              onChange={() => toggleMessageSelection(message.id)}
+                              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              disabled={isOptimistic}
+                            />
+                          </div>
+                          
+                          {/* Star */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStarMessage(message.id, message.status !== 'starred');
+                            }}
+                            className="p-1 flex-shrink-0"
+                          >
+                            {message.status === 'starred' ? (
+                              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                            ) : (
+                              <StarOff className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                            )}
+                          </button>
+                          
+                          {/* Sender Avatar */}
+                          <div className="flex-shrink-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${
+                              isOptimistic
+                                ? 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-500'
+                                : 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-600 dark:text-blue-400'
+                            }`}>
+                              {getUserInitials(message.senderName)}
+                            </div>
+                          </div>
+                          
+                          {/* Message Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-1 gap-1 min-w-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="truncate font-medium min-w-0">
+                                  {message.senderId === currentUser?.uid 
+                                    ? `${t?.('me') || 'Аз'} → ${message.receiverName}` 
+                                    : message.senderName}
+                                </span>
+                                {isOptimistic && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs bg-gray-500/20 text-gray-500 flex-shrink-0">
+                                    {t?.('sending') || "Изпращане..."}
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`text-sm ${currentTheme.textSecondary} whitespace-nowrap flex-shrink-0 ml-2`}>
+                                {formatDate(message.timestamp)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap min-w-0">
+                              <span className="font-medium truncate min-w-0">
+                                {message.subject || t?.('no_subject') || 'Без тема'}
+                              </span>
+                              {message.type === 'community' && (
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-500 flex-shrink-0">
+                                  {t?.('community') || "Общност"}
+                                </span>
+                              )}
+                              {message.type === 'broadcast' && (
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-500 flex-shrink-0">
+                                  {t?.('broadcast') || "Всички"}
+                                </span>
+                              )}
+                              {message.labels?.map((label) => (
+                                <span
+                                  key={label}
+                                  className={`px-2 py-0.5 rounded-full text-xs flex-shrink-0 ${
+                                    label === t?.('important') || label === 'Важно'
+                                      ? 'bg-red-500/20 text-red-500'
+                                      : label === t?.('sent') || label === 'Изпратено'
+                                      ? 'bg-blue-500/20 text-blue-500'
+                                      : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                                  }`}
+                                >
+                                  {label}
+                                </span>
+                              ))}
+                            </div>
+                            <p className={`text-sm truncate ${currentTheme.textSecondary} min-w-0`}>
+                              {message.content.substring(0, 120)}
+                              {message.content.length > 120 && '...'}
+                            </p>
+                          </div>
+                          
+                          {/* Quick Actions */}
+                          {!isOptimistic && (
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              {!message.read && message.receiverId === currentUser?.uid && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMarkAsRead(message.id, true);
+                                  }}
+                                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex-shrink-0"
+                                  title={t?.('mark_as_read') || "Маркирай като прочетено"}
+                                >
+                                  <EyeOff className="w-4 h-4 flex-shrink-0" />
+                                </button>
+                              )}
+                              
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteMessage(message.id);
+                                }}
+                                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-red-500 flex-shrink-0"
+                                title={t?.('delete_message') || "Изтрий съобщение"}
+                              >
+                                <Trash2 className="w-4 h-4 flex-shrink-0" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </div>
           </div>
-
-          {/* Middle Section - Folders & Messages */}
-          <div className="flex-1">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Folders */}
-              <div className="w-full lg:w-64 flex-shrink-0">
-                <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 mb-6`}>
-                  <div className="space-y-1">
-                    {folders.map((folder) => {
-                      let count = 0;
-                      
-                      if (folder.id === 'inbox') {
-                        count = messages.filter(m => 
-                          m.receiverId === currentUser?.uid && 
-                          !m.read && 
-                          !m.labels?.includes(t?.('trash') || 'Кошче') &&
-                          !isOptimisticMessage(m)
-                        ).length;
-                      } else if (folder.id === 'starred') {
-                        count = messages.filter(m => m.status === 'starred').length;
-                      } else if (folder.id === 'sent') {
-                        count = messages.filter(m => 
-                          m.senderId === currentUser?.uid && 
-                          !m.labels?.includes(t?.('trash') || 'Кошче')
-                        ).length;
-                      } else if (folder.id === 'trash') {
-                        count = messages.filter(m => m.labels?.includes(t?.('trash') || 'Кошче')).length;
-                      } else if (folder.id === 'drafts') {
-                        count = messages.filter(m => m.status === 'draft').length;
-                      }
-                      
-                      return (
-                        <button
-                          key={folder.id}
-                          onClick={() => setSelectedFolder(folder.id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                            selectedFolder === folder.id
-                              ? theme === 'dark' 
-                                ? 'bg-blue-500/20 text-blue-400' 
-                                : 'bg-blue-50 text-blue-600'
-                              : `${currentTheme.hover}`
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={folder.color}>
-                              {folder.icon}
-                            </div>
-                            <span className="font-medium">{folder.name}</span>
-                          </div>
-                          {count > 0 && (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-                            }`}>
-                              {count}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Messages Area */}
-              <div className="flex-1">
-                {/* Search Bar */}
-                <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 mb-6`}>
-                  <div className="flex flex-col md:flex-row items-center gap-4">
-                    <div className="flex-1 relative w-full">
-                      <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${currentTheme.textSecondary}`} />
-                      <input
-                        type="text"
-                        placeholder={t?.('search_messages') || "Търсене на съобщения..."}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                      <button
-                        onClick={selectAllMessages}
-                        className={`px-4 py-2 rounded-lg ${currentTheme.hover} flex-1 md:flex-none`}
-                      >
-                        {selectedMessages.length === filteredMessages.length ? t?.('deselect') || 'Отмени' : t?.('select_all') || 'Избери всички'}
-                      </button>
-                      {selectedMessages.length > 0 && (
-                        <button
-                          onClick={handleDeleteSelectedMessages}
-                          className="px-4 py-2 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/30 flex-1 md:flex-none"
-                        >
-                          <Trash2 className="w-4 h-4 inline mr-2" />
-                          {t?.('delete') || "Изтрий"} ({selectedMessages.length})
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Messages List */}
-                <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border overflow-hidden`}>
-                  {filteredMessages.length === 0 ? (
-                    <div className="py-16 text-center">
-                      <MessageCircle className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-                      <h3 className="text-xl font-bold mb-2">
-                        {selectedFolder === 'inbox' 
-                          ? t?.('no_new_messages') || 'Нямате нови съобщения' 
-                          : t?.('no_messages_found') || 'Няма намерени съобщения'}
-                      </h3>
-                      <p className={`mb-6 ${currentTheme.textSecondary}`}>
-                        {selectedFolder === 'inbox' 
-                          ? t?.('no_messages_inbox') || 'Когато получите съобщения, те ще се появят тук'
-                          : t?.('try_different_folder') || 'Опитайте с различна папка или търсене'}
-                      </p>
-                      <button
-                        onClick={() => setComposeOpen(true)}
-                        className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium"
-                      >
-                        <Edit className="w-5 h-5 inline mr-2" />
-                        {t?.('new_message') || "Ново съобщение"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
-                      {filteredMessages.map((message) => {
-                        const isOptimistic = isOptimisticMessage(message);
-                        
-                        return (
-                          <div
-                            key={`${message.id}_${message.timestamp?.toMillis?.() || message.timestamp}`}
-                            className={`flex items-center gap-4 p-4 cursor-pointer transition-colors group ${
-                              selectedMessage?.id === message.id
-                                ? theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'
-                                : `${currentTheme.hover}`
-                            } ${!message.read && message.receiverId === currentUser?.uid ? 'font-semibold' : ''} ${
-                              isOptimistic ? 'opacity-70' : ''
-                            }`}
-                            onClick={() => {
-                              setSelectedMessage(message);
-                              if (!message.read && message.receiverId === currentUser?.uid && !isOptimistic) {
-                                handleMarkAsRead(message.id, true);
-                              }
-                            }}
-                          >
-                            {/* Checkbox */}
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={selectedMessages.includes(message.id)}
-                                onChange={() => toggleMessageSelection(message.id)}
-                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                disabled={isOptimistic}
-                              />
-                            </div>
-                            
-                            {/* Star */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStarMessage(message.id, message.status !== 'starred');
-                              }}
-                              className="p-1"
-                            >
-                              {message.status === 'starred' ? (
-                                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                              ) : (
-                                <StarOff className="w-5 h-5 text-gray-400" />
-                              )}
-                            </button>
-                            
-                            {/* Sender Avatar */}
-                            <div className="flex-shrink-0">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                                isOptimistic
-                                  ? 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-500'
-                                  : 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-600 dark:text-blue-400'
-                              }`}>
-                                {getUserInitials(message.senderName)}
-                              </div>
-                            </div>
-                            
-                            {/* Message Details */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-1 gap-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="truncate font-medium">
-                                    {message.senderId === currentUser?.uid 
-                                      ? `${t?.('me') || 'Аз'} → ${message.receiverName}` 
-                                      : message.senderName}
-                                  </span>
-                                  {isOptimistic && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-500/20 text-gray-500">
-                                      {t?.('sending') || "Изпращане..."}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className={`text-sm ${currentTheme.textSecondary} whitespace-nowrap`}>
-                                  {formatDate(message.timestamp)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="font-medium truncate">
-                                  {message.subject || t?.('no_subject') || 'Без тема'}
-                                </span>
-                                {message.type === 'community' && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-500">
-                                    {t?.('community') || "Общност"}
-                                  </span>
-                                )}
-                                {message.type === 'broadcast' && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-500">
-                                    {t?.('broadcast') || "Всички"}
-                                  </span>
-                                )}
-                                {message.labels?.map((label) => (
-                                  <span
-                                    key={label}
-                                    className={`px-2 py-0.5 rounded-full text-xs ${
-                                      label === t?.('important') || label === 'Важно'
-                                        ? 'bg-red-500/20 text-red-500'
-                                        : label === t?.('sent') || label === 'Изпратено'
-                                        ? 'bg-blue-500/20 text-blue-500'
-                                        : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-                                    }`}
-                                  >
-                                    {label}
-                                  </span>
-                                ))}
-                              </div>
-                              <p className={`text-sm truncate ${currentTheme.textSecondary}`}>
-                                {message.content.substring(0, 120)}
-                                {message.content.length > 120 && '...'}
-                              </p>
-                            </div>
-                            
-                            {/* Quick Actions */}
-                            {!isOptimistic && (
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {!message.read && message.receiverId === currentUser?.uid && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMarkAsRead(message.id, true);
-                                    }}
-                                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                                    title={t?.('mark_as_read') || "Маркирай като прочетено"}
-                                  >
-                                    <EyeOff className="w-4 h-4" />
-                                  </button>
-                                )}
-                                
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteMessage(message.id);
-                                  }}
-                                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-red-500"
-                                  title={t?.('delete_message') || "Изтрий съобщение"}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Message Detail Panel */}
-          <AnimatePresence>
-            {selectedMessage && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="w-full lg:w-96 flex-shrink-0 mt-6 lg:mt-0"
-              >
-                <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 lg:p-6 sticky top-6`}>
-                  {/* Message Header */}
-                  <div className="flex items-start justify-between mb-6">
-                    <h2 className="text-xl font-bold">{t?.('message') || "Съобщение"}</h2>
-                    <button
-                      onClick={() => setSelectedMessage(null)}
-                      className={`p-2 rounded-lg ${currentTheme.hover}`}
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    {/* Subject */}
-                    <div>
-                      <h3 className="text-lg font-bold mb-4">{selectedMessage.subject}</h3>
-                      
-                      {/* Sender Info */}
-                      <div className="flex items-start gap-4 mb-6">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg ${
-                          isOptimisticMessage(selectedMessage)
-                            ? 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-500'
-                            : 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-600'
-                        }`}>
-                          {getUserInitials(selectedMessage.senderName)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold">
-                            {selectedMessage.senderId === currentUser?.uid 
-                              ? t?.('me') || 'Аз'
-                              : selectedMessage.senderName
-                            }
-                          </div>
-                          <div className={`text-sm ${currentTheme.textSecondary}`}>
-                            {t?.('to') || 'до'} {selectedMessage.receiverId === currentUser?.uid 
-                              ? t?.('me') || 'мен'
-                              : selectedMessage.receiverName
-                            }
-                          </div>
-                          <div className={`text-sm ${currentTheme.textSecondary}`}>
-                            {formatDate(selectedMessage.timestamp)}
-                          </div>
-                          {selectedMessage.type !== 'direct' && (
-                            <div className="mt-1">
-                              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                selectedMessage.type === 'community' 
-                                  ? 'bg-green-500/20 text-green-500'
-                                  : 'bg-purple-500/20 text-purple-500'
-                              }`}>
-                                {selectedMessage.type === 'community' 
-                                  ? t?.('community_message') || 'Съобщение до общност'
-                                  : t?.('broadcast_message') || 'Съобщение до всички'}
-                              </span>
-                              {selectedMessage.communityName && (
-                                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-500">
-                                  {selectedMessage.communityName}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {isOptimisticMessage(selectedMessage) && (
-                            <div className="mt-2">
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-gray-500/20 text-gray-500">
-                                {t?.('sending') || "Изпраща се..."}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {!selectedMessage.read && selectedMessage.receiverId === currentUser?.uid && !isOptimisticMessage(selectedMessage) && (
-                          <span className="px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-500">
-                            {t?.('new') || "Ново"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Message Content */}
-                    <div className={`border-t pt-6 ${currentTheme.border}`}>
-                      <div className={`prose dark:prose-invert max-w-none whitespace-pre-wrap ${
-                        isOptimisticMessage(selectedMessage) ? 'opacity-70' : ''
-                      }`}>
-                        {selectedMessage.content}
-                      </div>
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    {!isOptimisticMessage(selectedMessage) && (
-                      <div className={`border-t pt-6 ${currentTheme.border}`}>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => {
-                              setNewMessage({
-                                to: selectedMessage.senderId,
-                                subject: `Re: ${selectedMessage.subject}`,
-                                content: `\n\n--- ${t?.('original_message') || 'Оригинално съобщение'} ---\n${selectedMessage.content}`,
-                                type: 'direct',
-                                selectedUsers: [selectedMessage.senderId]
-                              });
-                              setComposeOpen(true);
-                              setSelectedMessage(null);
-                            }}
-                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium"
-                          >
-                            <Reply className="w-4 h-4 inline mr-2" />
-                            {t?.('reply') || "Отговор"}
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              setNewMessage({
-                                to: '',
-                                subject: `Fwd: ${selectedMessage.subject}`,
-                                content: `\n\n--- ${t?.('forwarded_message') || 'Препратено съобщение'} ---\n${selectedMessage.content}`,
-                                type: 'direct',
-                                selectedUsers: []
-                              });
-                              setComposeOpen(true);
-                              setSelectedMessage(null);
-                            }}
-                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          >
-                            <Forward className="w-4 h-4 inline mr-2" />
-                            {t?.('forward') || "Препрати"}
-                          </button>
-                          
-                          <button
-                            onClick={() => handleDeleteMessage(selectedMessage.id)}
-                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500"
-                          >
-                            <Trash2 className="w-4 h-4 inline mr-2" />
-                            {t?.('delete') || "Изтрий"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
-      </div>
 
-      {/* Compose Modal */}
-      <AnimatePresence>
-        {composeOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4"
-          >
-            <div 
-              className="absolute inset-0 bg-black/80" 
-              onClick={() => setComposeOpen(false)}
-            />
-            
+        {/* Message Detail Panel - 3 колони на xl */}
+        <AnimatePresence>
+          {selectedMessage && (
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl ${currentTheme.card} border ${currentTheme.border} flex flex-col`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="xl:col-span-3 w-full min-w-0"
             >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold">
-                  {newMessage.type === 'community' && selectedCommunity 
-                    ? `${t?.('message_to_community') || 'Съобщение до общност'}`
-                    : newMessage.type === 'broadcast'
-                    ? t?.('message_to_all') || 'Съобщение до всички'
-                    : t?.('new_message') || 'Ново съобщение'
-                  }
-                </h3>
-                <div className="flex items-center gap-2">
+              <div className={`rounded-2xl ${currentTheme.card} ${currentTheme.border} border p-4 lg:p-6 sticky top-6 w-full`}>
+                {/* Message Header */}
+                <div className="flex items-start justify-between mb-6 min-w-0">
+                  <h2 className="text-xl font-bold truncate min-w-0">{t?.('message') || "Съобщение"}</h2>
                   <button
-                    onClick={() => setComposeOpen(false)}
-                    className={`p-2 rounded-lg ${currentTheme.hover}`}
+                    onClick={() => setSelectedMessage(null)}
+                    className={`p-2 rounded-lg ${currentTheme.hover} flex-shrink-0`}
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-              </div>
-              
-              {/* Modal Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                <div className="space-y-4">
-                  {/* Message Type Selection */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-2">{t?.('message_type') || "Тип съобщение"}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {messageTypeOptions.map((option) => (
-                        <label key={option.value} className="flex items-center cursor-pointer">
-                          <input
-                            type="radio"
-                            name="messageType"
-                            value={option.value}
-                            checked={newMessage.type === option.value}
-                            onChange={(e) => setNewMessage({...newMessage, type: e.target.value as any})}
-                            className="hidden"
-                          />
-                          <span className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${
-                            newMessage.type === option.value 
-                              ? option.value === 'direct' ? 'bg-blue-500 text-white'
-                                : option.value === 'community' ? 'bg-green-500 text-white'
-                                : 'bg-purple-500 text-white'
-                              : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                          }`}>
-                            {option.icon}
-                            <span>{option.label}</span>
-                          </span>
-                        </label>
-                      ))}
+                
+                <div className="space-y-6 w-full min-w-0">
+                  {/* Subject */}
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold mb-4 truncate min-w-0">{selectedMessage.subject}</h3>
+                    
+                    {/* Sender Info */}
+                    <div className="flex items-start gap-4 mb-6 min-w-0">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg flex-shrink-0 ${
+                        isOptimisticMessage(selectedMessage)
+                          ? 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-500'
+                          : 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-600'
+                      }`}>
+                        {getUserInitials(selectedMessage.senderName)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate min-w-0">
+                          {selectedMessage.senderId === currentUser?.uid 
+                            ? t?.('me') || 'Аз'
+                            : selectedMessage.senderName
+                          }
+                        </div>
+                        <div className={`text-sm truncate ${currentTheme.textSecondary} min-w-0`}>
+                          {t?.('to') || 'до'} {selectedMessage.receiverId === currentUser?.uid 
+                            ? t?.('me') || 'мен'
+                            : selectedMessage.receiverName
+                          }
+                        </div>
+                        <div className={`text-sm ${currentTheme.textSecondary}`}>
+                          {formatDate(selectedMessage.timestamp)}
+                        </div>
+                        {selectedMessage.type !== 'direct' && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className={`px-2 py-0.5 rounded-full text-xs flex-shrink-0 ${
+                              selectedMessage.type === 'community' 
+                                ? 'bg-green-500/20 text-green-500'
+                                : 'bg-purple-500/20 text-purple-500'
+                            }`}>
+                              {selectedMessage.type === 'community' 
+                                ? t?.('community_message') || 'Съобщение до общност'
+                                : t?.('broadcast_message') || 'Съобщение до всички'}
+                            </span>
+                            {selectedMessage.communityName && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-500 flex-shrink-0">
+                                {selectedMessage.communityName}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {isOptimisticMessage(selectedMessage) && (
+                          <div className="mt-2">
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-gray-500/20 text-gray-500 flex-shrink-0">
+                              {t?.('sending') || "Изпраща се..."}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {!selectedMessage.read && selectedMessage.receiverId === currentUser?.uid && !isOptimisticMessage(selectedMessage) && (
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-500 flex-shrink-0">
+                          {t?.('new') || "Ново"}
+                        </span>
+                      )}
                     </div>
                   </div>
-
-                  {/* Recipient Info */}
-                  {newMessage.type === 'community' && selectedCommunity ? (
-                    <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-green-500/10' : 'bg-green-50'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Building className="w-4 h-4" />
-                        <span className="font-medium">
-                          {t?.('sending_to') || "Изпращане до"}: {myCommunities.find(c => c.id === selectedCommunity)?.name}
-                        </span>
-                      </div>
-                      <p className={`text-sm ${currentTheme.textSecondary}`}>
-                        {currentUserRole === 'teacher'
-                          ? t?.('message_to_all_community') || "Това съобщение ще бъде изпратено до всички в общността"
-                          : t?.('message_to_community_members') || "Това съобщение ще бъде изпратено до всички членове на вашата общност"
-                        }
-                      </p>
+                  
+                  {/* Message Content */}
+                  <div className={`border-t pt-6 ${currentTheme.border} w-full min-w-0`}>
+                    <div className={`prose dark:prose-invert max-w-none whitespace-pre-wrap w-full min-w-0 ${
+                      isOptimisticMessage(selectedMessage) ? 'opacity-70' : ''
+                    }`}>
+                      {selectedMessage.content}
                     </div>
-                  ) : newMessage.type === 'broadcast' ? (
-                    <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Users className="w-4 h-4" />
-                        <span className="font-medium">
-                          {t?.('sending_to') || "Изпращане до"}: {t?.('all_users') || "Всички потребители"}
-                        </span>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  {!isOptimisticMessage(selectedMessage) && (
+                    <div className={`border-t pt-6 ${currentTheme.border} w-full min-w-0`}>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => {
+                            setNewMessage({
+                              to: selectedMessage.senderId,
+                              subject: `Re: ${selectedMessage.subject}`,
+                              content: `\n\n--- ${t?.('original_message') || 'Оригинално съобщение'} ---\n${selectedMessage.content}`,
+                              type: 'direct',
+                              selectedUsers: [selectedMessage.senderId]
+                            });
+                            setComposeOpen(true);
+                            setSelectedMessage(null);
+                          }}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium flex-shrink-0"
+                        >
+                          <Reply className="w-4 h-4 inline mr-2" />
+                          {t?.('reply') || "Отговор"}
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setNewMessage({
+                              to: '',
+                              subject: `Fwd: ${selectedMessage.subject}`,
+                              content: `\n\n--- ${t?.('forwarded_message') || 'Препратено съобщение'} ---\n${selectedMessage.content}`,
+                              type: 'direct',
+                              selectedUsers: []
+                            });
+                            setComposeOpen(true);
+                            setSelectedMessage(null);
+                          }}
+                          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
+                        >
+                          <Forward className="w-4 h-4 inline mr-2" />
+                          {t?.('forward') || "Препрати"}
+                        </button>
+                        
+                        <button
+                          onClick={() => handleDeleteMessage(selectedMessage.id)}
+                          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 flex-shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4 inline mr-2" />
+                          {t?.('delete') || "Изтрий"}
+                        </button>
                       </div>
-                      <p className={`text-sm ${currentTheme.textSecondary}`}>
-                        {t?.('message_to_all_desc') || "Това съобщение ще бъде изпратено до всички потребители в платформата"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t?.('to') || "До"}</label>
-                      <input
-                        type="text"
-                        value={newMessage.to}
-                        onChange={(e) => setNewMessage({...newMessage, to: e.target.value})}
-                        className={`w-full px-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
-                        placeholder={t?.('username_or_email') || "Име на потребител или имейл"}
-                        list="recipients"
-                      />
-                      <datalist id="recipients">
-                        {filteredUsers.map(user => (
-                          <option key={user.uid} value={user.username}>
-                            {user.username} ({user.role === 'teacher' ? t?.('teacher') || 'Учител' : t?.('student') || 'Ученик'})
-                          </option>
-                        ))}
-                      </datalist>
                     </div>
                   )}
-                  
-                  {/* Subject */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">{t?.('subject') || "Тема"}</label>
-                    <input
-                      type="text"
-                      value={newMessage.subject}
-                      onChange={(e) => setNewMessage({...newMessage, subject: e.target.value})}
-                      className={`w-full px-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
-                      placeholder={t?.('message_subject') || "Тема на съобщението"}
-                    />
-                  </div>
-                  
-                  {/* Message Body */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">{t?.('message') || "Съобщение"}</label>
-                    <textarea
-                      value={newMessage.content}
-                      onChange={(e) => setNewMessage({...newMessage, content: e.target.value})}
-                      rows={8}
-                      className={`w-full px-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none`}
-                      placeholder={t?.('write_message_here') || "Напишете съобщението си тук..."}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Action Buttons - Fixed at bottom */}
-              <div className="flex items-center justify-between p-4 md:p-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <button 
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                    type="button"
-                  >
-                    <Paperclip className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setComposeOpen(false)}
-                    className={`px-4 py-2 rounded-lg ${currentTheme.hover}`}
-                    type="button"
-                  >
-                    {t?.('cancel') || "Отказ"}
-                  </button>
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={sending || !newMessage.content.trim() || (newMessage.type === 'direct' && !newMessage.to.trim())}
-                    className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    type="button"
-                  >
-                    {sending ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                        {t?.('sending') || "Изпращане..."}
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-5 h-5" />
-                        {t?.('send') || "Изпрати"}
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
-  );
+
+    {/* Compose Modal */}
+    <AnimatePresence>
+      {composeOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4"
+        >
+          <div 
+            className="absolute inset-0 bg-black/80" 
+            onClick={() => setComposeOpen(false)}
+          />
+          
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl ${currentTheme.card} border ${currentTheme.border} flex flex-col`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold truncate min-w-0">
+                {newMessage.type === 'community' && selectedCommunity 
+                  ? `${t?.('message_to_community') || 'Съобщение до общност'}`
+                  : newMessage.type === 'broadcast'
+                  ? t?.('message_to_all') || 'Съобщение до всички'
+                  : t?.('new_message') || 'Ново съобщение'
+                }
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setComposeOpen(false)}
+                  className={`p-2 rounded-lg ${currentTheme.hover} flex-shrink-0`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
+              <div className="space-y-4 w-full">
+                {/* Message Type Selection */}
+                <div className="mb-4 w-full">
+                  <label className="block text-sm font-medium mb-2">{t?.('message_type') || "Тип съобщение"}</label>
+                  <div className="flex flex-wrap gap-2">
+                    {messageTypeOptions.map((option) => (
+                      <label key={option.value} className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="messageType"
+                          value={option.value}
+                          checked={newMessage.type === option.value}
+                          onChange={(e) => setNewMessage({...newMessage, type: e.target.value as any})}
+                          className="hidden"
+                        />
+                        <span className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm flex-shrink-0 ${
+                          newMessage.type === option.value 
+                            ? option.value === 'direct' ? 'bg-blue-500 text-white'
+                              : option.value === 'community' ? 'bg-green-500 text-white'
+                              : 'bg-purple-500 text-white'
+                            : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                        }`}>
+                          {option.icon}
+                          <span className="truncate">{option.label}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recipient Info */}
+                {newMessage.type === 'community' && selectedCommunity ? (
+                  <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-green-500/10' : 'bg-green-50'} w-full`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building className="w-4 h-4 flex-shrink-0" />
+                      <span className="font-medium truncate min-w-0">
+                        {t?.('sending_to') || "Изпращане до"}: {myCommunities.find(c => c.id === selectedCommunity)?.name}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${currentTheme.textSecondary} truncate`}>
+                      {currentUserRole === 'teacher'
+                        ? t?.('message_to_all_community') || "Това съобщение ще бъде изпратено до всички в общността"
+                        : t?.('message_to_community_members') || "Това съобщение ще бъде изпратено до всички членове на вашата общност"
+                      }
+                    </p>
+                  </div>
+                ) : newMessage.type === 'broadcast' ? (
+                  <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-purple-500/10' : 'bg-purple-50'} w-full`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Users className="w-4 h-4 flex-shrink-0" />
+                      <span className="font-medium truncate min-w-0">
+                        {t?.('sending_to') || "Изпращане до"}: {t?.('all_users') || "Всички потребители"}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${currentTheme.textSecondary} truncate`}>
+                      {t?.('message_to_all_desc') || "Това съобщение ще бъде изпратено до всички потребители в платформата"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <label className="block text-sm font-medium mb-2">{t?.('to') || "До"}</label>
+                    <input
+                      type="text"
+                      value={newMessage.to}
+                      onChange={(e) => setNewMessage({...newMessage, to: e.target.value})}
+                      className={`w-full px-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
+                      placeholder={t?.('username_or_email') || "Име на потребител или имейл"}
+                      list="recipients"
+                    />
+                    <datalist id="recipients">
+                      {filteredUsers.map(user => (
+                        <option key={user.uid} value={user.username}>
+                          {user.username} ({user.role === 'teacher' ? t?.('teacher') || 'Учител' : t?.('student') || 'Ученик'})
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
+                )}
+                
+                {/* Subject */}
+                <div className="w-full">
+                  <label className="block text-sm font-medium mb-2">{t?.('subject') || "Тема"}</label>
+                  <input
+                    type="text"
+                    value={newMessage.subject}
+                    onChange={(e) => setNewMessage({...newMessage, subject: e.target.value})}
+                    className={`w-full px-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
+                    placeholder={t?.('message_subject') || "Тема на съобщението"}
+                  />
+                </div>
+                
+                {/* Message Body */}
+                <div className="w-full">
+                  <label className="block text-sm font-medium mb-2">{t?.('message') || "Съобщение"}</label>
+                  <textarea
+                    value={newMessage.content}
+                    onChange={(e) => setNewMessage({...newMessage, content: e.target.value})}
+                    rows={8}
+                    className={`w-full px-4 py-3 rounded-xl ${currentTheme.input} border focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none`}
+                    placeholder={t?.('write_message_here') || "Напишете съобщението си тук..."}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons - Fixed at bottom */}
+            <div className="flex items-center justify-between p-4 md:p-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <button 
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
+                  type="button"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setComposeOpen(false)}
+                  className={`px-4 py-2 rounded-lg ${currentTheme.hover} flex-shrink-0`}
+                  type="button"
+                >
+                  {t?.('cancel') || "Отказ"}
+                </button>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={sending || !newMessage.content.trim() || (newMessage.type === 'direct' && !newMessage.to.trim())}
+                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-shrink-0"
+                  type="button"
+                >
+                  {sending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white flex-shrink-0"></div>
+                      {t?.('sending') || "Изпращане..."}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5 flex-shrink-0" />
+                      {t?.('send') || "Изпрати"}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
 }
