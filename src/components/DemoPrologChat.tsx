@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { supabase } from "../services/supabase";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -21,8 +20,6 @@ import {
   Globe,
   CheckCircle,
   RefreshCw,
-  Cpu,
-  Zap
 } from "lucide-react";
 
 interface Message {
@@ -46,7 +43,7 @@ export default function PrologTestChat() {
   
   const { theme } = useTheme();
   const { t } = useLanguage();
-
+console.log(t)
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
