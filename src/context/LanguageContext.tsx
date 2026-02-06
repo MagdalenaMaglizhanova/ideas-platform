@@ -11,313 +11,582 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
-  no_activity: string,
-  no_student_activities: string,
-  lesson_title_required: string,
+  challenge_not_found: string;
+already_joined_challenge: string;
+select_challenge_first: string;
+code_empty: string;
+challenge_not_joined: string;
+challenge_submitted: string;
+challenge_submission_error: string;
+select_assignment_first: string;
+assignment_not_found: string;
+submit_challenge_solution: string;
+challenge_mode: string;
+current_challenge: string;
+challenge_mode_active: string;
+exit_challenge_mode: string;
+no_challenge_selected: string;
+select_challenge_first_desc: string;
+go_to_challenges: string;
+switch_to_assignments: string;
+switch_to_challenges: string;
+submit_solution: string;
+  please_login: string;
+teacher_pending_approval: string;
+welcome_teacher: string;
+account_under_review: string;
+admin_approval_needed: string;
+step_1: string;
+profile_created: string;
+create_profile: string;
+step_2: string;
+awaiting_admin_approval: string;
+step_3: string;
+access_dashboard: string;
+your_information: string;
+email: string;
+what_happens_next: string;
+step1_description: string;
+step2_description: string;
+step3_description: string;
+refresh_status: string;
+challenge_rejected: string;
+challenge_reject_error: string;
+challenge_accepted: string;
+challenge_accept_error: string;
+approve: string;
+reject: string;
+challenge_response_title: string;
+challenge_solution_title: string;
+challenge_view_solution_code: string;
+challenge_response_from: string;
+challenge_respond: string;
+challenge_reject_confirm: string;
+challenge_view_response: string;
+challenge_response_content: string;
+challenge_response_placeholder: string;
+challenge_solution_code: string;
+challenge_solution_code_placeholder: string;
+challenge_send_response: string;
+
+contact_admin: string;
+estimated_approval_time: string;
+
+  user: string;                    // Добави този
+  message_to_all_desc: string;
+   no_messages: string;
+  mark_all_as_read: string;
+  messages_as_read: string;
+  all_messages_marked_as_read: string;
+  error_updating_messages: string;
+  no_read_messages: string;
+  delete_read_messages: string;
+  read_messages: string;
+  messages_deleted: string;
+  delete_all_messages: string;
+  open_messages: string;
+  in_my_community: string;
+  error_loading_community: string;
+  no_community: string;
+  remove_star: string;
+  star: string;
+  select_message: string;
+  select_message_to_view: string;
+  to_community: string;
+   message_to_all_community: string;
+  message_to_community_members: string;
+  no_students_in_community: string;
+  no_community_members: string;
+  teachers_and_my_students: string;
+  community_students: string;
+  my_community_members: string;
+  community_teacher: string;
+  other_teachers: string;
+  my_students: string;
+  available_recipients: string;
+  my_community: string;
+  student_messages: string;
+  teacher_messages: string;
+  available_users: string;
+  broadcast_teachers_only: string;
+  not_your_community: string;
+  not_in_community: string;
+  cannot_send_outside_community: string;
+  cannot_send_to_student: string;
+  quick_message: string;
+  quick_message_desc: string;
+  open_mail: string;
+  broadcast_all_students: string;
+  type_your_message_here: string;
+  new_messages: string;
+  mark_all_read_confirm: string;
+  click_to_mark_read: string;
+  view_all_messages: string;
+  students_in_my_communities: string;
+  assignments_created_by_me: string;
+  in_system: string;
+  other_teachers_in_system: string;
+  my_students_activities: string;
+
+  manage_learning_communities: string;
+  create_community: string;
+  create_first_community: string;
+  pending_requests: string;
+  manage_community_challenges: string;
+  create_challenge: string;
+  create_first_challenge: string;
+  to: string;
+  communities_overview: string;
+  no_communities_dashboard: string;
+  view_all_communities: string;
+  community_name: string;
+  enter_community_name: string;
+  grade_level: string;
+  privacy_settings: string;
+  auto_approve_students: string;
+  allow_student_messages: string;
+  allow_student_challenges: string;
+  allow_inter_community_challenges: string;
+  challenge_title: string;
+  enter_challenge_title: string;
+  target_community: string;
+  select_community: string;
+  send_challenge: string;
+  no_activity: string;
+  no_student_activities: string;
+  lesson_title_required: string;
+  join_communities: string;
+  join_community_dashboard: string;
+  community_join_info: string;
+  community_creation_note: string;
+  community_creation_help: string;
+  solution_submitted: string;
+  solution_error: string;
+  join_request_sent: string;
+  join_request_error: string;
+  invalid_invite_code: string;
+  join_error: string;
+  message_sent: string;
+  message_error: string;
+  challenge_joined_success: string;
+  challenge_join_error: string;
+  my_solutions: string;
+  challenges: string;
+  learning_communities: string;
+  challenges_in_progress: string;
+  enter_invite_code: string;
+  join: string;
+  my_communities: string;
+  no_communities_yet: string;
+  join_community_description: string;
+  members: string;
+  public: string;
+  private: string;
+  general: string;
+  view_challenges: string;
+  community_members: string;
+  active_challenges: string;
+  no_challenges_yet: string;
+  no_challenges_description: string;
+  participants: string;
+  joined: string;
+  solve_now: string;
+  join_challenge: string;
   
   // Статистики и метрики
-  registered_students: string,
-  pending_approvals: string,
-  waiting_for_review: string,
-  student_performance: string,
-  lesson_progress: string,
-  completed_lessons: string,
+  registered_students: string;
+  pending_approvals: string;
+  waiting_for_review: string;
+  student_performance: string;
+  lesson_progress: string;
+  completed_lessons: string;
   
   // Заглавия и секции
-  student_activities: string,
-  recent_assignments: string,
-  last_activity: string,
+  student_activities: string;
+  recent_assignments: string;
+  last_activity: string;
   
   // Форми и входни полета
-  lesson_title: string,
-  enter_lesson_title: string,
-  enter_description: string,
+  lesson_title: string;
+  enter_lesson_title: string;
+  enter_description: string;
   
   // Действия и бутони
-  add_lesson: string,
+  add_lesson: string;
   
   // Статуси
-  pending_approval: string,
+  pending_approval: string;
 
   // Основни действия и бутони
-  close: string,
-  download_code: string,
-  download: string,
-  view_grade: string,
-  view_download_submissions: string,
-  new_submission: string,
-  resubmit: string,
+  close: string;
+  download_code: string;
+  download: string;
+  view_grade: string;
+  view_download_submissions: string;
+  new_submission: string;
+  resubmit: string;
   
   // Времеви метаданни
-  graded_on: string,
-  submitted_on: string,
-  pending_evaluation: string,
+  graded_on: string;
+  submitted_on: string;
+  pending_evaluation: string;
   
   // Състояния на задачите
-  
-  assignment_not_graded: string,
+  assignment_not_graded: string;
   
   // Заглавия и секции
-  assignment_evaluation: string,
+  assignment_evaluation: string;
   
   // Статистики и метрики
-  code_execution_success: string,
-  consecutive_days_active: string,
-  keep_it_up: string,
-  pending_assignments: string,
-  needs_submission: string,
-  requires_attention: string,
+  code_execution_success: string;
+  consecutive_days_active: string;
+  keep_it_up: string;
+  pending_assignments: string;
+  needs_submission: string;
+  requires_attention: string;
   
   // Съобщения и текст
-  no_recent_activity: string,
+  no_recent_activity: string;
   
-  about_us:string,
-  prolog_demo:string,
-  select_domain_to_view_code:string;
+  about_us: string;
+  prolog_demo: string;
+  select_domain_to_view_code: string;
+  
   // Категории
-prolog_programming: string;
-artificial_intelligence: string;
-databases: string;
-algorithms: string;
-logic_programming: string;
+  prolog_programming: string;
+  artificial_intelligence: string;
+  databases: string;
+  algorithms: string;
+  logic_programming: string;
 
-// Заглавия и подзаглавия
-learning_topics: string;
-explore_materials: string;
-all_topics: string;
-all_learning_topics: string;
-explore_category_topics: string;
-browse_all_topics: string;
-topics_completed: string;
-lessons_completed: string;
+  // Заглавия и подзаглавия
+  learning_topics: string;
+  explore_materials: string;
+  all_topics: string;
+  all_learning_topics: string;
+  explore_category_topics: string;
+  browse_all_topics: string;
+  topics_completed: string;
+  lessons_completed: string;
 
-// Бърз достъп и менюта
-quick_access: string;
-search_topics: string;
-categories: string;
+  // Бърз достъп и менюта
+  quick_access: string;
+  search_topics: string;
+  categories: string;
 
-// Статуси и действия
-start_learning: string;
-start_course: string;
-start_lesson: string;
-review_lesson: string;
-ask_ai_about_topic: string;
-ask_ai_about_lesson: string;
-bookmark_lesson: string;
+  // Статуси и действия
+  start_learning: string;
+  start_course: string;
+  start_lesson: string;
+  review_lesson: string;
+  ask_ai_about_topic: string;
+  ask_ai_about_lesson: string;
+  bookmark_lesson: string;
+  challenge_accept: string;
 
-// Зареждане и съобщения
-loading_topics: string;
-no_topics_found: string;
-no_topics_for_category: string;
-select_topic_prompt: string;
-choose_topic_from_list: string;
-no_lessons_available: string;
-no_lessons_for_topic: string;
+  // Зареждане и съобщения
+  loading_topics: string;
+  no_topics_found: string;
+  no_topics_for_category: string;
+  select_topic_prompt: string;
+  choose_topic_from_list: string;
+  no_lessons_available: string;
+  no_lessons_for_topic: string;
 
-lesson: string; // единично число
-duration: string;
-course_lessons: string;
-// Заглавия и подзаглавия
-prolog_guide_subtitle: string;
-prolog_guide_description: string;
+  lesson: string; // единично число
+  duration: string;
+  course_lessons: string;
+  
+  // Заглавия и подзаглавия
+  prolog_guide_subtitle: string;
+  prolog_guide_description: string;
 
-// Табове
-tab_basics: string;
-tab_examples: string;
-tab_tutorials: string;
-tab_resources: string;
+  // Табове
+  tab_basics: string;
+  tab_examples: string;
+  tab_tutorials: string;
+  tab_resources: string;
 
-// Основи на Prolog - заглавия
-basics_facts_title: string;
-basics_rules_title: string;
-basics_queries_title: string;
+  // Основи на Prolog - заглавия
+  basics_facts_title: string;
+  basics_rules_title: string;
+  basics_queries_title: string;
 
-// Основи на Prolog - описания
-basics_facts_desc: string;
-basics_rules_desc: string;
-basics_queries_desc: string;
+  // Основи на Prolog - описания
+  basics_facts_desc: string;
+  basics_rules_desc: string;
+  basics_queries_desc: string;
 
-// Основи на Prolog - точки (масиви)
-basics_facts_p1: string;
-basics_facts_p2: string;
-basics_facts_p3: string;
-basics_facts_p4: string;
+  // Основи на Prolog - точки (масиви)
+  basics_facts_p1: string;
+  basics_facts_p2: string;
+  basics_facts_p3: string;
+  basics_facts_p4: string;
 
-basics_rules_p1: string;
-basics_rules_p2: string;
-basics_rules_p3: string;
-basics_rules_p4: string;
+  basics_rules_p1: string;
+  basics_rules_p2: string;
+  basics_rules_p3: string;
+  basics_rules_p4: string;
 
-basics_queries_p1: string;
-basics_queries_p2: string;
-basics_queries_p3: string;
-basics_queries_p4: string;
+  basics_queries_p1: string;
+  basics_queries_p2: string;
+  basics_queries_p3: string;
+  basics_queries_p4: string;
+  inbox: string;
+  starred: string;
+  sent: string;
+  drafts: string;
+  trash: string;
+  unknown_user: string;
+  error_loading_users: string;
+  error_loading_communities: string;
+  error_loading_messages: string;
+  unknown: string;
+  no_subject: string;
+  login_required: string;
+  message_content_required: string;
+  recipient_required: string;
+  recipient_not_found: string;
+  cannot_send_to_self: string;
+  community_not_found: string;
+  no_users_in_community: string;
+  no_other_users: string;
+  invalid_message_type: string;
+  new_message: string;
+  you_have_new_message_from: string;
+  error_sending_message: string;
+  no_permission_send_messages: string;
+  no_internet_connection: string;
+  message_sent_to: string;
+  recipients: string;
+  recipient: string;
+  error_starring_message: string;
+  error_archiving_message: string;
+  confirm_delete_message: string;
+  message_moved_to_trash: string;
+  error_deleting_message: string;
+  delete_selected_messages: string;
+  selected_messages: string;
+  messages_moved_to_trash: string;
+  error_deleting_messages: string;
+  permanent_delete_confirm: string;
+  message_permanently_deleted: string;
+  error_permanent_delete: string;
+  error_marking_message: string;
+  no_unread_messages: string;
+  messages_marked_as_read: string;
+  error_marking_messages: string;
+  loading_messages: string;
+  messages_center: string;
+  unread: string;
+  in_community: string;
+  mark_all_read: string;
+  mark_all: string;
+  new: string;
+  community: string;
+  all_users: string;
+  message_to_community: string;
+  user_list: string;
+  found: string;
+  no_users_found: string;
+  important: string;
+  select_all: string;
+  no_new_messages: string;
+  no_messages_found: string;
+  no_messages_inbox: string;
+  try_different_folder: string;
+  me: string;
+  broadcast: string;
+  community_message: string;
+  broadcast_message: string;
+  original_message: string;
+  reply: string;
+  forwarded_message: string;
+  forward: string;
+  permanent_delete: string;
+  message_to_all: string;
+  message_type: string;
+  personal: string;
+  sending_to: string;
+  message_to_community_desc: string;
+  users_on_platform: string;
+  username_or_email: string;
+  message_subject: string;
+  write_message_here: string;
+  sending: string;
+  search_messages: string;
+  deselect: string;
+  mark_as_read: string;
+  delete_message: string;
 
-// Примери на код - заглавия и описания
-prolog_basics_title: string;
-prolog_basics_desc: string;
-prolog_basics_expl: string;
 
-prolog_recursion_title: string;
-prolog_recursion_desc: string;
-prolog_recursion_expl: string;
+  // Примери на код - заглавия и описания
+  prolog_basics_title: string;
+  prolog_basics_desc: string;
+  prolog_basics_expl: string;
 
-prolog_lists_title: string;
-prolog_lists_desc: string;
-prolog_lists_expl: string;
+  prolog_recursion_title: string;
+  prolog_recursion_desc: string;
+  prolog_recursion_expl: string;
 
-// Уроци - заглавия и съдържание
-tutorial_structure_title: string;
-tutorial_structure_content: string;
-tutorial_structure_ex1: string;
-tutorial_structure_ex2: string;
-tutorial_structure_ex3: string;
-tutorial_structure_ex4: string;
+  prolog_lists_title: string;
+  prolog_lists_desc: string;
+  prolog_lists_expl: string;
 
-tutorial_variables_title: string;
-tutorial_variables_content: string;
-tutorial_variables_ex1: string;
-tutorial_variables_ex2: string;
-tutorial_variables_ex3: string;
-tutorial_variables_ex4: string;
+  // Уроци - заглавия и съдържание
+  tutorial_structure_title: string;
+  tutorial_structure_content: string;
+  tutorial_structure_ex1: string;
+  tutorial_structure_ex2: string;
+  tutorial_structure_ex3: string;
+  tutorial_structure_ex4: string;
 
-tutorial_backtracking_title: string;
-tutorial_backtracking_content: string;
-tutorial_backtracking_ex1: string;
-tutorial_backtracking_ex2: string;
-tutorial_backtracking_ex3: string;
-tutorial_backtracking_ex4: string;
+  tutorial_variables_title: string;
+  tutorial_variables_content: string;
+  tutorial_variables_ex1: string;
+  tutorial_variables_ex2: string;
+  tutorial_variables_ex3: string;
+  tutorial_variables_ex4: string;
 
-// Бързи съвети
-quick_tips_title: string;
-quick_tips_subtitle: string;
-tip_1: string;
-tip_2: string;
-tip_3: string;
-tip_4: string;
+  tutorial_backtracking_title: string;
+  tutorial_backtracking_content: string;
+  tutorial_backtracking_ex1: string;
+  tutorial_backtracking_ex2: string;
+  tutorial_backtracking_ex3: string;
+  tutorial_backtracking_ex4: string;
 
-view_code_for_domain: string; 
-upload_new_file_to: string; 
-name_required: string;
-institution_required: string;
-email_required: string;
+  // Бързи съвети
+  quick_tips_title: string;
+  quick_tips_subtitle: string;
+  tip_1: string;
+  tip_2: string;
+  tip_3: string;
+  tip_4: string;
 
-// Полета и етикети
-full_name: string;
-enter_full_name: string;
-select_role: string;
-teacher_approval_note: string;
-institution: string;
-enter_institution: string;
-grade_course: string;
-enter_grade: string;
-specialty: string;
-enter_specialty: string;
-create_password: string;
+  view_code_for_domain: string;
+  upload_new_file_to: string;
+  name_required: string;
+  institution_required: string;
+  email_required: string;
 
-// Текстове от интерфейса
-join_community: string;
-register_description: string;
-start_journey: string;
-send_updates: string;
+  // Полета и етикети
+  full_name: string;
+  enter_full_name: string;
+  select_role: string;
+  teacher_approval_note: string;
+  institution: string;
+  enter_institution: string;
+  grade_course: string;
+  enter_grade: string;
+  specialty: string;
+  enter_specialty: string;
+  create_password: string;
 
+  // Текстове от интерфейса
+  join_community: string;
+  register_description: string;
+  start_journey: string;
+  send_updates: string;
 
-// Student Dashboard специфични ключове
-student_account: string;
-practice_makes_perfect: string;
-practice_makes_perfect_desc: string;
-complete_assignments_early: string;
-complete_assignments_early_desc: string;
-join_study_group: string;
-join_study_group_desc: string;
-start_now: string;
-view_assignments: string;
-join_now: string;
-success_rate_trend: string;
-submit_assignments_projects: string;
-templates: string;
-submit_code: string;
-submissions_found: string;
-check_back_later: string;
-all_status: string;
-all_difficulty: string;
-browse_courses: string;
-view_course: string;
-continue: string;
-track_achievements: string;
-uploaded: string;
-expert_system: string;
-general_knowledge: string;
-general_assignment: string;
-date: string;
-prolog_submission: string;
-no_submissions_yet: string;
-assignments_found: string;
-total: string;
-success: string;
-successful_executions: string;
-assignments_completed: string;
-active_streak: string;
-current_activity_streak: string;
-review: string;
-lines: string;
-code_editor: string;
+  // Student Dashboard специфични ключове
+  student_account: string;
+  practice_makes_perfect: string;
+  practice_makes_perfect_desc: string;
+  complete_assignments_early: string;
+  complete_assignments_early_desc: string;
+  challenge_response_on: string;
+challenge_reject: string;
+  join_study_group: string;
+  join_study_group_desc: string;
+  start_now: string;
+  view_assignments: string;
+  join_now: string;
+  success_rate_trend: string;
+  submit_assignments_projects: string;
+  templates: string;
+  submit_code: string;
+  submissions_found: string;
+  check_back_later: string;
+  all_status: string;
+  all_difficulty: string;
+  browse_courses: string;
+  view_course: string;
+  continue: string;
+  track_achievements: string;
+  uploaded: string;
+  expert_system: string;
+  general_knowledge: string;
+  general_assignment: string;
+  date: string;
+  prolog_submission: string;
+  no_submissions_yet: string;
+  assignments_found: string;
+  total: string;
+  success: string;
+  successful_executions: string;
+  assignments_completed: string;
+  active_streak: string;
+  current_activity_streak: string;
+  review: string;
+  lines: string;
+  code_editor: string;
 
-// Teacher Dashboard ключове
-what_to_teach: string;
-all_time_submissions: string;
-completed_submissions: string;
-total_files_uploaded: string;
-overall_success_rate: string;
-new_today: string;
-assignment: string;
-course: string;
-file: string;
-grading: string;
-ago: string;
-add_new_assignment: string;
-top_students: string;
-avg: string;
-recommendations: string;
-my_lessons: string;
-manage_organize_lessons: string;
-add_new_lesson: string;
-preview: string;
-manage_create_assignments: string;
-add_assignment: string;
-upload_first_file: string;
-no_email: string;
-na: string;
-no_files_uploaded: string;
-add_detailed_feedback: string;
-example_expert_system: string;
-example_insects: string;
-describe_objective: string;
-brief_description: string;
-instructions: string;
-add_instruction: string;
-enter_instruction: string;
-minimum_facts: string;
-minimum_rules: string;
-create_new_assignment: string;
-challenge_algorithms: string;
-new_course_ml: string;
-student_file_project: string;
-homework_check: string;
-visual_examples: string;
-visual_examples_desc: string;
-apply: string;
-group_work: string;
-group_work_desc: string;
-start: string;
-short_break: string;
-short_break_desc: string;
-create: string;
+  // Teacher Dashboard ключове
+  what_to_teach: string;
+  all_time_submissions: string;
+  completed_submissions: string;
+  total_files_uploaded: string;
+  overall_success_rate: string;
+  new_today: string;
+  assignment: string;
+  course: string;
+  file: string;
+  grading: string;
+  ago: string;
+  add_new_assignment: string;
+  top_students: string;
+  avg: string;
+  recommendations: string;
+  my_lessons: string;
+  manage_organize_lessons: string;
+  add_new_lesson: string;
+  preview: string;
+  manage_create_assignments: string;
+  add_assignment: string;
+  upload_first_file: string;
+  no_email: string;
+  na: string;
+  no_files_uploaded: string;
+  add_detailed_feedback: string;
+  example_expert_system: string;
+  example_insects: string;
+  describe_objective: string;
+  brief_description: string;
+  instructions: string;
+  add_instruction: string;
+  enter_instruction: string;
+  minimum_facts: string;
+  minimum_rules: string;
+  create_new_assignment: string;
+  challenge_algorithms: string;
+  new_course_ml: string;
+  student_file_project: string;
+  homework_check: string;
+  visual_examples: string;
+  visual_examples_desc: string;
+  apply: string;
+  group_work: string;
+  group_work_desc: string;
+  start: string;
+  short_break: string;
+  short_break_desc: string;
+  create: string;
 
   quick_links: string;
-schedule_demo: string;
-explore_community: string;
-made_with_love: string;
+  schedule_demo: string;
+  explore_community: string;
+  made_with_love: string;
+  
   // Header преводи
   home: string;
   topics: string;
@@ -328,26 +597,28 @@ made_with_love: string;
   logout: string;
   innovation_platform: string;
   admin_dashboard: string;
+  
   // Добави след вече съществуващите ключове
-review_code: string;
-start_work: string;
-select_assignment: string;
-todays_tasks: string;
-task_details: string;
-no_tasks_today: string;
-all_caught_up: string;
-assignment_progress: string;
-difficulty_distribution: string;
-by_difficulty: string;
-no_active_assignments: string;
-facts: string;
-rules: string;
-review_submission: string;
-assignment_completion: string;
-header_copied: string;
-copy_header: string;
-prolog: string;
-lessons: string;
+  review_code: string;
+  start_work: string;
+  select_assignment: string;
+  todays_tasks: string;
+  task_details: string;
+  no_tasks_today: string;
+  all_caught_up: string;
+  assignment_progress: string;
+  difficulty_distribution: string;
+  by_difficulty: string;
+  no_active_assignments: string;
+  facts: string;
+  rules: string;
+  review_submission: string;
+  assignment_completion: string;
+  header_copied: string;
+  copy_header: string;
+  prolog: string;
+  lessons: string;
+  
   // Home page преводи
   ideas_acronym: string;
   hero_title_part1: string;
@@ -407,23 +678,25 @@ lessons: string;
   privacy: string;
   terms: string;
   cookies: string;
+  challenge_view_submissions :string;
+  
   create_knowledge_title: string;
-create_knowledge_desc: string;
-create_feature_1: string;
-create_feature_2: string;
-create_feature_3: string;
-start_creating: string;
+  create_knowledge_desc: string;
+  create_feature_1: string;
+  create_feature_2: string;
+  create_feature_3: string;
+  start_creating: string;
 
-use_knowledge_title: string;
-use_knowledge_desc: string;
-use_feature_1: string;
-use_feature_2: string;
-use_feature_3: string;
-start_using: string;
+  use_knowledge_title: string;
+  use_knowledge_desc: string;
+  use_feature_1: string;
+  use_feature_2: string;
+  use_feature_3: string;
+  start_using: string;
 
-total_knowledge_bases: string;
-active_creators: string;
-educational_topics: string;
+  total_knowledge_bases: string;
+  active_creators: string;
+  educational_topics: string;
   
   // Dashboard преводи (основни)
   welcome_back: string;
@@ -538,6 +811,24 @@ educational_topics: string;
   create_account: string;
   terms_agreement: string;
   and: string;
+  
+  communities: string;
+  from: string;
+  my_challenge_solutions: string;
+  no_solutions_yet: string;
+  join_challenges_to_solve: string;
+  browse_challenges: string;
+  view_solution: string;
+  continue_solving: string;
+  message_community: string;
+  message: string;
+  messages: string;
+  type_message_here: string;
+  select_recipient: string;
+  teachers: string;
+  message_history: string;
+  you: string;
+  no_messages_yet: string;
   
   // Register page преводи
   register_title: string;
@@ -658,18 +949,22 @@ educational_topics: string;
   reconsult_file_tooltip: string;
   unload_file_tooltip: string;
   switch_file_tooltip: string;
+  
   // Добави след вече съществуващите ключове
-choose_assignment: string;
-use_template: string;
-assignment_info: string;
-title: string;
-requirements: string;
-file_information: string;
-type: string;
-student_name: string;
-data_area: string;
-prolog_code: string;
-update_header: string;
+  choose_assignment: string;
+  use_template: string;
+  assignment_info: string;
+  title: string;
+  requirements: string;
+  file_information: string;
+  type: string;
+  student_name: string;
+  data_area: string;
+  prolog_code: string;
+  update_header: string;
+  no_permission_delete: string;
+message_deleted: string;
+messages_processed: string;
   
   // Балкан преводи
   balkan: string;
@@ -687,9 +982,10 @@ update_header: string;
   upload_to_domain: string;
   code: string;
   file_commands_title: string;
+  
   completed_assignments_count: string;
-in_progress_assignments_count: string;
-total_assignments_count: string;
+  in_progress_assignments_count: string;
+  total_assignments_count: string;
   
   // НОВИ ДОБАВЕНИ КЛЮЧОВЕ ОТ DASHBOARD КОДА:
   student: string;
@@ -814,51 +1110,51 @@ total_assignments_count: string;
   uncategorized: string;
   completed_assignments: string;
   in_progress_assignments: string;
+  
   // Във ВСЕКИ от вашите преводни файлове (bg, en, es) добавете:
+  // Заглавия и раздели
+  dashboard_schools: string;
+  dashboard_knowledge: string;
+  dashboard_education: string;
 
-// Заглавия и раздели
-dashboard_schools: string;
-dashboard_knowledge: string;
-dashboard_education: string;
+  // Статистики
+  total_schools: string;
+  active_schools_dash: string;
+  registered_users: string;
+  active_users_dash: string;
+  biology_bases: string;
+  geography_bases: string;
+  mathematics_bases: string;
+  chemistry_bases: string;
+  physics_bases: string;
+  history_bases: string;
+  literature_bases: string;
+  language_bases: string;
 
-// Статистики
-total_schools: string;
-active_schools_dash: string;
-registered_users: string;
-active_users_dash: string;
-biology_bases: string;
-geography_bases: string;
-mathematics_bases: string;
-chemistry_bases: string;
-physics_bases: string;
-history_bases: string;
-literature_bases: string;
-language_bases: string;
+  // Интерфейс
+  live_status: string;
+  schools_short: string;
+  knowledge_short: string;
+  education_short: string;
+  auto_rotate: string;
 
-// Интерфейс
-live_status: string;
-schools_short: string;
-knowledge_short: string;
-education_short: string;
-auto_rotate: string;
+  // Графики
+  growth_trend_schools: string;
+  growth_trend_knowledge: string;
+  growth_trend_education: string;
+  last_7_days: string;
 
-// Графики
-growth_trend_schools: string;
-growth_trend_knowledge: string;
-growth_trend_education: string;
-last_7_days: string;
+  // Допълнителна информация
+  platform_activity: string;
+  this_month: string;
+  data_security: string;
 
-// Допълнителна информация
-platform_activity: string;
-this_month: string;
-data_security: string;
-
-// Активности
-activity_new_school: string;
-activity_knowledge_base: string;
-activity_new_materials: string;
-activity_user_registered: string;
-minutes_ago: string;
+  // Активности
+  activity_new_school: string;
+  activity_knowledge_base: string;
+  activity_new_materials: string;
+  activity_user_registered: string;
+  minutes_ago: string;
   
   // Статуси за потребители
   warning: string;
@@ -868,21 +1164,22 @@ minutes_ago: string;
   teacher_name: string;
   secure_login: string;
   security_description: string;
+  
   // Статистика
   total_students: string;
   total_files: string;
   no_uploads: string;
-code_updated: string;
-upload_error: string;
-not_pl_file: string;
-upload_successful: string;
-catch_block_error: string;
-option: string;
-loading_assignments: string;
-// Добави тези ключове в интерфейса TranslationKeys:
-status_completed: string;
-status_in_progress: string;
-
+  code_updated: string;
+  upload_error: string;
+  not_pl_file: string;
+  upload_successful: string;
+  catch_block_error: string;
+  option: string;
+  loading_assignments: string;
+  
+  // Добави тези ключове в интерфейса TranslationKeys:
+  status_completed: string;
+  status_in_progress: string;
 }
 
 // Тип за обекта с всички преводи
@@ -903,9 +1200,61 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 // Преводите с правилната типизация
 const translations: Translations = {
   en: {
+    communities: "Communities",
+    from: "from",
+  my_challenge_solutions: "My Challenge Solutions",
+  no_solutions_yet: "No solutions yet",
+  join_challenges_to_solve: "Join challenges to start solving!",
+  browse_challenges: "Browse Challenges",
+  view_solution: "View Solution",
+  continue_solving: "Continue Solving",
+  message_community: "Message Community",
+  message: "Message",
+  messages: "Messages",
+  type_message_here: "Type message here...",
+  select_recipient: "Select recipient",
+  teachers: "Teachers",
+  message_history: "Message History",
+  you: "You",
+  no_messages_yet: "No messages yet",
     no_activity: "No activity",
   no_student_activities: "No student activities yet",
   lesson_title_required: "Lesson title is required",
+
+  teacher_pending_approval: "Pending Approval",
+  welcome_teacher: "Welcome, Teacher!",
+  account_under_review: "Your account is under review",
+  admin_approval_needed: "Your account needs to be approved by an administrator before you can access the teacher dashboard.",
+  step_1: "Profile Creation",
+  profile_created: "Profile created successfully",
+  create_profile: "Create teacher profile",
+  step_2: "Admin Approval",
+  awaiting_admin_approval: "Your account is awaiting administrator approval",
+  step_3: "Dashboard Access",
+  access_dashboard: "You will gain access to all teacher features",
+  your_information: "Your Information",
+  full_name: "Full Name",
+  email: "Email",
+  institution: "School/Institution",
+  status: "Status",
+  pending_approval: "Pending Approval",
+  what_happens_next: "What happens next?",
+  step1_description: "The administrator will review your registration",
+  step2_description: "You will receive an email when your account is approved",
+  step3_description: "After approval you will have full access to the teacher dashboard",
+  refresh_status: "Check Status",
+  logout: "Logout",
+  contact_admin: "Contact Us",
+  estimated_approval_time: "Approval usually takes 24-48 hours on business days",
+  no_uploads: "No uploads",
+  code_updated: "Code updated",
+  upload_error: "Upload error",
+  not_pl_file: "Not a Prolog file",
+  upload_successful: "Upload successful",
+  catch_block_error: "Error occurred",
+  option: "Option",
+  loading_assignments: "Loading assignments",
+  total_students: "Total Students",
   
   // Статистики и метрики
   registered_students: "Registered students",
@@ -928,9 +1277,41 @@ const translations: Translations = {
   
   // Действия и бутони
   add_lesson: "Add Lesson",
-  
-  // Статуси
-  pending_approval: "Pending",
+  manage_learning_communities: "Manage your learning communities",
+  create_community: "Create Community",
+  create_first_community: "Create First Community",
+  pending_requests: "Pending Requests",
+  manage_community_challenges: "Manage and create challenges between communities",
+  create_challenge: "Create Challenge",
+  create_first_challenge: "Create First Challenge",
+  to: "To",
+  communities_overview: "Communities Overview",
+  no_communities_dashboard: "You haven't created any communities yet",
+  view_all_communities: "View All Communities",
+  community_name: "Community Name",
+  enter_community_name: "Enter community name",
+  grade_level: "Grade Level",
+  privacy_settings: "Privacy Settings",
+  auto_approve_students: "Auto-approve student join requests",
+  allow_student_messages: "Allow students to message each other",
+  allow_student_challenges: "Allow students to create challenges",
+  allow_inter_community_challenges: "Allow inter-community challenges",
+  challenge_title: "Challenge Title",
+  enter_challenge_title: "Enter challenge title",
+  target_community: "Target Community",
+  select_community: "Select community",
+  send_challenge: "Send Challenge",
+  no_messages: "You have no messages",
+  mark_all_as_read: "Mark all",
+  messages_as_read: "messages as read",
+  all_messages_marked_as_read: "All messages marked as read",
+  error_updating_messages: "Error updating messages",
+  no_read_messages: "You have no read messages",
+  delete_read_messages: "Delete read messages",
+  read_messages: "read messages",
+  messages_deleted: "Messages deleted",
+  delete_all_messages: "Delete all messages",
+  open_messages: "Open Messages",
     close: "Close",
     download_code: "Download Code",
     download: "Download",
@@ -982,6 +1363,48 @@ const translations: Translations = {
     ask_ai_about_topic: "Ask AI about this topic",
     ask_ai_about_lesson: "Ask AI about this lesson",
     bookmark_lesson: "Bookmark this lesson",
+     message_to_all_community: "This message will be sent to everyone in the community",
+  message_to_community_members: "This message will be sent to community members",
+  no_students_in_community: "No students in this community",
+  no_community_members: "No other members in your community",
+  teachers_and_my_students: "Teachers and my students",
+  community_students: "Community students",
+  my_community_members: "My community members",
+  community_teacher: "Community Teacher",
+  other_teachers: "Other teachers",
+  my_students: "My students",
+  available_recipients: "Available recipients",
+  my_community: "My Community",
+  student_messages: "Messages - Student",
+  teacher_messages: "Messages - Teacher",
+  available_users: "available users",
+  broadcast_teachers_only: "Only teachers can broadcast to all students",
+  not_your_community: "You cannot send to this community!",
+  not_in_community: "You are not in a community!",
+  cannot_send_outside_community: "Cannot send messages outside your community",
+  cannot_send_to_student: "Students cannot send messages to other students",
+  challenge_accept: "Accept the challange",
+  challenge_rejected: "Challenge rejected",
+  challenge_reject_error: "Error rejecting challenge",
+  challenge_accepted: "Challenge accepted",
+  challenge_accept_error: "Error accepting challenge",
+  no_permission_delete: "You don't have permission to delete this message",
+  message_deleted: "Message deleted successfully",
+  messages_processed: "Messages processed",
+  approve: "Approve",
+  reject: "Reject",
+  challenge_response_title: "Challenge Response",
+  challenge_solution_title: "Challenge Solution",
+  challenge_view_solution_code: "View Solution Code",
+  challenge_response_from: "Response from",
+  challenge_respond: "Respond to Challenge",
+  challenge_reject_confirm: "Are you sure you want to reject this challenge?",
+  challenge_view_response: "View Response",
+  challenge_response_content: "Response Content",
+  challenge_response_placeholder: "Write your response here...",
+  challenge_solution_code: "Solution Code",
+  challenge_solution_code_placeholder: "Write your solution code here...",
+  challenge_send_response: "Send Response",
     
     // Зареждане и съобщения
     loading_topics: "Loading topics...",
@@ -1032,6 +1455,103 @@ const translations: Translations = {
     basics_queries_p2: "Variables start uppercase",
     basics_queries_p3: "Get multiple solutions",
     basics_queries_p4: "Use backtracking",
+     inbox: "Inbox",
+  starred: "Starred",
+  sent: "Sent",
+  drafts: "Drafts",
+  trash: "Trash",
+  unknown_user: "User_{0}",
+  error_loading_users: "Error loading users",
+  error_loading_communities: "Error loading communities",
+  error_loading_messages: "Error loading messages",
+  unknown: "Unknown",
+  no_subject: "No subject",
+  login_required: "Please log in!",
+  message_content_required: "Please enter message content!",
+  recipient_required: "Please select a recipient!",
+  recipient_not_found: "Recipient not found!",
+  cannot_send_to_self: "You cannot send messages to yourself!",
+  community_not_found: "Community not found!",
+  no_users_in_community: "No other users in this community!",
+  no_other_users: "No other users in the system!",
+  invalid_message_type: "Invalid message type!",
+  new_message: "New Message",
+  you_have_new_message_from: "You have a new message from",
+  error_sending_message: "Error sending message",
+  no_permission_send_messages: "No permission to send messages. Check Firestore rules!",
+  no_internet_connection: "No internet connection. Please try again!",
+  try_again: "Please try again.",
+  message_sent_to: "Message sent to",
+  recipients: "recipients",
+  recipient: "recipient",
+  error_starring_message: "Error starring message",
+  archived: "Archived",
+  error_archiving_message: "Error archiving message",
+  confirm_delete_message: "Delete this message?",
+  message_moved_to_trash: "Message moved to trash!",
+  error_deleting_message: "Error deleting message",
+  delete_selected_messages: "Delete selected messages",
+  selected_messages: "selected messages",
+  messages_moved_to_trash: "messages moved to trash",
+  error_deleting_messages: "Error deleting messages",
+  permanent_delete_confirm: "This message will be permanently deleted. Continue?",
+  message_permanently_deleted: "Message permanently deleted!",
+  error_permanent_delete: "Error during permanent deletion",
+  error_marking_message: "Error marking message",
+  no_unread_messages: "No unread messages!",
+  messages_marked_as_read: "messages marked as read",
+  error_marking_messages: "Error marking messages",
+  loading_messages: "Loading messages...",
+  messages_center: "Messages Center",
+  unread: "unread",
+  total: "total",
+  in_community: "in community",
+  mark_all_read: "Mark all as read",
+  mark_all: "Mark all",
+  new: "New",
+  all: "All",
+  community: "Community",
+  community_members: "Community members",
+  all_users: "All users",
+  students: "Students",
+  message_to_community: "Message to community",
+  user_list: "User list",
+  found: "found",
+  student: "Student",
+  no_users_found: "No users found",
+  important: "Important",
+  select_all: "Select all",
+  delete: "Delete",
+  no_new_messages: "No new messages",
+  no_messages_found: "No messages found",
+  no_messages_inbox: "When you receive messages, they will appear here",
+  try_different_folder: "Try a different folder or search",
+  me: "Me",
+  broadcast: "Broadcast",
+  community_message: "Community message",
+  broadcast_message: "Broadcast message",
+  original_message: "Original message",
+  reply: "Reply",
+  forwarded_message: "Forwarded message",
+  forward: "Forward",
+  permanent_delete: "Permanent delete",
+  message_to_all: "Message to all",
+  message_type: "Message type",
+  personal: "Personal",
+  sending_to: "Sending to",
+  message_to_community_desc: "This message will be sent to all",
+  users_on_platform: "users on the platform",
+  username_or_email: "Username or email",
+  subject: "Subject",
+  message_subject: "Message subject",
+  write_message_here: "Write your message here...",
+  cancel: "Cancel",
+  sending: "Sending...",
+  send: "Send",
+  search_messages: "Search messages...",
+  deselect: "Deselect",
+  mark_as_read: "Mark as read",
+  delete_message: "Delete message",
     
     // Примери на код
     prolog_basics_title: "Prolog Basics",
@@ -1084,13 +1604,10 @@ const translations: Translations = {
     name_required: "Please enter your full name",
     institution_required: "Please enter your institution",
     email_required: "Please enter your email",
-    
-    // Полета и етикети
-    full_name: "Full Name",
+  
     enter_full_name: "Enter your full name",
     select_role: "Select Your Role",
     teacher_approval_note: "Teacher profiles require admin approval",
-    institution: "Institution",
     enter_institution: "School/University/Institution",
     grade_course: "Grade/Course",
     enter_grade: "Grade/Course (optional)",
@@ -1135,7 +1652,6 @@ date: "Date",
 prolog_submission: "Prolog Submission",
 no_submissions_yet: "No submissions yet",
 assignments_found: "assignments found",
-total: "Total",
 success: "Success",
     what_to_teach: "What do you want to teach today?",
 all_time_submissions: "All time submissions",
@@ -1161,6 +1677,7 @@ add_assignment: "Add Assignment",
 upload_first_file: "Upload your first file",
 no_email: "No email",
 na: "N/A",
+ please_login: "Please log in to continue",
 no_files_uploaded: "This student hasn't uploaded any files yet.",
 add_detailed_feedback: "Add detailed feedback...",
 example_expert_system: "Example: Creating an Expert System",
@@ -1186,6 +1703,15 @@ start: "Start",
 short_break: "Short Break",
 short_break_desc: "Attention is waning - a 2-minute break would help.",
 create: "Create",
+quick_message: "Quick Message",
+  quick_message_desc: "Send a quick message to students or communities",
+  open_mail: "Open Mail",
+  broadcast_all_students: "Broadcast to All Students",
+  type_your_message_here: "Type your message here...",
+  new_messages: "New Messages",
+  mark_all_read_confirm: "Mark all messages as read?",
+  click_to_mark_read: "Click to mark as read",
+  view_all_messages: "View All Messages",
     quick_links: 'Quick Links',
 schedule_demo: 'Schedule Demo',
 explore_community: 'Explore Community',
@@ -1248,6 +1774,8 @@ start_using: "Start Using",
 active_creators: "Active Creators",
 educational_topics: "Educational Topics",
     choose_assignment: 'Choose an assignment',
+     challenge_response_on: "Response on",
+  challenge_reject: "Reject Challenge",
 use_template: 'Use Template',
 assignment_info: 'Assignment Information',
 title: 'Title',
@@ -1269,13 +1797,32 @@ assignment_progress: 'Assignment Progress',
 difficulty_distribution: 'Difficulty Distribution',
 by_difficulty: 'Assignments by difficulty',
 no_active_assignments: 'No active assignments at the moment.',
+challenge_not_found: "Challenge not found",
+  already_joined_challenge: "You have already joined this challenge",
+  select_challenge_first: "Please select a challenge first",
+  code_empty: "Code cannot be empty",
+  challenge_not_joined: "You have not joined this challenge yet",
+  challenge_submitted: "Challenge solution submitted successfully",
+  challenge_submission_error: "Error submitting challenge solution",
+  select_assignment_first: "Please select an assignment first",
+  assignment_not_found: "Assignment not found",
+  submit_challenge_solution: "Submit Challenge Solution",
+  challenge_mode: "Challenge Mode",
+  current_challenge: "Current Challenge",
+  challenge_mode_active: "Challenge mode is active",
+  exit_challenge_mode: "Exit Challenge Mode",
+  no_challenge_selected: "No challenge selected",
+  select_challenge_first_desc: "Select a challenge to start solving",
+  go_to_challenges: "Go to Challenges",
+  switch_to_assignments: "Switch to Assignments",
+  switch_to_challenges: "Switch to Challenges",
+  submit_solution: "Submit Solution",
 facts: 'facts',
 rules: 'rules',
 review_submission: 'Review Submission',
 assignment_completion: 'Assignment Completion',
 header_copied: 'Header copied to clipboard!',
 copy_header: 'Copy Header',
-    // Header преводи
     status_completed: 'Completed',
 status_in_progress: 'In Progress',
     home: 'Home',
@@ -1284,17 +1831,8 @@ status_in_progress: 'In Progress',
     prolog_chat: 'Prolog Chat',
     sign_in: 'Sign in',
     get_started: 'Get Started',
-    logout: 'Logout',
     innovation_platform: 'Innovation Platform',
     admin_dashboard: 'Admin Dashboard',
-    no_uploads: 'No uploaded files',
-code_updated: 'Code updated successfully!',
-upload_error: 'Error uploading code!',
-not_pl_file: 'Not a .pl file:',
-upload_successful: 'Upload successful',
-catch_block_error: 'Catch block error:',
-option: 'Option',
-loading_assignments: 'Loading assignments...',
 completed_assignments_count: 'Completed Assignments',
 in_progress_assignments_count: 'In Progress Assignments',
 total_assignments_count: 'Total Assignments',
@@ -1305,7 +1843,6 @@ total_assignments_count: 'Total Assignments',
     hero_description: 'Empower students with logical programming and artificial intelligence concepts through interactive, hands-on STEM projects.',
     view_demos: 'View Demos',
     schools: 'Schools',
-    students: 'Students',
     projects: 'Projects',
     features_title_part1: 'Everything you need to teach',
     features_title_part2: 'AI and Logic Programming',
@@ -1353,7 +1890,7 @@ total_assignments_count: 'Total Assignments',
     documentation: 'Documentation',
     submissions: 'Submissions',
     cookies: 'Cookies',
-    
+    challenge_view_submissions:"View Submissions",
     // Dashboard преводи (основни)
     welcome_back: 'Welcome back!',
     upload_code: 'Upload Code',
@@ -1394,7 +1931,6 @@ total_assignments_count: 'Total Assignments',
     only_pl_files_info: 'Only .pl files are allowed',
     files_saved_in: 'Files will be saved in:',
     recent_submissions: 'Recent Submissions',
-    all: 'All',
     success_filter: 'Success',
     files_filter: 'Files',
     no_submissions: 'No submissions yet',
@@ -1428,6 +1964,11 @@ total_assignments_count: 'Total Assignments',
     achieved_milestone: 'Achieved milestone',
     browse_files: 'Browse Files',
     or: 'or',
+    students_in_my_communities: "Students in my communities",
+  assignments_created_by_me: "Assignments created by me",
+  in_system: "In system",
+  other_teachers_in_system: "Other teachers in the system",
+  my_students_activities: "My Students Activities",
     upload_to: 'Upload to',
     make_first_submission: 'Make your first submission',
     all_assignments: 'All Assignments',
@@ -1514,6 +2055,14 @@ total_assignments_count: 'Total Assignments',
     chat_stats: 'Chat Stats',
     active_domain: 'Active Domain',
     domain: 'Domain',
+     in_my_community: "in my community",
+  error_loading_community: "Error loading community",
+  no_community: "No community",
+  remove_star: "Remove star",
+  star: "Star",
+  select_message: "Select a message",
+  select_message_to_view: "Select a message to view details",
+  to_community: "to community",
     no_active_domain: 'No Active Domain',
     knowledge_domains: 'Knowledge Domains',
     clear_domain: 'Clear domain',
@@ -1538,7 +2087,37 @@ total_assignments_count: 'Total Assignments',
     press_enter_to_send: 'Press Enter to send',
     queries_end_with_period: 'Make sure queries end with a period (.)',
     connected_to: 'Connected to',
-    send: 'Send',
+     solution_submitted: "Challenge solution submitted successfully!",
+  solution_error: "Error submitting solution",
+  join_request_sent: "Join request sent!",
+  join_request_error: "Error sending join request",
+  invalid_invite_code: "Invalid invite code",
+  join_error: "Error joining",
+  message_sent: "Message sent successfully!",
+  message_error: "Error sending message",
+  challenge_joined_success: "Challenge joined! You can now work on your solution.",
+  challenge_join_error: "Error joining challenge",
+  my_solutions: "My Solutions",
+  challenges: "Challenges",
+  learning_communities: "Learning communities",
+  challenges_in_progress: "Challenges in progress",
+  enter_invite_code: "Enter invite code",
+  join: "Join",
+  my_communities: "My Communities",
+  no_communities_yet: "No communities yet",
+  join_community_description: "Join existing communities or create your own",
+  members: "members",
+  public: "Public",
+  private: "Private",
+  general: "General",
+  view_challenges: "View Challenges",
+  active_challenges: "Active Challenges",
+  no_challenges_yet: "No challenges yet",
+  no_challenges_description: "Create your first challenge or wait for others to start one",
+  participants: "participants",
+  joined: "Joined",
+  solve_now: "Solve Now",
+  join_challenge: "Join Challenge",
     no_domain_selected: 'No Domain Selected',
     select_domain_to_view: 'Select a domain from the sidebar to view its code files.',
     no_code_files_for: 'No code files for',
@@ -1551,7 +2130,6 @@ total_assignments_count: 'Total Assignments',
     queries: 'Queries',
     code_files: 'Code Files',
     none: 'None',
-    status: 'Status',
     animals: 'Animals',
     history: 'History',
     geography: 'Geography',
@@ -1607,9 +2185,7 @@ code_editor: "Code Editor",
     upload_to_domain: 'Upload to domain',
     code: 'Code',
     file_commands_title: 'File Commands',
-    
-    // НОВИ ДОБАВЕНИ КЛЮЧОВЕ ОТ DASHBOARD КОДА:
-    student: 'Student',
+  
     class: 'Class',
     average_points: 'Average Points',
     actions: 'Actions',
@@ -1641,7 +2217,6 @@ code_editor: "Code Editor",
     assignment_title_placeholder: 'Example: Creating an Expert System',
     topic: 'Topic',
     topic_placeholder: 'Example: Insects, Chemical Reactions, Electricity',
-    subject: 'Subject',
     biology: 'Biology',
     chemistry: 'Chemistry',
     physics: 'Physics',
@@ -1665,13 +2240,10 @@ code_editor: "Code Editor",
     example_code: 'Example Code',
     example_code_placeholder: 'You can provide example Prolog code...',
     optional: 'optional',
-    cancel: 'Cancel',
     save_changes: 'Save Changes',
     create_articles: 'Create Articles',
     draft: 'Draft',
-    archived: 'Archived',
     edit: 'Edit',
-    delete: 'Delete',
     view: 'View',
     active_assignments: 'Active Assignments',
     total_assignments: 'Total assignments',
@@ -1685,7 +2257,6 @@ code_editor: "Code Editor",
     please_wait: 'Please wait while we fetch student information...',
     no_students_found: 'No Students Found',
     no_students_description: 'No students with uploaded files found in the system.',
-    try_again: 'Try Again',
     last_upload: 'Last Upload',
     avg_points: 'Avg Points',
     grade: 'Grade',
@@ -1713,6 +2284,11 @@ code_editor: "Code Editor",
     showing: 'Showing',
     of: 'of',
     showing_of: 'Showing {0} of {1}',
+    join_communities: 'Join Communities',
+  join_community_dashboard: 'Join communities from dashboard',
+  community_join_info: 'After joining communities from dashboard',
+  community_creation_note: 'After approval, you can create a community',
+  community_creation_help: "You'll be able to create a learning community, invite students, and organize challenges",
     
     // НОВИ КЛЮЧОВЕ ОТ ПОСЛЕДНИЯ АНАЛИЗ:
     teacher_dashboard: 'Teacher Dashboard',
@@ -1733,12 +2309,52 @@ code_editor: "Code Editor",
     
     // Учителски инструкции
     teacher_name: 'Teacher Name',
-    
-    // Статистика
-    total_students: 'Total Students',
     total_files: 'Total Files',
+    user: 'User',
+    message_to_all_desc: 'This message will be sent to all users on the platform',
   },
   bg: {
+     user: 'Потребител',
+    message_to_all_desc: 'Това съобщение ще бъде изпратено до всички потребители в платформата',
+    join_communities: 'Присъединете се към общности',
+  join_community_dashboard: 'Присъединете се към общности от таблото',
+  community_join_info: 'След като се присъедините към общности от таблото',
+  community_creation_note: 'След одобрение можете да създадете общност',
+  community_creation_help: 'Ще можете да създадете учебна общност, да каните ученици и да организирате предизвикателства',
+  teacher_pending_approval: "Очакване на одобрение",
+  welcome_teacher: "Добре дошли, учителю!",
+  account_under_review: "Вашият акаунт е в процес на одобрение",
+  admin_approval_needed: "Вашият акаунт трябва да бъде одобрен от администратор, преди да получите достъп до учителския панел.",
+  step_1: "Създаване на профил",
+  profile_created: "Профилът ви е създаден успешно",
+  create_profile: "Създаване на учителски профил",
+  step_2: "Одобрение от администратор",
+  awaiting_admin_approval: "Вашият акаунт чака одобрение от администратор",
+  step_3: "Достъп до панела",
+  access_dashboard: "Ще получите достъп до всички учителски функции",
+  your_information: "Вашата информация",
+  full_name: "Име",
+  email: "Имейл",
+  institution: "Училище/Институция",
+  status: "Статус",
+  pending_approval: "Чака одобрение",
+  what_happens_next: "Какво следва?",
+  step1_description: "Администраторът ще прегледа вашата регистрация",
+  step2_description: "Ще получите имейл, когато акаунтът ви бъде одобрен",
+  step3_description: "След одобрение ще имате пълен достъп до учителския панел",
+  refresh_status: "Провери статуса",
+  logout: "Изход",
+  contact_admin: "Свържете се с нас",
+  estimated_approval_time: "Одобрението обикновено отнема 24-48 часа в работни дни",
+  no_uploads: "Няма качени файлове",
+  code_updated: "Кодът е актуализиран",
+  upload_error: "Грешка при качване",
+  not_pl_file: "Не е Prolog файл",
+  upload_successful: "Качването е успешно",
+  catch_block_error: "Възникна грешка",
+  option: "Опция",
+  loading_assignments: "Зареждане на задачи",
+  total_students: "Общо ученици",
     what_to_teach: "Какво искате да преподавате днес?",
 all_time_submissions: "Всички предавания",
 completed_submissions: "Завършени предавания",
@@ -1751,7 +2367,28 @@ file: "Файл",
 grading: "Оценяване",
 ago: "преди",
 add_new_assignment: "Добави ново задание",
+challenge_not_found: "Предизвикателството не е намерено",
+  already_joined_challenge: "Вече сте се присъединили към това предизвикателство",
+  select_challenge_first: "Моля, първо изберете предизвикателство",
+  code_empty: "Кодът не може да бъде празен",
+  challenge_not_joined: "Все още не сте се присъединили към това предизвикателство",
+  challenge_submitted: "Решението на предизвикателството е изпратено успешно",
+  challenge_submission_error: "Грешка при изпращане на решението на предизвикателството",
+  select_assignment_first: "Моля, първо изберете задача",
+  assignment_not_found: "Задачата не е намерена",
+  submit_challenge_solution: "Изпрати Решение на Предизвикателството",
+  challenge_mode: "Режим на Предизвикателство",
+  current_challenge: "Текущо Предизвикателство",
+  challenge_mode_active: "Режимът на предизвикателство е активен",
+  exit_challenge_mode: "Излез от Режим на Предизвикателство",
+  no_challenge_selected: "Няма избрано предизвикателство",
+  select_challenge_first_desc: "Изберете предизвикателство, за да започнете решаването",
+  go_to_challenges: "Към Предизвикателствата",
+  switch_to_assignments: "Превключи към Задачи",
+  switch_to_challenges: "Превключи към Предизвикателства",
+  submit_solution: "Изпрати Решение",
 top_students: "Топ студенти",
+challenge_view_submissions:"Вижте решението",
 avg: "Средно",
 recommendations: "Препоръки",
 my_lessons: "Моите уроци",
@@ -1879,35 +2516,84 @@ status_in_progress: 'В процес',
     completed_assignments_count: 'Завършени задания',
 in_progress_assignments_count: 'Задания в процес',
 total_assignments_count: 'Общо задания',
+ message_to_all_community: "Това съобщение ще бъде изпратено до всички в общността",
+  message_to_community_members: "Това съобщение ще бъде изпратено до членовете на общността",
+  no_students_in_community: "Няма ученици в тази общност",
+  no_community_members: "Няма други членове в вашата общност",
+  teachers_and_my_students: "Учители и мои ученици",
+  community_students: "Ученици от общността",
+  my_community_members: "Членове на моята общност",
+  community_teacher: "Учител на общност",
+  other_teachers: "Други учители",
+  my_students: "Мои ученици",
+  available_recipients: "Налични получатели",
+  my_community: "Моята общност",
+  student_messages: "Съобщения - Ученик",
+  teacher_messages: "Съобщения - Учител",
+  available_users: "налични потребители",
+  broadcast_teachers_only: "Само учителите могат да изпращат до всички ученици",
+  not_your_community: "Не можете да изпращате до тази общност!",
+  not_in_community: "Не сте в общност!",
+  cannot_send_outside_community: "Не можете да изпращате съобщения извън вашата общност",
+  cannot_send_to_student: "Учениците не могат да изпращат съобщения до други ученици",
     home: 'Начало',
     topics: 'Теми',
     dashboard: 'Табло',
     prolog_chat: 'Prolog Чат',
     sign_in: 'Вход',
     get_started: 'Започнете',
-    logout: 'Изход',
     innovation_platform: 'Иновационна платформа',
     admin_dashboard: 'Администраторско табло',
-    no_uploads: 'Няма качени файлове',
-code_updated: 'Кодът е обновен успешно!',
-upload_error: 'Грешка при качване на код!',
-not_pl_file: 'Не е .pl файл:',
-upload_successful: 'Качването е успешно',
-catch_block_error: 'Грешка в catch блока:',
-option: 'Опция',
-loading_assignments: 'Зареждане на задания...',
     // Home page преводи
     ideas_acronym: 'Интелигентна система за анализ на образователни бази от знания',
     hero_title_part1: 'Трансформирайте образованието',
     hero_title_part2: 'с изкуствен интелект',
     hero_description: 'Дайте възможност на учениците да изучават логическо програмиране и изкуствения интелект чрез интерактивни, практически STEM проекти.',
     view_demos: 'Вижте демонстрации',
+    challenge_rejected: "Предизвикателството е отхвърлено",
+  challenge_reject_error: "Грешка при отхвърляне на предизвикателство",
+  challenge_accepted: "Предизвикателството е прието",
+  challenge_accept_error: "Грешка при приемане на предизвикателство",
+  approve: "Одобри",
+  reject: "Отхвърли",
+  challenge_response_title: "Отговор на Предизвикателство",
+  challenge_solution_title: "Решение на Предизвикателство",
+  challenge_view_solution_code: "Виж кода на решението",
+  challenge_response_from: "Отговор от",
+  challenge_respond: "Отговори на Предизвикателство",
+  challenge_reject_confirm: "Сигурни ли сте, че искате да отхвърлите това предизвикателство?",
+  challenge_view_response: "Виж Отговор",
+  challenge_response_content: "Съдържание на Отговор",
+  challenge_response_placeholder: "Напишете вашия отговор тук...",
+  challenge_solution_code: "Код на Решението",
+  challenge_solution_code_placeholder: "Напишете кода на вашето решение тук...",
+  challenge_send_response: "Изпрати Отговор",
     // Категории
     prolog_programming: "Програмиране на Prolog",
     artificial_intelligence: "Изкуствен интелект",
     databases: "Бази данни",
     algorithms: "Алгоритми",
     logic_programming: "Логическо програмиране",
+    in_my_community: "в моята общност",
+  error_loading_community: "Грешка при зареждане на общност",
+  no_community: "Няма общност",
+  remove_star: "Премахни отметка",
+  star: "Отметка",
+  select_message: "Изберете съобщение",
+  select_message_to_view: "Изберете съобщение, за да видите детайли",
+  to_community: "до общност",
+  no_messages: "Нямате съобщения",
+  mark_all_as_read: "Маркиране на всички",
+  messages_as_read: "съобщения като прочетени",
+  all_messages_marked_as_read: "Всички съобщения са маркирани като прочетени",
+  error_updating_messages: "Грешка при маркиране на съобщения",
+  no_read_messages: "Нямате прочетени съобщения",
+  delete_read_messages: "Изтрий прочетените",
+  read_messages: "прочетени съобщения",
+  messages_deleted: "Съобщенията са изтрити",
+  delete_all_messages: "Изтрий всички съобщения",
+  open_messages: "Отвори Съобщения",
+  
     
     // Заглавия и подзаглавия
     learning_topics: "Учебни теми",
@@ -1961,17 +2647,53 @@ loading_assignments: 'Зареждане на задания...',
     basics_facts_title: "Факти",
     basics_rules_title: "Правила",
     basics_queries_title: "Заявки",
+     no_permission_delete: "Нямате право да изтриете това съобщение",
+  message_deleted: "Съобщението е изтрито успешно",
+  messages_processed: "Съобщенията са обработени",
     
     // Основи на Prolog - описания
     basics_facts_desc: "Фактите са истински твърдения за света. Те формират основата на вашата база знания.",
     basics_rules_desc: "Правилата дефинират логически връзки между факти. Те се състоят от глава и тяло.",
     basics_queries_desc: "Заявките задават въпроси за вашата база знания. Prolog се опитва да ги докаже като истинни.",
-    
+      challenge_accept: "Приемам предизвикателството",
     // Основи на Prolog - точки
     basics_facts_p1: "Завършват с точка (.)",
     basics_facts_p2: "Използвайте малки букви за предикати",
     basics_facts_p3: "Могат да имат множество аргументи",
     basics_facts_p4: "Представляват връзки",
+     solution_submitted: "Решението на предизвикателството е изпратено успешно!",
+  solution_error: "Грешка при изпращане на решение",
+  join_request_sent: "Заявката за присъединяване е изпратена!",
+  join_request_error: "Грешка при изпращане на заявка за присъединяване",
+  invalid_invite_code: "Невалиден код за покана",
+  join_error: "Грешка при присъединяване",
+  message_sent: "Съобщението е изпратено успешно!",
+  message_error: "Грешка при изпращане на съобщение",
+  challenge_joined_success: "Предизвикателството е присъединено! Вече можете да работите по вашето решение.",
+  challenge_join_error: "Грешка при присъединяване към предизвикателство",
+  my_solutions: "Моите Решения",
+  challenges: "Предизвикателства",
+  learning_communities: "Учебни общности",
+  challenges_in_progress: "Предизвикателства в процес",
+  enter_invite_code: "Въведете код за покана",
+  join: "Присъединете се",
+  my_communities: "Моите Общности",
+  no_communities_yet: "Все още няма общности",
+  join_community_description: "Присъединете се към съществуващи общности или създайте своя собствена",
+  members: "членове",
+  public: "Публична",
+  private: "Частна",
+  general: "Общ",
+  view_challenges: "Вижте Предизвикателства",
+  community_members: "Членове на Общността",
+  active_challenges: "Активни Предизвикателства",
+  no_challenges_yet: "Все още няма предизвикателства",
+  no_challenges_description: "Създайте първото си предизвикателство или изчакайте други да започнат",
+  participants: "участници",
+  joined: "Присъединен",
+  solve_now: "Реши Сега",
+  join_challenge: "Присъедини се към Предизвикателство",
+  
     
     basics_rules_p1: "Синтаксис Глава :- Тяло",
     basics_rules_p2: "Тялото съдържа цели",
@@ -2010,6 +2732,111 @@ loading_assignments: 'Зареждане на задания...',
     tutorial_variables_ex2: "Анонимната променлива _ съвпада с всичко веднъж",
     tutorial_variables_ex3: "Използвайте същата променлива, за да изисквате една и съща стойност",
     tutorial_variables_ex4: "Променливите се инстанцират по време на изпълнение",
+    inbox: "Входящи",
+  starred: "Отметнати",
+  sent: "Изпратени",
+  drafts: "Чернови",
+  trash: "Кошче",
+  unknown_user: "User_{0}",
+  error_loading_users: "Грешка при зареждане на потребители",
+  error_loading_communities: "Грешка при зареждане на общности",
+  error_loading_messages: "Грешка при зареждане на съобщения",
+  unknown: "Неизвестен",
+  no_subject: "Без тема",
+  login_required: "Моля, влезте в профила си!",
+  message_content_required: "Моля, въведете съдържание на съобщението!",
+  recipient_required: "Моля, изберете получател!",
+  recipient_not_found: "Получателят не е намерен!",
+  cannot_send_to_self: "Не можете да изпращате съобщения до себе си!",
+  select_community: "Изберете общност",
+  community_not_found: "Общността не е намерена!",
+  no_users_in_community: "Няма други потребители в тази общност!",
+  no_other_users: "Няма други потребители в системата!",
+  invalid_message_type: "Невалиден тип съобщение!",
+  new_message: "Ново съобщение",
+  you_have_new_message_from: "Имате ново съобщение от",
+  error_sending_message: "Грешка при изпращане на съобщение",
+  no_permission_send_messages: "Няма разрешение за изпращане на съобщения. Проверете Firestore правилата!",
+  no_internet_connection: "Няма интернет връзка. Моля, опитайте отново!",
+  try_again: "Моля, опитайте отново.",
+  message_sent_to: "Съобщението е изпратено до",
+  recipients: "получатели",
+  recipient: "получател",
+  error_starring_message: "Грешка при отметване на съобщение",
+  archived: "Архивирано",
+  error_archiving_message: "Грешка при архивиране на съобщение",
+  confirm_delete_message: "Изтриване на това съобщение?",
+  message_moved_to_trash: "Съобщението е преместено в кошчето!",
+  error_deleting_message: "Грешка при изтриване на съобщение",
+  delete_selected_messages: "Изтриване на избрани съобщения",
+  selected_messages: "избрани съобщения",
+  messages_moved_to_trash: "съобщения са преместени в кошчето",
+  error_deleting_messages: "Грешка при изтриване на съобщения",
+  permanent_delete_confirm: "Това съобщение ще бъде изтрито завинаги. Продължавате?",
+  message_permanently_deleted: "Съобщението е изтрито окончателно!",
+  error_permanent_delete: "Грешка при окончателно изтриване",
+  error_marking_message: "Грешка при маркиране на съобщение",
+  no_unread_messages: "Няма непрочетени съобщения!",
+  messages_marked_as_read: "съобщения са маркирани като прочетени",
+  error_marking_messages: "Грешка при маркиране на съобщения",
+  loading_messages: "Зареждане на съобщения...",
+  messages_center: "Съобщения",
+  unread: "непрочетени",
+  total: "общо",
+  in_community: "в общност",
+  mark_all_read: "Маркирай всички като прочетени",
+  mark_all: "Маркирай всички",
+  new: "Ново",
+  all: "Всички",
+  community: "Общност",
+  all_users: "Всички потребители",
+  teachers: "Учители",
+  students: "Ученици",
+  message_to_community: "Съобщение до общността",
+  user_list: "Списък с потребители",
+  found: "намерени",
+  student: "Ученик",
+  no_users_found: "Няма намерени потребители",
+  important: "Важно",
+  select_all: "Избери всички",
+  delete: "Изтрий",
+  no_new_messages: "Нямате нови съобщения",
+  no_messages_found: "Няма намерени съобщения",
+  no_messages_inbox: "Когато получите съобщения, те ще се появят тук",
+  try_different_folder: "Опитайте с различна папка или търсене",
+  me: "Аз",
+  broadcast: "Всички",
+  community_message: "Съобщение до общност",
+  broadcast_message: "Съобщение до всички",
+  original_message: "Оригинално съобщение",
+  reply: "Отговор",
+  forwarded_message: "Препратено съобщение",
+  forward: "Препрати",
+  permanent_delete: "Изтрий окончателно",
+  message_to_all: "Съобщение до всички",
+  message_type: "Тип съобщение",
+  personal: "Лично",
+  sending_to: "Изпращане до",
+  message_to_community_desc: "Това съобщение ще бъде изпратено до всички",
+  users_on_platform: "потребители в платформата",
+  username_or_email: "Име на потребител или имейл",
+  subject: "Тема",
+  message_subject: "Тема на съобщението",
+  write_message_here: "Напишете съобщението си тук...",
+  cancel: "Отказ",
+  sending: "Изпращане...",
+  send: "Изпрати",
+  search_messages: "Търсене на съобщения...",
+  deselect: "Отмени",
+  mark_as_read: "Маркирай като прочетено",
+  delete_message: "Изтрий съобщение",
+  message: "Съобщение",
+  to: "до",
+  students_in_my_communities: "Ученици в моите общности",
+  assignments_created_by_me: "Задания, създадени от мен",
+  in_system: "В системата",
+  other_teachers_in_system: "Други учители в системата",
+  my_students_activities: "Активности на моите ученици",
     
     tutorial_backtracking_title: "Backtracking и търсене",
     tutorial_backtracking_content: "Prolog използва търсене в дълбочина с backtracking. Когато цел не успее, Prolog се връща до последната точка на избор и опитва алтернативни решения.",
@@ -2034,13 +2861,9 @@ loading_assignments: 'Зареждане на задания...',
     name_required: "Моля, въведете вашето пълно име",
     institution_required: "Моля, въведете вашата институция",
     email_required: "Моля, въведете вашия имейл",
-    
-    // Полета и етикети
-    full_name: "Пълно име",
     enter_full_name: "Въведете вашето пълно име",
     select_role: "Изберете Вашата Роля",
     teacher_approval_note: "Профилите на учители изискват одобрение от администратор",
-    institution: "Институция",
     enter_institution: "Училище/Университет/Институция",
     grade_course: "Клас/Курс",
     enter_grade: "Клас/Курс (незадължително)",
@@ -2054,7 +2877,6 @@ loading_assignments: 'Зареждане на задания...',
     start_journey: "Започнете вашето STEM учебно пътешествие днес",
     send_updates: "Изпращайте ми образователни ресурси и актуализации",
     schools: 'Училища',
-    students: 'Ученици',
     projects: 'Проекти',
     features_title_part1: 'Всичко необходимо за обучение',
     features_title_part2: 'по AI и логическо програмиране',
@@ -2105,6 +2927,7 @@ loading_assignments: 'Зареждане на задания...',
     privacy: 'Поверителност',
     terms: 'Условия',
     cookies: 'Бисквитки',
+    communities: "Общности",
     
     // Dashboard преводи (основни)
     welcome_back: 'Добре дошли отново!',
@@ -2135,6 +2958,28 @@ loading_assignments: 'Зареждане на задания...',
     student_performance: "Успеваемост на студентите",
     lesson_progress: "Напредък в уроците",
     completed_lessons: "Завършени уроци",
+    manage_learning_communities: "Управлявайте вашите учебни общности",
+  create_community: "Създай Общност",
+  create_first_community: "Създай Първа Общност",
+  pending_requests: "Чакащи Заявки",
+  manage_community_challenges: "Управлявайте и създавайте предизвикателства между общности",
+  create_challenge: "Създай Предизвикателство",
+  create_first_challenge: "Създай Първо Предизвикателство",
+  communities_overview: "Преглед на Общностите",
+  no_communities_dashboard: "Все още не сте създали общности",
+  view_all_communities: "Виж Всички Общности",
+  community_name: "Име на Общността",
+  enter_community_name: "Въведете име на общността",
+  grade_level: "Ниво на Клас",
+  privacy_settings: "Настройки за Поверителност",
+  auto_approve_students: "Автоматично одобряване на заявки за присъединяване на ученици",
+  allow_student_messages: "Позволи на учениците да си изпращат съобщения",
+  allow_student_challenges: "Позволи на учениците да създават предизвикателства",
+  allow_inter_community_challenges: "Позволи предизвикателства между общности",
+  challenge_title: "Заглавие на Предизвикателството",
+  enter_challenge_title: "Въведете заглавие на предизвикателството",
+  target_community: "Целева Общност",
+  send_challenge: "Изпрати Предизвикателство",
     
     student_activities: "Активност на студентите",
     recent_assignments: "Последни задачи",
@@ -2146,8 +2991,6 @@ loading_assignments: 'Зареждане на задания...',
     enter_description: "Въведете описание (незадължително)",
     
     add_lesson: "Добави урок",
-    
-    pending_approval: "Чакащо",
     write_prolog_code: 'Напишете Prolog код тук...',
     example: 'Пример',
     upload_code_button: 'Качи код',
@@ -2169,7 +3012,6 @@ loading_assignments: 'Зареждане на задания...',
     only_pl_files_info: 'Позволени са само .pl файлове',
     files_saved_in: 'Файловете ще бъдат запазени в:',
     recent_submissions: 'Последни подадени материали',
-    all: 'Всички',
     success_filter: 'Успешни',
     files_filter: 'Файлове',
     no_submissions: 'Все още няма подадени материали',
@@ -2221,6 +3063,7 @@ loading_assignments: 'Зареждане на задания...',
     my_assignments: 'Моите задания',
     articles: 'Статии',
     view_all: 'Виж всички',
+    please_login: "Моля, влезте в профила си, за да продължите",
     
     // Login page преводи
     login_description: "Продължете пътешествието си в STEM образованието с изкуствен интелект и разгледайте интерактивни програмни концепции.",
@@ -2278,7 +3121,15 @@ about_us:"За нас",
     password_weak: "Паролата е твърде слаба",
     email_in_use: "Този имейл вече се използва",
     invalid_email: "Невалиден имейл адрес",
-    
+    quick_message: "Бързо Съобщение",
+  quick_message_desc: "Изпратете бързо съобщение до ученици или общности",
+  open_mail: "Отвори Поща",
+  broadcast_all_students: "Изпрати до Всички Ученици",
+  type_your_message_here: "Напишете вашето съобщение тук...",
+  new_messages: "Нови Съобщения",
+  mark_all_read_confirm: "Маркирай всички съобщения като прочетени?",
+  click_to_mark_read: "Кликнете за маркиране като прочетено",
+  view_all_messages: "Виж Всички Съобщения",
     // Register success message
     registration_successful: "Регистрацията е успешна! Добре дошли в IDEAS.",
     
@@ -2322,7 +3173,6 @@ about_us:"За нас",
     press_enter_to_send: 'Натиснете Enter за изпращане',
     queries_end_with_period: 'Уверете се, че заявките завършват с точка (.)',
     connected_to: 'Свързан с',
-    send: 'Изпрати',
     no_domain_selected: 'Няма избран домейн',
     select_domain_to_view: 'Изберете домейн от страничната лента, за да видите неговите кодови файлове.',
     no_code_files_for: 'Няма кодови файлове за',
@@ -2335,7 +3185,6 @@ about_us:"За нас",
     queries: 'Заявки',
     code_files: 'Кодови файлове',
     none: 'Няма',
-    status: 'Статус',
     animals: 'Животни',
     history: 'История',
     geography: 'География',
@@ -2399,8 +3248,21 @@ date: "Дата",
 prolog_submission: "Prolog задание",
 no_submissions_yet: "Няма подадени работи",
 assignments_found: "намирени задания",
-total: "Общо",
 success: "Успех",
+from: "от",
+  my_challenge_solutions: "Моите Решения на Предизвикателства",
+  no_solutions_yet: "Все още няма решения",
+  join_challenges_to_solve: "Присъединете се към предизвикателства, за да започнете да решавате!",
+  browse_challenges: "Разгледайте Предизвикателства",
+  view_solution: "Виж Решение",
+  continue_solving: "Продължи Решаването",
+  message_community: "Съобщение на Общността",
+  messages: "Съобщения",
+  type_message_here: "Напишете съобщение тук...",
+  select_recipient: "Изберете получател",
+  message_history: "История на Съобщенията",
+  you: "Вие",
+  no_messages_yet: "Все още няма съобщения",
     // Балкан преводи
     balkan: 'Балкан',
     balkan_description: 'Балкански източници и свойства',
@@ -2417,9 +3279,6 @@ success: "Успех",
     upload_to_domain: 'Качи в домейн',
     code: 'Код',
     file_commands_title: 'Файлови команди',
-    
-    // НОВИ ДОБАВЕНИ КЛЮЧОВЕ ОТ DASHBOARD КОДА:
-    student: 'Ученик',
     class: 'Клас',
     average_points: 'Средни точки',
     actions: 'Действия',
@@ -2451,10 +3310,11 @@ success: "Успех",
     assignment_title_placeholder: 'Пример: Създаване на експертна система',
     topic: 'Тема',
     topic_placeholder: 'Пример: Насекоми, Химични реакции, Електричество',
-    subject: 'Предмет',
     biology: 'Биология',
     chemistry: 'Химия',
     physics: 'Физика',
+    challenge_response_on: "Отговор на",
+  challenge_reject: "Отхвърли Предизвикателство",
     other: 'Друг',
     due_date: 'Краен срок',
     objective: 'Цел',
@@ -2475,13 +3335,10 @@ success: "Успех",
     example_code: 'Примерен код',
     example_code_placeholder: 'Можете да предоставите примерен Prolog код...',
     optional: 'незадължително',
-    cancel: 'Отказ',
     save_changes: 'Запази промените',
     create_articles: 'Създай статии',
     draft: 'Чернова',
-    archived: 'Архивирано',
     edit: 'Редактирай',
-    delete: 'Изтрий',
     view: 'Преглед',
     active_assignments: 'Активни задания',
     total_assignments: 'Общо задания',
@@ -2514,7 +3371,6 @@ success: "Успех",
     please_wait: 'Моля, изчакайте докато вземаме ученическата информация...',
     no_students_found: 'Не са намерени ученици',
     no_students_description: 'Не са намерени ученици с качени файлове в системата.',
-    try_again: 'Опитайте отново',
     last_upload: 'Последно качване',
     avg_points: 'Ср. точки',
     grade: 'Оценка',
@@ -2566,9 +3422,6 @@ success: "Успех",
     
     // Учителски инструкции
     teacher_name: 'Име на учител',
-    
-    // Статистика
-    total_students: 'Общо ученици',
     total_files: 'Общо файлове',
     select_domain_to_view_code:"Изберете предметна област, за да видите примери на Prolog код"
   },
@@ -2581,7 +3434,26 @@ create_feature_1: "Estructuración de materiales de aprendizaje",
 create_feature_2: "Conexiones semánticas entre conceptos",
 create_feature_3: "Categorización y etiquetado",
 start_creating: "Comenzar a Crear",
-
+message_to_all_community: "Este mensaje será enviado a todos en la comunidad",
+  message_to_community_members: "Este mensaje será enviado a los miembros de la comunidad",
+  no_students_in_community: "No hay estudiantes en esta comunidad",
+  no_community_members: "No hay otros miembros en tu comunidad",
+  teachers_and_my_students: "Profesores y mis estudiantes",
+  community_students: "Estudiantes de la comunidad",
+  my_community_members: "Miembros de mi comunidad",
+  community_teacher: "Profesor de la Comunidad",
+  other_teachers: "Otros profesores",
+  my_students: "Mis estudiantes",
+  available_recipients: "Destinatarios disponibles",
+  my_community: "Mi Comunidad",
+  student_messages: "Mensajes - Estudiante",
+  teacher_messages: "Mensajes - Profesor",
+  available_users: "usuarios disponibles",
+  broadcast_teachers_only: "Solo los profesores pueden transmitir a todos los estudiantes",
+  not_your_community: "¡No puedes enviar a esta comunidad!",
+  not_in_community: "¡No estás en una comunidad!",
+  cannot_send_outside_community: "No se pueden enviar mensajes fuera de tu comunidad",
+  cannot_send_to_student: "Los estudiantes no pueden enviar mensajes a otros estudiantes",
 use_knowledge_title: "Usar Bases de Conocimiento",
 use_knowledge_desc: "Busca y utiliza bases de conocimiento ya creadas para tus proyectos educativos e investigaciones.",
 use_feature_1: "Búsqueda rápida en bases de conocimiento",
@@ -2617,6 +3489,7 @@ by_difficulty: 'Tareas por dificultad',
 no_active_assignments: 'No hay tareas activas en este momento.',
 facts: 'hechos',
 rules: 'reglas',
+  challenge_accept: "Acepta el desafío",
 review_submission: 'Revisar Entrega',
 assignment_completion: 'Finalización de Tarea',
 header_copied: '¡Encabezado copiado al portapapeles!',
@@ -2627,6 +3500,7 @@ status_in_progress: 'En Progreso',
     completed_assignments_count: 'Tareas Completadas',
 in_progress_assignments_count: 'Tareas en Progreso',
 total_assignments_count: 'Tareas Totales',
+challenge_view_submissions:"Ver envíos",
     home: 'Inicio',
     topics: 'Temas',
     dashboard: 'Panel',
@@ -2654,6 +3528,31 @@ loading_assignments: 'Cargando tareas...',
     schools: 'Escuelas',
     students: 'Estudiantes',
     projects: 'Proyectos',
+    teacher_pending_approval: "Aprobación Pendiente",
+  welcome_teacher: "¡Bienvenido, Profesor!",
+  account_under_review: "Su cuenta está en proceso de revisión",
+  admin_approval_needed: "Su cuenta debe ser aprobada por un administrador antes de poder acceder al panel del profesor.",
+  step_1: "Creación de Perfil",
+  profile_created: "Perfil creado exitosamente",
+  create_profile: "Crear perfil de profesor",
+  step_2: "Aprobación del Administrador",
+  awaiting_admin_approval: "Su cuenta está esperando la aprobación del administrador",
+  step_3: "Acceso al Panel",
+  access_dashboard: "Obtendrá acceso a todas las funciones del profesor",
+  your_information: "Su Información",
+  full_name: "Nombre Completo",
+  email: "Correo Electrónico",
+  institution: "Escuela/Institución",
+  status: "Status",
+  pending_approval: "Aprobación Pendiente",
+  what_happens_next: "¿Qué pasa después?",
+  step1_description: "El administrador revisará su registro",
+  step2_description: "Recibirá un correo electrónico cuando su cuenta sea aprobada",
+  step3_description: "Después de la aprobación tendrá acceso completo al panel del profesor",
+  refresh_status: "Verificar Estado",
+  contact_admin: "Contáctenos",
+  estimated_approval_time: "La aprobación generalmente tarda 24-48 horas en días hábiles",
+  total_students: "Total Estudiantes",
     features_title_part1: 'Todo lo que necesitas para enseñar',
     features_title_part2: 'IA y Programación Lógica',
     features_description: 'Herramientas y recursos integrales diseñados específicamente para la educación STEM',
@@ -2732,6 +3631,124 @@ loading_assignments: 'Cargando tareas...',
     only_pl_files: 'Solo se permiten archivos .pl',
     upload_failed: 'Error al subir:',
     file_upload_success: '¡Archivo subido exitosamente!',
+    challenge_rejected: "Desafío rechazado",
+  challenge_reject_error: "Error al rechazar el desafío",
+  challenge_accepted: "Desafío aceptado",
+  challenge_accept_error: "Error al aceptar el desafío",
+  approve: "Aprobar",
+  reject: "Rechazar",
+  challenge_response_title: "Respuesta del Desafío",
+  challenge_solution_title: "Solución del Desafío",
+  challenge_view_solution_code: "Ver Código de Solución",
+  challenge_response_from: "Respuesta de",
+  challenge_respond: "Responder al Desafío",
+  challenge_reject_confirm: "¿Está seguro de que desea rechazar este desafío?",
+  challenge_view_response: "Ver Respuesta",
+  challenge_response_content: "Contenido de la Respuesta",
+  challenge_response_placeholder: "Escriba su respuesta aquí...",
+  challenge_solution_code: "Código de Solución",
+  challenge_solution_code_placeholder: "Escriba su código de solución aquí...",
+  challenge_send_response: "Enviar Respuesta",
+    inbox: "Bandeja de entrada",
+  starred: "Destacados",
+  sent: "Enviados",
+  drafts: "Borradores",
+  trash: "Papelera",
+  unknown_user: "User_{0}",
+  error_loading_users: "Error cargando usuarios",
+  error_loading_communities: "Error cargando comunidades",
+  error_loading_messages: "Error cargando mensajes",
+  unknown: "Desconocido",
+  no_subject: "Sin asunto",
+  login_required: "¡Por favor, inicie sesión!",
+  message_content_required: "¡Por favor, ingrese contenido del mensaje!",
+  recipient_required: "¡Por favor, seleccione un destinatario!",
+  recipient_not_found: "¡Destinatario no encontrado!",
+  cannot_send_to_self: "¡No puede enviarse mensajes a sí mismo!",
+  select_community: "Seleccionar comunidad",
+  community_not_found: "¡Comunidad no encontrada!",
+  no_users_in_community: "¡No hay otros usuarios en esta comunidad!",
+  no_other_users: "¡No hay otros usuarios en el sistema!",
+  invalid_message_type: "¡Tipo de mensaje inválido!",
+  new_message: "Nuevo mensaje",
+  you_have_new_message_from: "Tiene un nuevo mensaje de",
+  error_sending_message: "Error enviando mensaje",
+  no_permission_send_messages: "Sin permiso para enviar mensajes. ¡Revise las reglas de Firestore!",
+  no_internet_connection: "¡Sin conexión a internet! Por favor, intente nuevamente.",
+  try_again: "Por favor, intente nuevamente.",
+  message_sent_to: "Mensaje enviado a",
+  recipients: "destinatarios",
+  recipient: "destinatario",
+  error_starring_message: "Error marcando mensaje",
+  archived: "Archivado",
+  error_archiving_message: "Error archivando mensaje",
+  confirm_delete_message: "¿Eliminar este mensaje?",
+  message_moved_to_trash: "¡Mensaje movido a la papelera!",
+  error_deleting_message: "Error eliminando mensaje",
+  delete_selected_messages: "Eliminar mensajes seleccionados",
+  selected_messages: "mensajes seleccionados",
+  messages_moved_to_trash: "mensajes movidos a la papelera",
+  error_deleting_messages: "Error eliminando mensajes",
+  permanent_delete_confirm: "Este mensaje será eliminado permanentemente. ¿Continuar?",
+  message_permanently_deleted: "¡Mensaje eliminado permanentemente!",
+  error_permanent_delete: "Error durante eliminación permanente",
+  error_marking_message: "Error marcando mensaje",
+  no_unread_messages: "¡No hay mensajes no leídos!",
+  messages_marked_as_read: "mensajes marcados como leídos",
+  error_marking_messages: "Error marcando mensajes",
+  loading_messages: "Cargando mensajes...",
+  messages_center: "Mensajes",
+  unread: "no leídos",
+  total: "total",
+  in_community: "en comunidad",
+  mark_all_read: "Marcar todo como leído",
+  mark_all: "Marcar todo",
+  new: "Nuevo",
+  all: "Todos",
+  community: "Comunidad",
+  community_members: "Miembros de la comunidad",
+  all_users: "Todos los usuarios",
+  teachers: "Profesores",
+  message_to_community: "Mensaje a la comunidad",
+  user_list: "Lista de usuarios",
+  found: "encontrados",
+  student: "Estudiante",
+  no_users_found: "No se encontraron usuarios",
+  important: "Importante",
+  select_all: "Seleccionar todo",
+  delete: "Eliminar",
+  no_new_messages: "No hay nuevos mensajes",
+  no_messages_found: "No se encontraron mensajes",
+  no_messages_inbox: "Cuando reciba mensajes, aparecerán aquí",
+  try_different_folder: "Intente con una carpeta diferente o búsqueda",
+  me: "Yo",
+  broadcast: "Todos",
+  community_message: "Mensaje a la comunidad",
+  broadcast_message: "Mensaje a todos",
+  original_message: "Mensaje original",
+  reply: "Responder",
+  forwarded_message: "Mensaje reenviado",
+  forward: "Reenviar",
+  permanent_delete: "Eliminar permanentemente",
+  message_to_all: "Mensaje a todos",
+  message_type: "Tipo de mensaje",
+  personal: "Personal",
+  sending_to: "Enviando a",
+  message_to_community_desc: "Este mensaje será enviado a todos",
+  users_on_platform: "usuarios en la plataforma",
+  username_or_email: "Nombre de usuario o correo",
+  subject: "Asunto",
+  message_subject: "Asunto del mensaje",
+  write_message_here: "Escriba su mensaje aquí...",
+  cancel: "Cancelar",
+  sending: "Enviando...",
+  send: "Enviar",
+  search_messages: "Buscar mensajes...",
+  deselect: "Deseleccionar",
+  mark_as_read: "Marcar como leído",
+  delete_message: "Eliminar mensaje",
+  message: "Mensaje",
+  to: "a",
     unexpected_error: 'Ocurrió un error inesperado',
     status_success: 'Éxito',
     status_error: 'Error',
@@ -2744,7 +3761,6 @@ loading_assignments: 'Cargando tareas...',
     only_pl_files_info: 'Solo se permiten archivos .pl',
     files_saved_in: 'Los archivos se guardarán en:',
     recent_submissions: 'Envíos Recientes',
-    all: 'Todos',
     success_filter: 'Exitosos',
     files_filter: 'Archivos',
     no_submissions: 'Aún no hay envíos',
@@ -2758,6 +3774,17 @@ all_time_submissions: "Todas las entregas",
 completed_submissions: "Entregas completadas",
 total_files_uploaded: "Total de archivos subidos",
 overall_success_rate: "Tasa de éxito general",
+no_messages: "No tienes mensajes",
+  mark_all_as_read: "Marcar todos",
+  messages_as_read: "mensajes como leídos",
+  all_messages_marked_as_read: "Todos los mensajes marcados como leídos",
+  error_updating_messages: "Error actualizando mensajes",
+  no_read_messages: "No tienes mensajes leídos",
+  delete_read_messages: "Eliminar mensajes leídos",
+  read_messages: "mensajes leídos",
+  messages_deleted: "Mensajes eliminados",
+  delete_all_messages: "Eliminar todos los mensajes",
+  open_messages: "Abrir Mensajes",
 new_today: "Nuevo Hoy",
 assignment: "Tarea",
 course: "Curso",
@@ -2798,8 +3825,6 @@ no_activity: "Sin actividad",
     enter_description: "Ingrese descripción (opcional)",
     
     add_lesson: "Agregar lección",
-    
-    pending_approval: "Pendiente",
 no_files_uploaded: "Este estudiante no ha subido archivos todavía.",
 add_detailed_feedback: "Añadir retroalimentación detallada...",
 example_expert_system: "Ejemplo: Crear un Sistema Experto",
@@ -2871,6 +3896,9 @@ prolog_demo:"Demostración de Prolog",
     lesson: "lección",
     duration: "Duración",
     course_lessons: "Lecciones del Curso",
+     no_permission_delete: "No tienes permiso para eliminar este mensaje",
+  message_deleted: "Mensaje eliminado exitosamente",
+  messages_processed: "Mensajes procesados",
     
     // Prolog Guide
     prolog_guide_subtitle: "Aprende programación lógica con ejemplos interactivos",
@@ -2886,6 +3914,7 @@ prolog_demo:"Demostración de Prolog",
     basics_facts_title: "Hechos",
     basics_rules_title: "Reglas",
     basics_queries_title: "Consultas",
+    please_login: "Por favor, inicie sesión para continuar",
     
     // Основи на Prolog - описания
     basics_facts_desc: "Los hechos son afirmaciones verdaderas sobre el mundo. Forman la base de tu base de conocimientos.",
@@ -2902,11 +3931,18 @@ prolog_demo:"Demostración de Prolog",
     basics_rules_p2: "El cuerpo contiene objetivos",
     basics_rules_p3: "La coma (,) significa Y",
     basics_rules_p4: "El punto y coma (;) significa O",
+    user: 'Usuario',
+    message_to_all_desc: 'Este mensaje será enviado a todos los usuarios de la plataforma',
     
     basics_queries_p1: "Comienzan con el símbolo ?-",
     basics_queries_p2: "Las variables comienzan con mayúscula",
     basics_queries_p3: "Obtén múltiples soluciones",
     basics_queries_p4: "Usa backtracking",
+     students_in_my_communities: "Estudiantes en mis comunidades",
+  assignments_created_by_me: "Tareas creadas por mí",
+  in_system: "En el sistema",
+  other_teachers_in_system: "Otros profesores en el sistema",
+  my_students_activities: "Actividades de Mis Estudiantes",
     close: "Cerrar",
     download_code: "Descargar código",
     download: "Descargar",
@@ -2960,7 +3996,11 @@ prolog_demo:"Demostración de Prolog",
     tutorial_variables_ex2: "La variable anónima _ coincide con cualquier cosa una vez",
     tutorial_variables_ex3: "Usa la misma variable para requerir el mismo valor",
     tutorial_variables_ex4: "Las variables se instancian durante la ejecución",
-    
+    join_communities: 'Unirse a Comunidades',
+  join_community_dashboard: 'Únete a comunidades desde el panel',
+  community_join_info: 'Después de unirte a comunidades desde el panel',
+  community_creation_note: 'Después de la aprobación, puedes crear una comunidad',
+  community_creation_help: 'Podrás crear una comunidad de aprendizaje, invitar estudiantes y organizar desafíos',
     tutorial_backtracking_title: "Backtracking y Búsqueda",
     tutorial_backtracking_content: "Prolog usa búsqueda en profundidad con backtracking. Cuando un objetivo falla, Prolog vuelve al último punto de elección e intenta soluciones alternativas.",
     tutorial_backtracking_ex1: "Se encuentran múltiples soluciones una por una",
@@ -2984,19 +4024,17 @@ prolog_demo:"Demostración de Prolog",
     name_required: "Por favor, ingresa tu nombre completo",
     institution_required: "Por favor, ingresa tu institución",
     email_required: "Por favor, ingresa tu correo electrónico",
-    
-    // Полета и етикети
-    full_name: "Nombre Completo",
     enter_full_name: "Ingresa tu nombre completo",
     select_role: "Selecciona Tu Rol",
     teacher_approval_note: "Los perfiles de profesor requieren aprobación del administrador",
-    institution: "Institución",
     enter_institution: "Escuela/Universidad/Institución",
     grade_course: "Grado/Curso",
     enter_grade: "Grado/Curso (opcional)",
     specialty: "Especialidad",
     enter_specialty: "Asignatura/Especialidad (opcional)",
     create_password: "Crea una contraseña (mín. 6 caracteres)",
+    challenge_response_on: "Respuesta en",
+  challenge_reject: "Rechazar Desafío",
     
     // Текстове от интерфейса
     join_community: "Únete a la",
@@ -3045,7 +4083,49 @@ prolog_demo:"Demostración de Prolog",
     my_assignments: 'Mis Tareas',
     articles: 'Artículos',
     view_all: 'Ver Todo',
-    
+    from: "de",
+  my_challenge_solutions: "Mis Soluciones de Desafíos",
+  no_solutions_yet: "Aún no hay soluciones",
+  join_challenges_to_solve: "¡Únete a desafíos para comenzar a resolver!",
+  browse_challenges: "Explorar Desafíos",
+  view_solution: "Ver Solución",
+  continue_solving: "Continuar Resolviendo",
+  message_community: "Mensaje a la Comunidad",
+  messages: "Mensajes",
+  type_message_here: "Escriba mensaje aquí...",
+  select_recipient: "Seleccionar destinatario",
+  message_history: "Historial de Mensajes",
+  you: "Tú",
+  no_messages_yet: "Aún no hay mensajes",
+   in_my_community: "en mi comunidad",
+  error_loading_community: "Error cargando comunidad",
+   challenge_not_found: "Desafío no encontrado",
+  already_joined_challenge: "Ya te has unido a este desafío",
+  select_challenge_first: "Por favor, seleccione un desafío primero",
+  code_empty: "El código no puede estar vacío",
+  challenge_not_joined: "Aún no te has unido a este desafío",
+  challenge_submitted: "Solución del desafío enviada exitosamente",
+  challenge_submission_error: "Error al enviar la solución del desafío",
+  select_assignment_first: "Por favor, seleccione una tarea primero",
+  assignment_not_found: "Tarea no encontrada",
+  submit_challenge_solution: "Enviar Solución del Desafío",
+  challenge_mode: "Modo Desafío",
+  current_challenge: "Desafío Actual",
+  challenge_mode_active: "El modo desafío está activo",
+  exit_challenge_mode: "Salir del Modo Desafío",
+  no_challenge_selected: "Ningún desafío seleccionado",
+  select_challenge_first_desc: "Seleccione un desafío para comenzar a resolver",
+  go_to_challenges: "Ir a Desafíos",
+  switch_to_assignments: "Cambiar a Tareas",
+  switch_to_challenges: "Cambiar a Desafíos",
+  submit_solution: "Enviar Solución",
+  no_community: "Sin comunidad",
+  remove_star: "Quitar estrella",
+  star: "Estrella",
+  select_message: "Seleccione un mensaje",
+  select_message_to_view: "Seleccione un mensaje para ver detalles",
+  to_community: "a la comunidad",
+  communities: "Comunidades",
     // Login page преводи
     login_description: "Continúa tu viaje en la educación STEM impulsada por IA y explora conceptos de programación interactivos.",
     access_projects: "Accede a tus proyectos",
@@ -3082,6 +4162,15 @@ prolog_demo:"Demostración de Prolog",
     password_placeholder: "Crea una contraseña (mín. 6 caracteres)",
     i_agree_to: "Acepto los",
     send_me_updates: "Envíame recursos educativos y actualizaciones",
+    quick_message: "Mensaje Rápido",
+  quick_message_desc: "Enviar un mensaje rápido a estudiantes o comunidades",
+  open_mail: "Abrir Correo",
+  broadcast_all_students: "Transmitir a Todos los Estudiantes",
+  type_your_message_here: "Escriba su mensaje aquí...",
+  new_messages: "Nuevos Mensajes",
+  mark_all_read_confirm: "¿Marcar todos los mensajes como leídos?",
+  click_to_mark_read: "Haga clic para marcar como leído",
+  view_all_messages: "Ver Todos los Mensajes",
     creating_account: "Creando cuenta...",
     create_ideas_account: "Crear cuenta IDEAS",
     already_have_account: "¿Ya tienes una cuenta?",
@@ -3089,11 +4178,64 @@ prolog_demo:"Demostración de Prolog",
     register_footer_text: "Al crear una cuenta, aceptas nuestras políticas de plataforma y directrices educativas.",
     
     // Validation messages преводи
+    manage_learning_communities: "Administra tus comunidades de aprendizaje",
+  create_community: "Crear Comunidad",
+  create_first_community: "Crear Primera Comunidad",
+  pending_requests: "Solicitudes Pendientes",
+  manage_community_challenges: "Administra y crea desafíos entre comunidades",
+  create_challenge: "Crear Desafío",
+  create_first_challenge: "Crear Primer Desafío",
+  communities_overview: "Resumen de Comunidades",
+  no_communities_dashboard: "Aún no has creado ninguna comunidad",
+  view_all_communities: "Ver Todas las Comunidades",
+  community_name: "Nombre de la Comunidad",
+  enter_community_name: "Ingrese nombre de la comunidad",
+  grade_level: "Nivel de Grado",
+  privacy_settings: "Configuración de Privacidad",
+  auto_approve_students: "Aprobar automáticamente solicitudes de unión de estudiantes",
+  allow_student_messages: "Permitir a estudiantes enviarse mensajes",
+  allow_student_challenges: "Permitir a estudiantes crear desafíos",
+  allow_inter_community_challenges: "Permitir desafíos entre comunidades",
+  challenge_title: "Título del Desafío",
+  enter_challenge_title: "Ingrese título del desafío",
+  target_community: "Comunidad Objetivo",
+  send_challenge: "Enviar Desafío",
     password_mismatch: "Las contraseñas no coinciden",
     password_too_short: "La contraseña debe tener al menos 6 caracteres",
     password_weak: "La contraseña es demasiado débil",
     email_in_use: "Este correo ya está en uso",
     invalid_email: "Correo electrónico inválido",
+    solution_submitted: "¡Solución del desafío enviada exitosamente!",
+  solution_error: "Error al enviar la solución",
+  join_request_sent: "¡Solicitud de unión enviada!",
+  join_request_error: "Error al enviar solicitud de unión",
+  invalid_invite_code: "Código de invitación inválido",
+  join_error: "Error al unirse",
+  message_sent: "¡Mensaje enviado exitosamente!",
+  message_error: "Error al enviar mensaje",
+  challenge_joined_success: "¡Desafío unido! Ahora puedes trabajar en tu solución.",
+  challenge_join_error: "Error al unirse al desafío",
+  my_solutions: "Mis Soluciones",
+  challenges: "Desafíos",
+  learning_communities: "Comunidades de aprendizaje",
+  challenges_in_progress: "Desafíos en progreso",
+  enter_invite_code: "Ingrese código de invitación",
+  join: "Unirse",
+  my_communities: "Mis Comunidades",
+  no_communities_yet: "Aún no hay comunidades",
+  join_community_description: "Únete a comunidades existentes o crea la tuya propia",
+  members: "miembros",
+  public: "Público",
+  private: "Privado",
+  general: "General",
+  view_challenges: "Ver Desafíos",
+  active_challenges: "Desafíos Activos",
+  no_challenges_yet: "Aún no hay desafíos",
+  no_challenges_description: "Crea tu primer desafío o espera a que otros comiencen uno",
+  participants: "participantes",
+  joined: "Unido",
+  solve_now: "Resolver Ahora",
+  join_challenge: "Unirse al Desafío",
     
     // Register success message
     registration_successful: "¡Registro exitoso! Bienvenido a IDEAS.",
@@ -3170,7 +4312,6 @@ activity_knowledge_base: "Nueva base de conocimiento de matemáticas creada",
 activity_new_materials: "Nuevos materiales educativos subidos",
 activity_user_registered: "24 nuevos usuarios registrados",
 minutes_ago: "min",
-    send: 'Enviar',
     no_domain_selected: 'Sin Dominio Seleccionado',
     select_domain_to_view: 'Seleccione un dominio de la barra lateral para ver sus archivos de código.',
     no_code_files_for: 'No hay archivos de código para',
@@ -3183,7 +4324,6 @@ minutes_ago: "min",
     queries: 'Consultas',
     code_files: 'Archivos de Código',
     none: 'Ninguno',
-    status: 'Estado',
     animals: 'Animales',
     history: 'Historia',
     geography: 'Geografía',
@@ -3238,9 +4378,6 @@ made_with_love: 'Hecho con ❤️ para la educación',
     upload_to_domain: 'Subir a dominio',
     code: 'Código',
     file_commands_title: 'Comandos de Archivo',
-    
-    // НОВИ ДОБАВЕНИ КЛЮЧОВЕ ОТ DASHBOARD КОДА:
-    student: 'Estudiante',
     class: 'Clase',
     average_points: 'Puntos Promedio',
     actions: 'Acciones',
@@ -3272,7 +4409,6 @@ made_with_love: 'Hecho con ❤️ para la educación',
     assignment_title_placeholder: 'Ejemplo: Crear un Sistema Experto',
     topic: 'Tema',
     topic_placeholder: 'Ejemplo: Insectos, Reacciones Químicas, Electricidad',
-    subject: 'Asignatura',
     biology: 'Biología',
     chemistry: 'Química',
     physics: 'Física',
@@ -3296,13 +4432,10 @@ made_with_love: 'Hecho con ❤️ para la educación',
     example_code: 'Código de Ejemplo',
     example_code_placeholder: 'Puede proporcionar código Prolog de ejemplo...',
     optional: 'opcional',
-    cancel: 'Cancelar',
     save_changes: 'Guardar Cambios',
     create_articles: 'Crear Artículos',
     draft: 'Borrador',
-    archived: 'Archivado',
     edit: 'Editar',
-    delete: 'Eliminar',
     view: 'Ver',
     active_assignments: 'Tareas Activas',
     total_assignments: 'Tareas totales',
@@ -3316,7 +4449,6 @@ made_with_love: 'Hecho con ❤️ para la educación',
     please_wait: 'Por favor, espere mientras obtenemos la información del estudiante...',
     no_students_found: 'No se encontraron estudiantes',
     no_students_description: 'No se encontraron estudiantes con archivos subidos en el sistema.',
-    try_again: 'Intentar de nuevo',
     last_upload: 'Última Subida',
     avg_points: 'Pts Prom',
     grade: 'Calificar',
@@ -3382,7 +4514,6 @@ date: "Fecha",
 prolog_submission: "Envío Prolog",
 no_submissions_yet: "Aún no hay envíos",
 assignments_found: "tareas encontradas",
-total: "Total",
 success: "Éxito",
     // НОВИ КЛЮЧОВЕ ОТ ПОСЛЕДНИЯ АНАЛИЗ:
     teacher_dashboard: 'Panel del Profesor',
@@ -3407,9 +4538,6 @@ success: "Éxito",
     
     // Учителски инструкции
     teacher_name: 'Nombre del Profesor',
-    
-    // Статистика
-    total_students: 'Total de Estudiantes',
     total_files: 'Total de Archivos',
   }
 };

@@ -25,7 +25,8 @@ import {
   Building,
   Award,
   Layers,
-  UserCog
+  UserCog,
+  Users as CommunityIcon
 } from 'lucide-react';
 
 export default function Register() {
@@ -98,6 +99,16 @@ export default function Register() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Генериране на уникален код за учител
+      const generateTeacherCode = () => {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+      };
+
+      // Генериране на код за общност (за учители)
+      const generateCommunityCode = () => {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+      };
+
       // Базови данни за потребител
       const userData: any = {
         uid: user.uid,
@@ -111,6 +122,8 @@ export default function Register() {
         lastLogin: serverTimestamp(),
         isActive: true,
         emailVerified: false,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`,
+        bio: "",
       };
 
       // Добавяне на специфични полета според ролята
@@ -127,6 +140,25 @@ export default function Register() {
         userData.teacherId = null;
         userData.classId = null;
         userData.status = "active";
+        
+        // Полета за общност/комюнити - по подразбиране без общност
+        userData.communityStatus = "no_community"; // 'no_community', 'pending', 'member'
+        userData.communityId = null;
+        userData.communityInviteCode = null; // Код за присъединяване
+        userData.pendingCommunityRequests = []; // Заявки за присъединяване
+        userData.communityJoinDate = null;
+        
+        // Полета за комуникация и предизвикателства
+        userData.sentChallenges = [];
+        userData.receivedChallenges = [];
+        userData.completedChallenges = [];
+        userData.challengePoints = 0;
+        userData.messageThreads = []; // Треди със съобщения
+        
+        // Статистика
+        userData.achievements = [];
+        userData.leaderboardPosition = 0;
+        userData.totalChallengeWins = 0;
       } else if (role === "teacher") {
         userData.specialty = specialty || null;
         userData.createdLessons = [];
@@ -135,8 +167,37 @@ export default function Register() {
         userData.studentIds = [];
         userData.classes = [];
         userData.isVerified = false;
-        userData.teacherCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        userData.teacherCode = generateTeacherCode();
         userData.status = "pending";
+        
+        // Полета за общност/комюнити
+        userData.communityStatus = "no_community"; // 'no_community', 'created', 'member'
+        userData.communityId = null;
+        userData.createdCommunities = []; // ID-та на създадени общности
+        userData.communityInviteCode = generateCommunityCode(); // Код за ученици да се присъединят
+        
+        // Полета за управление на общността
+        userData.communitySettings = {
+          allowStudentChallenges: false,
+          allowInterCommunityChallenges: true,
+          allowStudentMessages: true,
+          autoApproveStudents: false,
+          privacy: "private" // 'public', 'private'
+        };
+        
+        // Статистика и управление
+        userData.communityStatistics = {
+          totalStudents: 0,
+          activeStudents: 0,
+          totalChallengesSent: 0,
+          totalChallengesReceived: 0,
+          challengeWinRate: 0
+        };
+        
+        // Модерация
+        userData.pendingJoinRequests = []; // Заявки за присъединяване
+        userData.bannedStudents = []; // Забранени ученици
+        userData.communityAnnouncements = []; // Съобщения към общността
       }
 
       // Записване в Firestore
@@ -164,7 +225,7 @@ export default function Register() {
       // Пренасочване според ролята
       setTimeout(() => {
         if (role === "student") {
-          navigate("/dashboard/student");
+  navigate("/students-dashboard");
         } else {
           navigate("/teacher/pending");
         }
@@ -202,12 +263,16 @@ export default function Register() {
     {
       icon: <Users className="w-5 h-5" />,
       text: t('collaborate_peers') || "Collaborate with peers"
+    },
+    {
+      icon: <CommunityIcon className="w-5 h-5" />,
+      text: t('join_communities') || "Join learning communities"
     }
   ];
 
   return (
     <div className={`min-h-screen pt-20 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      {/* Background effects - ABSOLUTELY IDENTICAL TO LOGIN */}
+      {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute inset-0 ${
           theme === 'dark' 
@@ -215,7 +280,6 @@ export default function Register() {
             : 'bg-gradient-to-br from-gray-50 via-blue-50/20 to-gray-50'
         }`} />
         
-        {/* Animated shapes - IDENTICAL TO LOGIN */}
         <motion.div
           className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${
             theme === 'dark' 
@@ -262,7 +326,7 @@ export default function Register() {
           className="w-full max-w-6xl"
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-            {/* Left side - Branding - IDENTICAL TO LOGIN */}
+            {/* Left side - Branding */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -301,7 +365,7 @@ export default function Register() {
                 {t('register_description') || "Start your journey in AI-powered STEM education and explore interactive programming concepts."}
               </p>
 
-              {/* Benefits - IDENTICAL STYLE TO LOGIN */}
+              {/* Benefits */}
               <div className="space-y-4 mb-8">
                 {benefits.map((benefit, index) => (
                   <motion.div
@@ -330,7 +394,7 @@ export default function Register() {
                 ))}
               </div>
 
-              {/* Security badges - IDENTICAL TO LOGIN */}
+              {/* Security badges */}
               <div className={`p-6 rounded-2xl ${
                 theme === 'dark'
                   ? 'bg-white/5 border border-white/10'
@@ -350,7 +414,7 @@ export default function Register() {
               </div>
             </motion.div>
 
-            {/* Right side - Register Form - SIMILAR STRUCTURE TO LOGIN */}
+            {/* Right side - Register Form */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -362,7 +426,6 @@ export default function Register() {
                   ? 'bg-gray-800/50 backdrop-blur-xl border border-gray-700'
                   : 'bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl'
               }`}>
-                {/* Form Header */}
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold mb-2">
                     <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>
@@ -374,7 +437,6 @@ export default function Register() {
                   </p>
                 </div>
 
-                {/* Error Message - IDENTICAL TO LOGIN */}
                 <AnimatePresence>
                   {error && (
                     <motion.div
@@ -397,7 +459,6 @@ export default function Register() {
                   )}
                 </AnimatePresence>
 
-                {/* Register Form */}
                 <form onSubmit={handleRegister} className="space-y-6">
                   {/* Full Name */}
                   <div>
@@ -541,6 +602,23 @@ export default function Register() {
                             } transition-all outline-none`}
                           />
                         </div>
+                        
+                        {/* Информация за присъединяване към общност */}
+                        <div className={`mt-4 p-4 rounded-lg ${
+                          theme === 'dark'
+                            ? 'bg-blue-500/10 border border-blue-500/20'
+                            : 'bg-blue-50 border border-blue-200'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <CommunityIcon className="w-4 h-4 text-blue-500" />
+                            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
+                              {t('join_community_dashboard') || "Join communities from dashboard"}
+                            </span>
+                          </div>
+                          <p className={`text-xs ${theme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}`}>
+                            {t('community_join_info') || "After registration, you can join learning communities from your student dashboard"}
+                          </p>
+                        </div>
                       </motion.div>
                     )}
 
@@ -572,11 +650,26 @@ export default function Register() {
                             } transition-all outline-none`}
                           />
                         </div>
+                        <div className={`mt-4 p-4 rounded-lg ${
+                          theme === 'dark'
+                            ? 'bg-blue-500/10 border border-blue-500/20'
+                            : 'bg-blue-50 border border-blue-200'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <CommunityIcon className="w-4 h-4 text-blue-500" />
+                            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
+                              {t('community_creation_note') || "After approval, you can create a community"}
+                            </span>
+                          </div>
+                          <p className={`text-xs ${theme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}`}>
+                            {t('community_creation_help') || "You'll be able to create a learning community, invite students, and organize challenges"}
+                          </p>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  {/* Email - IDENTICAL TO LOGIN */}
+                  {/* Email */}
                   <div>
                     <label htmlFor="email" className={`block text-sm font-medium mb-2 ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
@@ -601,7 +694,7 @@ export default function Register() {
                     />
                   </div>
 
-                  {/* Password - IDENTICAL TO LOGIN */}
+                  {/* Password */}
                   <div>
                     <label htmlFor="password" className={`block text-sm font-medium mb-2 ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
@@ -716,7 +809,7 @@ export default function Register() {
                     </label>
                   </div>
 
-                  {/* Submit Button - SIMILAR STYLE TO LOGIN */}
+                  {/* Submit Button */}
                   <motion.button
                     type="submit"
                     disabled={isLoading}
@@ -741,7 +834,7 @@ export default function Register() {
                     )}
                   </motion.button>
 
-                  {/* Divider - IDENTICAL TO LOGIN */}
+                  {/* Divider */}
                   <div className="relative">
                     <div className={`absolute inset-0 flex items-center ${
                       theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
@@ -757,7 +850,7 @@ export default function Register() {
                     </div>
                   </div>
 
-                  {/* Login Link - REVERSE OF LOGIN'S REGISTER LINK */}
+                  {/* Login Link */}
                   <Link
                     to="/login"
                     className={`block w-full py-3 px-6 rounded-xl border text-center font-medium transition-all duration-300 ${
@@ -773,7 +866,6 @@ export default function Register() {
                   </Link>
                 </form>
 
-                {/* Footer - IDENTICAL TO LOGIN */}
                 <div className={`mt-8 pt-6 border-t ${
                   theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                 }`}>

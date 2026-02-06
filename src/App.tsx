@@ -20,6 +20,7 @@ import StudentsDashboard from './components/StudentsDashboard';
 import PrologGuide from './components/PrologGuide';
 import DemoPrologChat from './components/DemoPrologChat';
 import AboutUs from './components/AboutUs';
+import TeacherPending from './components/TeacherPending';
 
 
 const teamPhotos = {
@@ -134,6 +135,12 @@ const AppContent = () => {
         <Route path="/demo-prolog-chat" element={<DemoPrologChat />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        {/* Маршрут за чакащи одобрение учители */}
+        <Route path="/teacher/pending" element={
+          <ProtectedRoute requiredRole="teacher">
+            <TeacherPending />
+          </ProtectedRoute>
+        } />
         
         {/* Защитени маршрути за учители */}
         <Route path="/teacher-dashboard" element={

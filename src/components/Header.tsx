@@ -77,37 +77,49 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
 
   // Функция за определяне на правилния dashboard път
   const getDashboardPath = () => {
-    if (!user) {
-      return "/login";
-    }
-    
-    if (!userData) {
-      return "/login";
-    }
-    
-    switch (userData.role) {
-      case 'admin':
-        return "/admin-dashboard";
-      case 'teacher':
-        return "/teacher-dashboard";
-      case 'student':
-        return "/students-dashboard";
-      default:
-        return "/teacher-dashboard";
-    }
-  };
+  if (!user) {
+    return "/login";
+  }
+  
+  if (!userData) {
+    return "/login";
+  }
+  
+  // Проверка за неодобрени учители
+  if (userData.role === 'teacher' && userData.status === 'pending') {
+    return "/teacher/pending"; // Пренасочване към pending страницата
+  }
+  
+  switch (userData.role) {
+    case 'admin':
+      return "/admin-dashboard";
+    case 'teacher':
+      // Ако учителят е одобрен, отива в dashboard
+      return "/teacher-dashboard";
+    case 'student':
+      return "/students-dashboard";
+    default:
+      return "/teacher-dashboard";
+  }
+};
 
   const getDashboardLabel = () => {
-    if (userData?.role === 'admin') {
-      return t('admin_dashboard') || "Admin Dashboard";
-    } else if (userData?.role === 'teacher') {
-      return t('teacher_dashboard') || "Teacher Dashboard";
-    } else if (userData?.role === 'student') {
-      return t('student_dashboard') || "Student Dashboard";
-    } else {
-      return t('dashboard') || "Dashboard";
+  if (!userData) return t('dashboard') || "Dashboard";
+  
+  if (userData.role === 'admin') {
+    return t('admin_dashboard') || "Admin Dashboard";
+  } else if (userData.role === 'teacher') {
+    // Ако учителят не е одобрен, промени текста
+    if (userData.status === 'pending') {
+      return t('pending_approval') || "Pending Approval";
     }
-  };
+    return t('teacher_dashboard') || "Teacher Dashboard";
+  } else if (userData.role === 'student') {
+    return t('student_dashboard') || "Student Dashboard";
+  } else {
+    return t('dashboard') || "Dashboard";
+  }
+};
 
   const isDashboardActive = () => {
     const dashboardPaths = [
@@ -154,6 +166,18 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
           alwaysVisible: true,
           noAuthRequired: true
         },
+        { 
+      name: getDashboardLabel(), 
+      icon: <BarChart3 className="w-4 h-4" />,
+      path: getDashboardPath(),
+      color: userData?.status === 'pending' 
+        ? 'from-amber-500 to-orange-500' // Жълт цвят за pending
+        : 'from-green-500 to-emerald-500', // Зелен за одобрени
+      requiresAuth: true,
+      badge: userData?.status === 'pending' 
+        ? 'PENDING' 
+        : 'TEACHER'
+    },
         { 
           name: t('prolog') || "Prolog", 
           icon: <Code className="w-4 h-4" />,
@@ -433,25 +457,33 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                       <div className="text-left flex items-center gap-2">
                         <span className="relative z-10 font-medium">{item.name}</span>
                         {item.badge && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className={`px-1.5 py-0.5 text-xs rounded-full font-bold ${
-                              item.badge === 'ADMIN'
-                                ? theme === 'dark'
-                                  ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
-                                  : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
-                                : item.badge === 'TEACHER'
-                                ? theme === 'dark'
-                                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                                  : 'bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900'
-                                : theme === 'dark'
-                                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
-                                  : 'bg-gradient-to-r from-indigo-500 to-blue-500 text-gray-900'
-                            }`}
-                          >
-                            {item.badge}
-                          </motion.span>
+  <motion.span
+    initial={{ scale: 0 }}
+    animate={{ scale: 1 }}
+    className={`px-1.5 py-0.5 text-xs rounded-full font-bold ${
+      item.badge === 'ADMIN'
+        ? theme === 'dark'
+          ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
+          : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
+        : item.badge === 'TEACHER'
+        ? theme === 'dark'
+          ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
+          : 'bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900'
+        : item.badge === 'PENDING' // Добави новия badge за pending
+        ? theme === 'dark'
+          ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+          : 'bg-gradient-to-r from-amber-500 to-orange-500 text-gray-900'
+        : item.badge === 'STUDENT'
+        ? theme === 'dark'
+          ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
+          : 'bg-gradient-to-r from-indigo-500 to-blue-500 text-gray-900'
+        : theme === 'dark'
+          ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+          : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-gray-900'
+    }`}
+  >
+    {item.badge}
+  </motion.span>
                         )}
                       </div>
                     </div>
@@ -894,20 +926,28 @@ const Header: React.FC<HeaderProps> = ({ isScrolled }) => {
                           </div>
                         </div>
                         {item.badge && (
-                          <span className={`px-2 py-1 text-xs rounded-full font-bold ${
-                            item.badge === 'ADMIN'
-                              ? theme === 'dark'
-                                ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
-                                : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
-                              : item.badge === 'TEACHER'
-                              ? theme === 'dark'
-                                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                                : 'bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900'
-                              : theme === 'dark'
-                                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
-                                : 'bg-gradient-to-r from-indigo-500 to-blue-500 text-gray-900'
-                          }`}>
-                            {item.badge}
+  <span className={`px-2 py-1 text-xs rounded-full font-bold ${
+    item.badge === 'ADMIN'
+      ? theme === 'dark'
+        ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
+        : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-gray-900'
+      : item.badge === 'TEACHER'
+      ? theme === 'dark'
+        ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
+        : 'bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900'
+      : item.badge === 'PENDING' // Добави тук
+      ? theme === 'dark'
+        ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+        : 'bg-gradient-to-r from-amber-500 to-orange-500 text-gray-900'
+      : item.badge === 'STUDENT'
+      ? theme === 'dark'
+        ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
+        : 'bg-gradient-to-r from-indigo-500 to-blue-500 text-gray-900'
+      : theme === 'dark'
+        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+        : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-gray-900'
+  }`}>
+    {item.badge}
                           </span>
                         )}
                       </div>

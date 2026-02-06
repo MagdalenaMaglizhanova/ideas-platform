@@ -1,95 +1,51 @@
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
+
+// Icons import
+import {
+  MessageSquare,
+  Code as CodeIcon,
+  FileCode,
+  Download,
+  Play,
+  Terminal,
+  Brain,
+  HelpCircle,
+  User as UserIcon,
+  Trash2,
+  List,
+  Database,
+  Globe,
+  CheckCircle,
+  RefreshCw,
+  Cpu,
+  Zap
+} from "lucide-react";
 
 interface Message {
   user: boolean;
   text: string;
   id: string;
   timestamp: Date;
-  type?: 'system' | 'query' | 'result' | 'demo' | 'info';
+  type?: 'system' | 'query' | 'result';
 }
 
-interface PrologCode {
-  id: string;
-  code: string;
-  title?: string;
-  domain?: string;
-  fileName?: string;
-  filePath?: string;
-  folder?: string;
-}
-
-// Demo commands - modernized version
-const demoCommands = [
-  { 
-    label: "Start Demo", 
-    query: "start",
-    icon: "fas fa-rocket",
-    gradient: "from-purple-500 to-pink-500",
-    badge: "primary"
-  },
-  { 
-    label: "Platform Info", 
-    query: "platform_info(_, _)",
-    icon: "fas fa-info-circle",
-    gradient: "from-blue-500 to-cyan-500",
-    badge: "info"
-  },
-  { 
-    label: "Run Test", 
-    query: "test_query",
-    icon: "fas fa-vial",
-    gradient: "from-emerald-500 to-teal-500",
-    badge: "success"
-  },
-  { 
-    label: "List Topics", 
-    query: "list_educational_topics",
-    icon: "fas fa-book-open",
-    gradient: "from-orange-500 to-amber-500",
-    badge: "warning"
-  },
-  { 
-    label: "Clear Chat", 
-    query: "clear",
-    icon: "fas fa-broom",
-    gradient: "from-gray-500 to-slate-600",
-    badge: "secondary"
-  }
-];
-
-// Platform stats
-const platformStats = [
-  { label: "API Status", value: "Connected", icon: "fas fa-plug", color: "text-green-500" },
-  { label: "Storage", value: "Active", icon: "fas fa-database", color: "text-blue-500" },
-  { label: "Response Time", value: "< 1s", icon: "fas fa-bolt", color: "text-yellow-500" },
-  { label: "Test Files", value: "0 files", icon: "fas fa-file-code", color: "text-purple-500" }
-];
-
-export default function EnhancedPrologChat() {
-  const { theme } = useTheme();
-  
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      user: false,
-      text: `# Welcome to Prolog AI Assistant\n\n**Interactive Prolog Environment** with real-time query execution\n\n### 📋 Available Commands:\n• **start** - Initialize the demo environment\n• **platform_info** - Show system details\n• **test_query** - Execute a test query\n• **demo_menu** - Interactive demo menu\n\n### 🔗 Connected Services:\n- Prolog API Server\n- Supabase Storage\n- Real-time Database`,
-      id: "welcome-" + Date.now(),
-      timestamp: new Date(),
-      type: 'demo'
-    }
-  ]);
-  
+export default function PrologTestChat() {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"chat" | "info">("chat");
-  const [testFiles, setTestFiles] = useState<PrologCode[]>([]);
-  const [_isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [stats, setStats] = useState(platformStats);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [isLoadingDomain, setIsLoadingDomain] = useState(false);
+  const [fileNameInput, setFileNameInput] = useState("");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
+  const { theme } = useTheme();
+  const { t } = useLanguage();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -101,72 +57,155 @@ export default function EnhancedPrologChat() {
     });
   }, [messages]);
 
-  // Load test files
-  useEffect(() => {
-    loadTestFiles();
-  }, []);
+  // System commands
+  const systemCommands = [
+    { 
+      label: 'Help', 
+      query: "help", 
+      icon: <HelpCircle className="w-4 h-4" />,
+      color: "#4A90E2",
+      gradient: "from-blue-500 to-cyan-500",
+      tooltip: 'Show help information'
+    },
+    { 
+      label: 'Load Test', 
+      query: "load_all", 
+      icon: <Download className="w-4 h-4" />,
+      color: "#50C878",
+      gradient: "from-emerald-500 to-green-500",
+      tooltip: 'Load all Prolog files from test domain'
+    },
+    { 
+      label: 'List Files', 
+      query: "list_files", 
+      icon: <List className="w-4 h-4" />,
+      color: "#FF6B8B",
+      gradient: "from-rose-500 to-pink-500",
+      tooltip: 'List all loaded files'
+    },
+    { 
+      label: 'Clear Facts', 
+      query: "clear_all_facts", 
+      icon: <Trash2 className="w-4 h-4" />,
+      color: "#FF4757",
+      gradient: "from-red-500 to-rose-500",
+      tooltip: 'Clear all loaded facts'
+    },
+    { 
+      label: 'Current File', 
+      query: "current_file", 
+      icon: <FileCode className="w-4 h-4" />,
+      color: "#9D4EDD",
+      gradient: "from-purple-500 to-violet-500",
+      tooltip: 'Show current active file'
+    },
+    { 
+      label: 'List Predicates', 
+      query: "list_predicates", 
+      icon: <CodeIcon className="w-4 h-4" />,
+      color: "#36D1DC",
+      gradient: "from-cyan-500 to-teal-500",
+      tooltip: 'List all available predicates'
+    },
+  ];
 
-  const loadTestFiles = async () => {
-    setIsLoadingFiles(true);
-    try {
-      const { data, error } = await supabase
-        .from('prolog_codes')
-        .select('*')
-        .eq('domain', 'test')
-        .order('created_at', { ascending: false });
+  // File commands
+  const fileCommands = [
+    { 
+      label: 'Consult File', 
+      query: `consult_file('${fileNameInput}')`, 
+      icon: <Play className="w-4 h-4" />,
+      color: "#4A90E2",
+      gradient: "from-blue-500 to-cyan-500"
+    },
+    { 
+      label: 'Reconsult File', 
+      query: `reconsult_file('${fileNameInput}')`, 
+      icon: <RefreshCw className="w-4 h-4" />,
+      color: "#9D4EDD",
+      gradient: "from-purple-500 to-violet-500"
+    },
+  ];
 
-      if (!error && data) {
-        const codes: PrologCode[] = data.map(item => ({
-          id: item.id.toString(),
-          code: item.code || "",
-          title: item.title,
-          domain: item.domain || "test",
-          fileName: item.file_name,
-          filePath: item.file_path,
-          folder: item.folder || "test"
-        }));
-        
-        setTestFiles(codes);
-        updateStats("Test Files", `${codes.length} files`);
-        if (codes.length > 0) {
-          addSystemMessage(`📁 Loaded ${codes.length} test file(s) from database`);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load files:", err);
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
+  const loadDomain = async () => {
+    setIsLoadingDomain(true);
+    setSelectedDomain("test");
 
-  const updateStats = (label: string, value: string) => {
-    setStats(prev => prev.map(stat => 
-      stat.label === label ? { ...stat, value } : stat
-    ));
-  };
-
-  const addSystemMessage = (text: string) => {
-    const msg: Message = {
+    const thinkingMsg: Message = {
       user: false,
-      text,
-      id: "system-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+      text: `Loading test domain...`,
+      id: "domain-loading-" + Date.now().toString(),
       timestamp: new Date(),
       type: 'system'
     };
-    setMessages(prev => [...prev, msg]);
+    setMessages(prev => [...prev, thinkingMsg]);
+
+    try {
+      const res = await fetch("https://prolog-api-server-1.onrender.com/prolog/select-domain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: "test" })
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      setMessages(prev => [
+        ...prev.filter(msg => msg.id !== thinkingMsg.id),
+        {
+          user: false,
+          text: data.message || `✅ Test domain loaded successfully. Ready for queries.`,
+          id: Date.now().toString(),
+          timestamp: new Date(),
+          type: 'system'
+        }
+      ]);
+    } catch (err: any) {
+      setMessages(prev => [
+        ...prev.filter(msg => msg.id !== thinkingMsg.id),
+        {
+          user: false,
+          text: `❌ Error loading test domain: ${err.message}`,
+          id: Date.now().toString(),
+          timestamp: new Date(),
+          type: 'system'
+        }
+      ]);
+      setSelectedDomain(null);
+    } finally {
+      setIsLoadingDomain(false);
+    }
   };
 
   const sendQuery = async (customQuery?: string) => {
     const finalQuery = customQuery ?? query;
-    if (!finalQuery.trim() || isLoading) return;
+    if (!finalQuery.trim() || isLoading || !selectedDomain) return;
 
-    if (finalQuery.trim() === "clear" || finalQuery.trim() === "clear.") {
-      setMessages([{
+    if (finalQuery.trim() === "clear." || finalQuery.trim() === "clear") {
+      setMessages([]);
+      setQuery("");
+      return;
+    }
+
+    if (finalQuery.trim() === "examples.") {
+      const examples = [
+        "Test domain examples:",
+        "1. help.",
+        "2. list_files.",
+        "3. consult_file('test.pl').",
+        "4. current_file.",
+        "5. list_predicates."
+      ];
+      
+      setMessages(prev => [...prev, {
         user: false,
-        text: `# Welcome to Prolog AI Assistant\n\n**Interactive Prolog Environment** with real-time query execution\n\n### 📋 Available Commands:\n• **start** - Initialize the demo environment\n• **platform_info** - Show system details\n• **test_query** - Execute a test query\n• **demo_menu** - Interactive demo menu\n\n### 🔗 Connected Services:\n- Prolog API Server\n- Supabase Storage\n- Real-time Database`,
-        id: "welcome-" + Date.now(),
+        text: examples.join('\n'),
+        id: Date.now().toString(),
         timestamp: new Date(),
-        type: 'demo'
+        type: 'system'
       }]);
       setQuery("");
       return;
@@ -175,80 +214,82 @@ export default function EnhancedPrologChat() {
     const userMsg: Message = {
       user: true,
       text: finalQuery,
-      id: "user-" + Date.now(),
+      id: Date.now().toString(),
       timestamp: new Date(),
       type: 'query'
     };
     setMessages(prev => [...prev, userMsg]);
     setQuery("");
     
-    await sendToPrologAPI(finalQuery);
+    await sendDomainQuery(finalQuery);
   };
 
-  const sendToPrologAPI = async (queryText: string) => {
+  const sendDomainQuery = async (queryText: string) => {
+    if (!selectedDomain) return;
+    
     setIsLoading(true);
-    addSystemMessage("🔄 Processing your query...");
+
+    const thinkingMsg: Message = {
+      user: false,
+      text: "Thinking",
+      id: "thinking-" + Date.now().toString(),
+      timestamp: new Date(),
+      type: 'system'
+    };
+    setMessages(prev => [...prev, thinkingMsg]);
+
+    let dotCount = 1;
+    const dotInterval = setInterval(() => {
+      dotCount = (dotCount % 3) + 1;
+      const dots = ".".repeat(dotCount);
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === thinkingMsg.id ? { 
+            ...msg, 
+            text: `Thinking${dots}` 
+          } : msg
+        )
+      );
+    }, 500);
 
     try {
-      const queryToSend = queryText.endsWith('.') ? queryText : queryText + '.';
       const res = await fetch("https://prolog-api-server-1.onrender.com/prolog/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: queryToSend, domain: "test" })
+        body: JSON.stringify({ command: queryText })
       });
 
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
 
       const data = await res.json();
+      
+      clearInterval(dotInterval);
+      setMessages(prev => prev.filter(msg => msg.id !== thinkingMsg.id));
+      
       const resultText = data.output || data.error || data.message || "No response from server";
       
       const botMsg: Message = {
         user: false,
         text: resultText,
-        id: "result-" + Date.now(),
+        id: Date.now().toString(),
         timestamp: new Date(),
         type: 'result'
       };
-      setMessages(prev => [...prev.filter(m => !m.text.includes("🔄")), botMsg]);
+      setMessages(prev => [...prev, botMsg]);
     } catch (err: any) {
-      const errorMsg: Message = {
+      clearInterval(dotInterval);
+      setMessages(prev => prev.filter(msg => msg.id !== thinkingMsg.id));
+      setMessages(prev => [...prev, {
         user: false,
-        text: `❌ **Connection Error**\n\n${err.message}\n\nUsing demonstration mode...`,
-        id: "error-" + Date.now(),
+        text: `❌ Connection error: ${err.message}`,
+        id: Date.now().toString(),
         timestamp: new Date(),
         type: 'system'
-      };
-      setMessages(prev => [...prev.filter(m => !m.text.includes("🔄")), errorMsg]);
-      
-      // Fallback mock response
-      setTimeout(() => {
-        const mockResponse = getMockResponse(queryText);
-        const mockMsg: Message = {
-          user: false,
-          text: mockResponse,
-          id: "mock-" + Date.now(),
-          timestamp: new Date(),
-          type: 'result'
-        };
-        setMessages(prev => [...prev, mockMsg]);
-      }, 1000);
-    } finally {
-      setIsLoading(false);
+      }]);
     }
-  };
-
-  const getMockResponse = (queryText: string): string => {
-    const cleanQuery = queryText.toLowerCase().replace('.', '');
-    
-    if (cleanQuery.includes("start")) {
-      return `# 🎯 Demo Mode Activated\n\n## System Status:\n✓ **Prolog API**: Connected\n✓ **Supabase**: Active\n✓ **Database**: Synced\n✓ **Files**: ${testFiles.length} loaded\n\n## Next Steps:\n1. Try \`demo_menu\` for interactive options\n2. Use \`test_query\` for functionality test\n3. Type \`platform_info\` for system details`;
-    }
-    
-    if (cleanQuery.includes("demo_menu")) {
-      return `# 📱 Interactive Menu\n\n## Select an option:\n\n### 1️⃣ Platform Information\n   Detailed system specs and status\n\n### 2️⃣ Test Queries\n   Execute sample Prolog queries\n\n### 3️⃣ File Management\n   View and manage test files\n\n### 4️⃣ API Testing\n   Test Prolog API connections\n\n### 5️⃣ Knowledge Base\n   Explore loaded Prolog facts\n\nType the number (1-5) to continue:`;
-    }
-    
-    return `# 📊 Query Result\n\n**Query:** \`${queryText}\`\n\n**Status:** ✅ Processed\n\n**Response from Prolog API:**\nThis is a demonstration response. In production, this would contain actual Prolog query results from the knowledge base.\n\n**Execution time:** < 1ms\n**Database:** test domain`;
+    setIsLoading(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -258,534 +299,501 @@ export default function EnhancedPrologChat() {
     }
   };
 
-  // Theme configuration
+  const clearChat = () => {
+    setMessages([]);
+    setSelectedDomain(null);
+  };
+
   const themeClasses = {
     light: {
-      background: "bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30",
-      card: "bg-white/90 backdrop-blur-sm border border-gray-200/80 shadow-lg",
-      input: "bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
+      background: "bg-gray-50",
       text: "text-gray-900",
+      sidebar: "bg-white border-gray-200",
+      card: "bg-white border-gray-200",
+      input: "bg-white border-gray-300",
+      hover: "hover:bg-gray-100",
+      modal: "bg-white",
+      tableRow: "hover:bg-gray-50",
       textSecondary: "text-gray-600",
       textTertiary: "text-gray-500",
-      hover: "hover:bg-gray-100/90 hover:shadow-md transition-all duration-200",
       border: "border-gray-200",
-      scrollbar: "scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100/50"
+      scrollbar: "scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
     },
     dark: {
-      background: "bg-gradient-to-br from-gray-900 via-blue-950/30 to-purple-950/30",
-      card: "bg-gray-800/90 backdrop-blur-sm border border-gray-700/80 shadow-xl",
-      input: "bg-gray-700 border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30",
-      text: "text-gray-100",
+      background: "bg-gray-900",
+      text: "text-white",
+      sidebar: "bg-gray-800 border-gray-700",
+      card: "bg-gray-800 border-gray-700",
+      input: "bg-gray-700 border-gray-600",
+      hover: "hover:bg-gray-700",
+      modal: "bg-gray-800",
+      tableRow: "hover:bg-gray-700/50",
       textSecondary: "text-gray-300",
       textTertiary: "text-gray-400",
-      hover: "hover:bg-gray-700/90 hover:shadow-lg transition-all duration-200",
       border: "border-gray-700",
-      scrollbar: "scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/50"
+      scrollbar: "scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
     }
   };
 
   const currentTheme = themeClasses[theme];
 
-  // Format message text with markdown-like syntax
-  const formatMessage = (text: string) => {
-    return text.split('\n').map((line, i) => {
-      if (line.startsWith('# ')) {
-        return <h1 key={i} className="text-2xl font-bold mt-4 mb-2 text-blue-500 dark:text-blue-400">{line.substring(2)}</h1>;
-      }
-      if (line.startsWith('## ')) {
-        return <h2 key={i} className="text-xl font-bold mt-3 mb-2 dark:text-gray-100">{line.substring(3)}</h2>;
-      }
-      if (line.startsWith('### ')) {
-        return <h3 key={i} className="text-lg font-semibold mt-2 mb-1 dark:text-gray-200">{line.substring(4)}</h3>;
-      }
-      if (line.includes('✓')) {
-        return (
-          <div key={i} className="flex items-center my-1">
-            <span className="text-green-500 mr-2">✓</span>
-            <span className="dark:text-gray-300">{line.replace('✓', '')}</span>
-          </div>
-        );
-      }
-      if (line.startsWith('- ') || line.startsWith('• ')) {
-        return (
-          <div key={i} className="flex items-start my-1 ml-2">
-            <span className="text-blue-500 dark:text-blue-400 mr-2 mt-1">•</span>
-            <span className="dark:text-gray-300">{line.substring(2)}</span>
-          </div>
-        );
-      }
-      if (line.includes('`')) {
-        const parts = line.split('`');
-        return (
-          <div key={i} className="my-1 dark:text-gray-300">
-            {parts.map((part, idx) => 
-              idx % 2 === 0 ? part : (
-                <code key={idx} className={`px-1.5 py-0.5 rounded font-mono text-sm ${
-                  theme === 'dark' ? 'bg-gray-700 text-blue-300' : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {part}
-                </code>
-              )
-            )}
-          </div>
-        );
-      }
-      return <div key={i} className="my-1 dark:text-gray-300">{line}</div>;
-    });
+  const stats = {
+    totalQueries: messages.filter(m => m.user).length,
+    systemMessages: messages.filter(m => m.type === 'system').length,
+    activeDomain: selectedDomain || "None",
+    responseTime: "0.5s"
   };
 
   return (
-    <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} transition-colors duration-300 pt-16 md:pt-20`}>
-      {/* Main Container */}
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        
-        {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`rounded-2xl p-6 mb-6 ${currentTheme.card} border`}
-        >
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              
+    <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} pt-20 md:pt-24`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pt-4">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                <Terminal className="w-6 h-6 text-blue-400" />
+              </div>
+              <span>Prolog Test Assistant</span>
+            </h1>
+            <p className={`mt-2 ${currentTheme.textSecondary}`}>
+              Test domain knowledge interaction system
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                setMessages([]);
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                theme === 'dark' 
+                  ? 'bg-white/5 hover:bg-white/10' 
+                  : 'bg-gray-100 hover:bg-gray-200'
+              } transition-colors`}
+            >
+              <RefreshCw className="w-4 h-4" /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Card 1: Total Queries */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center`}>
+                <MessageSquare className="w-6 h-6 text-blue-400" />
+              </div>
+              <span className={`text-sm px-2 py-1 rounded-lg ${
+                theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
+              }`}>
+                Queries sent
+              </span>
+            </div>
+            <div className="text-3xl font-bold mb-2">{stats.totalQueries}</div>
+            <div className={currentTheme.textSecondary}>Total Queries</div>
+          </motion.div>
+
+          {/* Card 2: System Messages */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center`}>
+                <Terminal className="w-6 h-6 text-purple-400" />
+              </div>
+              <span className={`text-sm px-2 py-1 rounded-lg ${
+                theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
+              }`}>
+                System interactions
+              </span>
+            </div>
+            <div className="text-3xl font-bold mb-2">{stats.systemMessages}</div>
+            <div className={currentTheme.textSecondary}>System Messages</div>
+          </motion.div>
+
+          {/* Card 3: Active Domain */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 flex items-center justify-center`}>
+                <Database className="w-6 h-6 text-amber-400" />
+              </div>
+              <span className={`text-sm px-2 py-1 rounded-lg ${
+                theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
+              }`}>
+                Current domain
+              </span>
+            </div>
+            <div className="text-3xl font-bold mb-2">{stats.activeDomain}</div>
+            <div className={currentTheme.textSecondary}>Active Domain</div>
+          </motion.div>
+
+          {/* Card 4: Test Domain Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card} cursor-pointer hover:scale-[1.02] transition-transform duration-300 ${
+              selectedDomain === "test" ? 'ring-2 ring-green-500/50' : ''
+            }`}
+            onClick={loadDomain}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center`}>
+                {selectedDomain === "test" ? (
+                  <CheckCircle className="w-6 h-6 text-green-400" />
+                ) : (
+                  <Globe className="w-6 h-6 text-green-400" />
+                )}
+              </div>
+              <span className={`text-sm px-2 py-1 rounded-lg ${
+                theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
+              }`}>
+                Click to connect
+              </span>
+            </div>
+            <div className="text-3xl font-bold mb-2">
+              {isLoadingDomain ? (
+                <span className="flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                selectedDomain === "test" ? "Connected" : "Test Domain"
+              )}
+            </div>
+            <div className={`flex items-center gap-2 ${currentTheme.textSecondary}`}>
+              {selectedDomain === "test" ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <span>Ready for queries</span>
+                </>
+              ) : (
+                <>
+                  <Globe className="w-4 h-4" />
+                  <span>Connect to test knowledge base</span>
+                </>
+              )}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Main Chat Area - Full Width */}
+        <div className="space-y-6">
+          {/* System Commands */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                <Terminal className="w-5 h-5 text-blue-400" />
+              </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                  Prolog AI Assistant
-                </h1>
-                <p className={`${currentTheme.textSecondary} mt-1`}>
-                  Interactive Prolog environment with real-time execution
+                <h3 className="text-xl font-bold">System Commands</h3>
+                <p className={`text-sm ${currentTheme.textSecondary}`}>
+                  Quick commands to interact with the system
                 </p>
               </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {stats.map((stat, idx) => (
-                <motion.div
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+              {systemCommands.map((cmd, idx) => (
+                <motion.button
                   key={idx}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className={`p-3 rounded-xl border ${currentTheme.card}`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => sendQuery(cmd.query)}
+                  disabled={isLoading || isLoadingDomain || !selectedDomain}
+                  className={`group p-3 rounded-xl text-white flex flex-col items-center gap-2 transition-all duration-300 
+                    disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${cmd.gradient} 
+                    hover:shadow-lg`}
+                  title={cmd.tooltip}
                 >
-                  <div className="flex items-center gap-2">
-                    <i className={`${stat.icon} ${stat.color}`}></i>
-                    <div className="text-xs font-medium dark:text-gray-300">{stat.label}</div>
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    {cmd.icon}
                   </div>
-                  <div className="text-lg font-bold mt-1 dark:text-gray-100">{stat.value}</div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Main Content - Chat */}
-          <div className="lg:w-2/3 flex flex-col">
-            
-            {/* Tab Navigation - Само Chat и Info */}
-            <div className="flex mb-6">
-              {[
-                { id: "chat", label: "Chat Assistant", icon: "fas fa-comment-dots" },
-                { id: "info", label: "Platform Info", icon: "fas fa-info-circle" }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative flex-1 px-6 py-4 flex items-center justify-center gap-3 transition-all duration-300 ${
-                    activeTab === tab.id
-                      ? `text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-blue-500 after:to-purple-500`
-                      : `${currentTheme.textSecondary} ${currentTheme.hover}`
-                  } ${activeTab === tab.id ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10' : ''}`}
-                >
-                  <i className={`${tab.icon} ${activeTab === tab.id ? 'text-blue-400' : ''}`}></i>
-                  <span className="font-medium">{tab.label}</span>
-                </button>
+                  <span className="font-medium text-xs text-center">{cmd.label}</span>
+                </motion.button>
               ))}
             </div>
 
-            {/* Tab Content */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1"
-              >
-                
-                {/* Chat Tab */}
-                {activeTab === "chat" && (
-                  <div className={`rounded-2xl ${currentTheme.card} border overflow-hidden flex flex-col h-[600px]`}>
-                    
-                    {/* Quick Commands */}
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                      <div className="flex flex-wrap gap-2">
-                        {demoCommands.map((cmd, idx) => (
-                          <motion.button
-                            key={idx}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => sendQuery(cmd.query)}
-                            disabled={isLoading}
-                            className={`group relative px-4 py-2.5 rounded-xl text-white flex items-center gap-2 
-                              disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${cmd.gradient} 
-                              hover:shadow-lg transition-all duration-300 overflow-hidden`}
-                          >
-                            <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors"></div>
-                            <i className={`${cmd.icon} relative z-10`}></i>
-                            <span className="font-medium text-sm relative z-10">{cmd.label}</span>
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Messages Container */}
-                    <div 
-                      ref={messagesContainerRef}
-                      className={`flex-1 overflow-y-auto p-4 ${currentTheme.scrollbar}`}
+            {/* File Commands */}
+            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                  <FileCode className="w-4 h-4 text-purple-400" />
+                </div>
+                <h4 className="font-bold">File Commands</h4>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={fileNameInput}
+                  onChange={e => setFileNameInput(e.target.value)}
+                  placeholder="test.pl"
+                  className={`flex-1 px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 border-gray-600' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                  disabled={isLoading || isLoadingDomain || !selectedDomain}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && fileNameInput.trim()) {
+                      sendQuery(`consult_file('${fileNameInput.trim()}')`);
+                      setFileNameInput("");
+                    }
+                  }}
+                />
+                <div className="flex gap-2">
+                  {fileCommands.map((cmd, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (fileNameInput.trim()) {
+                          sendQuery(cmd.query);
+                          setFileNameInput("");
+                        }
+                      }}
+                      disabled={isLoading || isLoadingDomain || !selectedDomain || !fileNameInput.trim()}
+                      className={`px-4 py-3 rounded-xl text-white flex items-center gap-2 bg-gradient-to-r ${cmd.gradient} 
+                        hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <div className="space-y-4">
-                        {messages.map((msg) => (
-                          <motion.div
-                            key={msg.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`flex ${msg.user ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div className={`max-w-[85%] ${msg.user ? 'ml-auto' : ''}`}>
-                              <div className={`flex gap-3 ${msg.user ? 'flex-row-reverse' : ''}`}>
-                                {/* Avatar */}
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                  msg.user 
-                                    ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
-                                    : msg.type === 'system' 
-                                    ? 'bg-gradient-to-r from-gray-600 to-gray-700'
-                                    : 'bg-gradient-to-r from-blue-600 to-cyan-600'
-                                }`}>
-                                  <i className={`fas fa-${
-                                    msg.user ? 'user' : 
-                                    msg.type === 'system' ? 'cog' : 
-                                    'robot'
-                                  } text-white text-sm`}></i>
-                                </div>
-
-                                {/* Message Bubble */}
-                                <div className={`rounded-2xl p-4 ${
-                                  msg.user
-                                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
-                                    : msg.type === 'demo'
-                                    ? theme === 'dark' 
-                                      ? 'bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-800/50' 
-                                      : 'bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200'
-                                    : msg.type === 'system'
-                                    ? theme === 'dark' 
-                                      ? 'bg-gray-800/50 border border-gray-700' 
-                                      : 'bg-gray-100 border border-gray-300'
-                                    : theme === 'dark' 
-                                      ? 'bg-blue-900/20 border border-blue-800/30' 
-                                      : 'bg-blue-50 border border-blue-200'
-                                }`}>
-                                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                                    {formatMessage(msg.text)}
-                                  </div>
-                                  <div className={`flex items-center justify-between mt-2 pt-2 border-t ${
-                                    msg.user ? 'border-blue-400/30' : theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
-                                  }`}>
-                                    <span className="text-xs opacity-75 dark:text-gray-400">
-                                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                    {!msg.user && (
-                                      <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                        msg.type === 'demo' 
-                                          ? 'bg-blue-500/20 text-blue-400' 
-                                          : msg.type === 'system'
-                                          ? 'bg-gray-500/20 text-gray-400'
-                                          : 'bg-green-500/20 text-green-400'
-                                      }`}>
-                                        {msg.type === 'demo' ? 'DEMO' : msg.type === 'system' ? 'SYSTEM' : 'ASSISTANT'}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))}
-                        <div ref={messagesEndRef} />
-                      </div>
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={query}
-                          onChange={e => setQuery(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          placeholder="Enter Prolog query (e.g., start, demo_menu, platform_info)..."
-                          className={`w-full px-5 py-3 pr-14 rounded-xl ${currentTheme.input} focus:outline-none transition-all duration-300`}
-                          disabled={isLoading}
-                        />
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => sendQuery()}
-                          disabled={isLoading || !query.trim()}
-                          className={`absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2.5 rounded-xl 
-                            flex items-center gap-2 transition-all duration-300 ${
-                            isLoading || !query.trim()
-                              ? 'bg-gray-400 cursor-not-allowed dark:bg-gray-600'
-                              : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg text-white'
-                          }`}
-                        >
-                          {isLoading ? (
-                            <i className="fas fa-spinner fa-spin"></i>
-                          ) : (
-                            <>
-                              <i className="fas fa-paper-plane"></i>
-                              <span className="font-medium">Send</span>
-                            </>
-                          )}
-                        </motion.button>
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className={`text-xs flex items-center gap-2 ${currentTheme.textTertiary}`}>
-                          <i className="fas fa-lightbulb"></i>
-                          <span>Press Enter to send • Connected to Prolog API</span>
-                        </div>
-                        <div className={`text-xs ${currentTheme.textTertiary}`}>
-                          {messages.filter(m => m.user).length} queries
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Info Tab */}
-                {activeTab === "info" && (
-                  <div className={`rounded-2xl ${currentTheme.card} border p-6`}>
-                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 dark:text-gray-100">
-                      <i className="fas fa-info-circle text-blue-500"></i>
-                      Platform Information
-                    </h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h3 className="text-lg font-bold mb-3 dark:text-gray-200">System Architecture</h3>
-                        <div className="space-y-3">
-                          <div className={`p-3 rounded-lg border ${currentTheme.border}`}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <i className="fas fa-server text-green-500"></i>
-                              <span className="font-semibold dark:text-gray-300">Prolog API Server</span>
-                            </div>
-                            <p className={`text-sm ${currentTheme.textSecondary}`}>
-                              Real-time Prolog query execution with REST API
-                            </p>
-                          </div>
-                          
-                          <div className={`p-3 rounded-lg border ${currentTheme.border}`}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <i className="fas fa-database text-blue-500"></i>
-                              <span className="font-semibold dark:text-gray-300">Supabase Database</span>
-                            </div>
-                            <p className={`text-sm ${currentTheme.textSecondary}`}>
-                              PostgreSQL database for storing Prolog codes and metadata
-                            </p>
-                          </div>
-                          
-                          <div className={`p-3 rounded-lg border ${currentTheme.border}`}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <i className="fas fa-cloud text-purple-500"></i>
-                              <span className="font-semibold dark:text-gray-300">Supabase Storage</span>
-                            </div>
-                            <p className={`text-sm ${currentTheme.textSecondary}`}>
-                              Cloud storage for .pl file management
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-lg font-bold mb-3 dark:text-gray-200">Features</h3>
-                        <ul className="space-y-2">
-                          {[
-                            "Real Prolog query execution",
-                            "Interactive chat interface",
-                            "Dark/Light theme support",
-                            "Real-time response streaming",
-                            "Command history",
-                            "System monitoring"
-                          ].map((feature, idx) => (
-                            <li key={idx} className="flex items-center gap-2">
-                              <i className="fas fa-check text-green-500"></i>
-                              <span className="dark:text-gray-300">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        
-                        <div className={`mt-6 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border ${currentTheme.border}`}>
-                          <h4 className="font-bold mb-2 dark:text-gray-200">Quick Start</h4>
-                          <p className={`text-sm mb-3 ${currentTheme.textSecondary}`}>Try these commands:</p>
-                          <div className="space-y-1">
-                            <code className={`block px-3 py-1 rounded font-mono text-sm ${
-                              theme === 'dark' ? 'bg-gray-700 text-blue-300' : 'bg-gray-800 text-blue-100'
-                            }`}>
-                              start
-                            </code>
-                            <code className={`block px-3 py-1 rounded font-mono text-sm ${
-                              theme === 'dark' ? 'bg-gray-700 text-blue-300' : 'bg-gray-800 text-blue-100'
-                            }`}>
-                              demo_menu
-                            </code>
-                            <code className={`block px-3 py-1 rounded font-mono text-sm ${
-                              theme === 'dark' ? 'bg-gray-700 text-blue-300' : 'bg-gray-800 text-blue-100'
-                            }`}>
-                              platform_info(_, _)
-                            </code>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:w-1/3 flex flex-col gap-6">
-            
-            {/* Connection Status */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`rounded-2xl p-5 ${currentTheme.card} border`}
-            >
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-gray-200">
-                <i className="fas fa-network-wired text-green-500"></i>
-                Connection Status
-              </h3>
-              
-              <div className="space-y-3">
-                {[
-                  { service: "Prolog API", status: "Connected", color: "green" },
-                  { service: "Supabase", status: "Active", color: "blue" },
-                  { service: "Database", status: "Synced", color: "purple" },
-                  { service: "WebSocket", status: "Ready", color: "cyan" }
-                ].map((conn, idx) => (
-                  <div key={idx} className={`flex items-center justify-between p-2 rounded-lg ${currentTheme.hover}`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full bg-${conn.color}-500`}></div>
-                      <span className="dark:text-gray-300">{conn.service}</span>
-                    </div>
-                    <span className={`text-sm px-2 py-1 rounded-full ${
-                      theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {conn.status}
-                    </span>
-                  </div>
-                ))}
+                      {cmd.icon}
+                      <span className="font-medium text-sm">{cmd.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
 
-            {/* Quick Actions */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              className={`rounded-2xl p-5 ${currentTheme.card} border`}
-            >
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-gray-200">
-                <i className="fas fa-bolt text-yellow-500"></i>
-                Quick Actions
-              </h3>
-              
-              <div className="space-y-2">
-                {[
-                  { label: "Load Files", action: loadTestFiles, icon: "fas fa-download" },
-                  { label: "Test Connection", action: () => sendQuery("platform_info(_, _)"), icon: "fas fa-wifi" },
-                  { label: "Clear Chat", action: () => sendQuery("clear"), icon: "fas fa-broom" },
-                  { label: "View System Log", action: () => console.log("System log"), icon: "fas fa-scroll" }
-                ].map((action, idx) => (
-                  <button
-                    key={idx}
-                    onClick={action.action}
-                    className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all duration-200 ${currentTheme.hover} dark:text-gray-300`}
-                  >
-                    <i className={`${action.icon} text-blue-500`}></i>
-                    <span>{action.label}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Recent Activity */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className={`rounded-2xl p-5 ${currentTheme.card} border`}
-            >
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-gray-200">
-                <i className="fas fa-history text-purple-500"></i>
-                Recent Activity
-              </h3>
-              
-              <div className="space-y-3">
-                {messages.slice(-3).reverse().map((msg) => (
-                  <div key={msg.id} className="text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${
-                        msg.user 
-                          ? 'bg-blue-500/20 text-blue-500 dark:text-blue-400' 
-                          : 'bg-green-500/20 text-green-500 dark:text-green-400'
-                      }`}>
-                        {msg.user ? 'You' : 'System'}
-                      </span>
-                      <span className={`text-xs ${currentTheme.textTertiary}`}>
-                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className={`truncate ${currentTheme.textSecondary}`}>
-                      {msg.text.split('\n')[0].substring(0, 50)}...
+          {/* Chat Messages - Bigger Area */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={`rounded-2xl border backdrop-blur-xl overflow-hidden ${currentTheme.card}`}
+          >
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Test Chat Assistant</h3>
+                    <p className={`text-sm ${currentTheme.textSecondary}`}>
+                      {selectedDomain ? `Connected to ${selectedDomain} domain` : "Connect to test domain first"}
                     </p>
                   </div>
-                ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  {!selectedDomain && (
+                    <button
+                      onClick={loadDomain}
+                      disabled={isLoadingDomain}
+                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                        theme === 'dark'
+                          ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400'
+                          : 'bg-green-100 hover:bg-green-200 text-green-700'
+                      } disabled:opacity-50`}
+                    >
+                      <Globe className="w-4 h-4" />
+                      {isLoadingDomain ? "Connecting..." : "Connect Test Domain"}
+                    </button>
+                  )}
+                  <button
+                    onClick={clearChat}
+                    className={`px-4 py-2 rounded-lg ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    } transition-colors flex items-center gap-2`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Clear Chat
+                  </button>
+                </div>
               </div>
-            </motion.div>
-          </div>
-        </div>
+            </div>
 
-        {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className={`mt-6 rounded-xl ${currentTheme.card} border p-4`}
-        >
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div>
-                <p className="font-medium dark:text-gray-300">Prolog AI Assistant v2.0</p>
-                <p className={`text-xs ${currentTheme.textTertiary}`}>Test Environment</p>
+            <div 
+              ref={messagesContainerRef}
+              className={`h-[600px] overflow-y-auto p-6 ${currentTheme.scrollbar}`}
+            >
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center py-12">
+                  {!selectedDomain ? (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4">
+                        <Globe className="w-8 h-8 text-blue-500" />
+                      </div>
+                      <h3 className="text-xl font-bold mb-2">Connect to Test Domain</h3>
+                      <p className={`mb-6 ${currentTheme.textSecondary}`}>
+                        Click the "Test Domain" card above or the "Connect Test Domain" button to start
+                      </p>
+                      <button
+                        onClick={loadDomain}
+                        disabled={isLoadingDomain}
+                        className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 ${
+                          theme === 'dark'
+                            ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400'
+                            : 'bg-green-100 hover:bg-green-200 text-green-700'
+                        } disabled:opacity-50`}
+                      >
+                        <Globe className="w-5 h-5" />
+                        {isLoadingDomain ? "Connecting..." : "Connect Test Domain"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center mb-4">
+                        <MessageSquare className="w-8 h-8 text-green-500" />
+                      </div>
+                      <h3 className="text-xl font-bold mb-2">Start Testing</h3>
+                      <p className={`mb-6 ${currentTheme.textSecondary}`}>
+                        Connected to test domain. Use commands above or enter Prolog queries below
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 max-w-md">
+                        {systemCommands.slice(0, 4).map((cmd, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => sendQuery(cmd.query)}
+                            disabled={isLoading}
+                            className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
+                              theme === 'dark' 
+                                ? 'bg-white/5 hover:bg-white/10' 
+                                : 'bg-gray-100 hover:bg-gray-200'
+                            } disabled:opacity-50`}
+                          >
+                            {cmd.icon}
+                            {cmd.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map(msg => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${msg.user ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[80%] ${msg.user ? 'ml-auto' : ''}`}>
+                        <div className={`rounded-2xl p-4 ${
+                          msg.user
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                            : theme === 'dark' 
+                              ? 'bg-gray-800/50 border border-gray-700'
+                              : 'bg-gray-50 border border-gray-200'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            {msg.user ? (
+                              <UserIcon className="w-4 h-4" />
+                            ) : msg.type === 'system' ? (
+                              <Terminal className="w-4 h-4" />
+                            ) : (
+                              <Brain className="w-4 h-4" />
+                            )}
+                            <span className="text-xs font-medium opacity-80">
+                              {msg.user ? 'You' : msg.type === 'system' ? 'System' : 'Assistant'}
+                            </span>
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm">
+                            {msg.text.split("\n").map((line, i) => (
+                              <div key={i}>{line}</div>
+                            ))}
+                          </div>
+                          <div className={`text-xs mt-2 ${
+                            msg.user ? 'text-blue-200' : currentTheme.textTertiary
+                          }`}>
+                            {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    isLoadingDomain ? "Loading domain..." :
+                    !selectedDomain ? "Connect to test domain first..." :
+                    `Enter Prolog query (test)...`
+                  }
+                  className={`w-full px-5 py-3 pr-14 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 border-gray-600' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                  disabled={isLoading || isLoadingDomain || !selectedDomain}
+                />
+                <button
+                  onClick={() => sendQuery()}
+                  disabled={isLoading || isLoadingDomain || !query.trim() || !selectedDomain}
+                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 rounded-xl flex items-center gap-2 transition-all ${
+                    isLoading || isLoadingDomain || !query.trim() || !selectedDomain
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg text-white'
+                  }`}
+                >
+                  {isLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <MessageSquare className="w-4 h-4" />
+                      <span className="font-medium">Send</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className={`text-xs mt-2 flex items-center gap-2 ${currentTheme.textTertiary}`}>
+                <div className="flex items-center gap-1">
+                  <HelpCircle className="w-3 h-3" />
+                  <span>Press Enter to send</span>
+                </div>
+                {selectedDomain && (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center gap-1">
+                      <Database className="w-3 h-3" />
+                      <span>Connected to: <span className="font-bold">{selectedDomain}</span></span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="text-sm">
-                <span className={currentTheme.textTertiary}>Queries:</span>
-                <span className="ml-1 font-bold dark:text-gray-300">{messages.filter(m => m.user).length}</span>
-              </div>
-              <div className="text-sm">
-                <span className={currentTheme.textTertiary}>Status:</span>
-                <span className="ml-1 font-bold text-green-500">Active</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { 
-  Users, Target, TrendingUp,
+  Users, Target,
   Brain, Users as GroupIcon, Coffee, 
   Sparkles, ChevronRight,
   BarChart3, X,
@@ -22,8 +22,11 @@ import {
   Trophy,
   List,
   Activity,
-  Clock,
-  Bell
+  Bell,
+  MessageCircle,
+  Send,
+  UserPlus,
+  Hash
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -41,34 +44,112 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  limit 
+  limit,
+  setDoc,
+  arrayUnion,
+  arrayRemove,
+  getDoc
 } from "firebase/firestore";
 import { supabase } from "../services/supabase";
+import MessagesTab from "../components/MessagesTab";
 
-// Instruction type for the form
-interface InstructionItem {
-  id: number;
-  text: string;
+// Интерфейс за решение на предизвикателство
+interface ChallengeSubmission {
+  id?: string;
+  studentId: string;
+  studentName?: string;
+  submittedAt: any;
+  files?: string[];
+  notes?: string;
+  score?: number;
+  status?: 'joined' | 'submitted' | 'evaluated' | 'completed';
+  solutionCode?: string;
+  evaluation?: {
+    score?: number;
+    feedback?: string;
+    evaluatedAt?: any;
+    evaluatedBy?: string;
+  };
+  communityId?: string;
 }
 
-// Initialize with some default instructions
-const initialInstructions: InstructionItem[] = [
-  { id: 1, text: "The goal of the assignment is to create an expert system that collects, organizes, and uses knowledge from a school subject (biology, chemistry, or physics), applying logical rules to derive new information." },
-  { id: 2, text: "Develop a working expert system on a topic chosen by the student from: Biology (e.g., insects, ecosystems, organs), Chemistry (e.g., substances, reactions, acids and bases), or Physics (e.g., motion, forces, electricity)." },
-  { id: 3, text: "The system must be implemented in Prolog and start with the main predicate start/0." },
-];
+// Нов интерфейс за общност
+interface Community {
+  id: string;
+  name: string;
+  description: string;
+  teacherId: string;
+  institution: string;
+  gradeLevel?: string;
+  subject?: string;
+  memberCount: number;
+  studentIds: string[];
+  pendingRequests: string[];
+  createdAt: any;
+  isPublic: boolean;
+  inviteCode: string;
+  challenges: string[];
+  settings: {
+    allowStudentChallenges: boolean;
+    allowInterCommunityChallenges: boolean;
+    allowStudentMessages: boolean;
+    autoApproveStudents: boolean;
+    privacy: "public" | "private";
+  };
+}
 
-const folders = ["animals", "geography", "history", "mineralwater", "balkan"];
+// Обновен интерфейс за предизвикателства
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  creatorCommunityId: string;
+  targetCommunityId: string;
+  createdBy: string;
+  status: 'pending' | 'accepted' | 'completed' | 'rejected' | 'responded';
+  dueDate?: string;
+  category: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  points: number;
+  submissions: {
+    id?: string;
+    studentId: string;
+    studentName?: string;
+    submittedAt: any;
+    files?: string[];
+    notes?: string;
+    score?: number;
+    status?: string;
+    solutionCode?: string;
+    evaluation?: any;
+    submittedBy?: string;
+  }[];
+  response?: {
+    respondedAt: any;
+    responderId: string;
+    responderName: string;
+    content: string;
+    files?: string[];
+    solutionCode?: string;
+  };
+  createdAt: any;
+}
 
-const courses = [
-  { id: 1, title: "Prolog Basics", description: "Introduction to Prolog programming", progress: 70, color: "#FF6B8B", icon: "💻" },
-  { id: 2, title: "Expert Systems", description: "Build intelligent systems", progress: 45, color: "#36D1DC", icon: "🧠" },
-  { id: 3, title: "Logical Rules", description: "Advanced logic programming", progress: 85, color: "#FFD166", icon: "⚡" },
-  { id: 4, title: "AI Fundamentals", description: "Artificial Intelligence basics", progress: 30, color: "#9D4EDD", icon: "🤖" },
-  { id: 5, title: "Data Structures", description: "Prolog data organization", progress: 60, color: "#4CC9F0", icon: "🗂️" },
-  { id: 6, title: "Problem Solving", description: "Solve real-world problems", progress: 25, color: "#FF9E6D", icon: "🎯" },
-];
+// Нов интерфейс за съобщения
+interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  receiverId?: string;
+  receiverName?: string;
+  communityId?: string;
+  content: string;
+  timestamp: any;
+  read: boolean;
+  type: 'direct' | 'community' | 'broadcast';
+}
 
+// Съществуващи интерфейси
 interface StudentFile {
   id: string;
   username: string;
@@ -98,6 +179,9 @@ interface Student {
   status?: string;
   lastActivity?: string;
   pendingApproval?: boolean;
+  uid?: string;
+  communityId?: string;
+  communityStatus?: string;
 }
 
 interface Assignment {
@@ -168,16 +252,88 @@ const assignmentBackgrounds = [
 ];
 
 const categories = ["Design", "Programming", "Algorithms", "Data Science", "Database", "AI"];
+const folders = ["animals", "geography", "history", "mineralwater", "balkan"];
+const courses = [
+  { id: 1, title: "Prolog Basics", description: "Introduction to Prolog programming", progress: 70, color: "#FF6B8B", icon: "💻" },
+  { id: 2, title: "Expert Systems", description: "Build intelligent systems", progress: 45, color: "#36D1DC", icon: "🧠" },
+  { id: 3, title: "Logical Rules", description: "Advanced logic programming", progress: 85, color: "#FFD166", icon: "⚡" },
+  { id: 4, title: "AI Fundamentals", description: "Artificial Intelligence basics", progress: 30, color: "#9D4EDD", icon: "🤖" },
+  { id: 5, title: "Data Structures", description: "Prolog data organization", progress: 60, color: "#4CC9F0", icon: "🗂️" },
+  { id: 6, title: "Problem Solving", description: "Solve real-world problems", progress: 25, color: "#FF9E6D", icon: "🎯" },
+];
 
 export default function TeacherDashboard() {
-  
   const { user: _currentUser, userData } = useAuth();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
+  
+  // State променливи
+  const [allUsers, setAllUsers] = useState<Array<{
+    uid: string;
+    username: string;
+    email: string;
+    role: string;
+  }>>([]);
+
+  const [activeThread, setActiveThread] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState("dashboard");
+  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [showCommunityForm, setShowCommunityForm] = useState(false);
+  const [showChallengeForm, setShowChallengeForm] = useState(false);
+  const [showMessaging, setShowMessaging] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [newMessage, setNewMessage] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false); 
+  const [allSystemUsers, setAllSystemUsers] = useState<Array<{
+    uid: string;
+    username: string;
+    email: string;
+    role: string;
+    fullName?: string;
+    class?: string;
+    communityId?: string;
+    communityStatus?: string;
+  }>>([]);
+  
+  // Нови state променливи, които липсваха
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [showResponseForm, setShowResponseForm] = useState(false);
+  const [challengeResponseForm, setChallengeResponseForm] = useState({ 
+    content: "", 
+    solutionCode: "" 
+  });
+  
+  // Community form state
+  const [communityForm, setCommunityForm] = useState({
+    name: "",
+    description: "",
+    gradeLevel: "",
+    subject: "",
+    privacy: "private" as "public" | "private",
+    autoApprove: false,
+    allowStudentMessages: true,
+    allowStudentChallenges: false,
+    allowInterCommunityChallenges: true
+  });
+  
+  // Challenge form state
+  const [challengeForm, setChallengeForm] = useState({
+    title: "",
+    description: "",
+    targetCommunityId: "",
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    category: "Programming",
+    difficulty: "medium" as "easy" | "medium" | "hard",
+    points: 50
+  });
+  
+  // Съществуващи state променливи
   const [file, setFile] = useState<File | null>(null);
-  const [folder, setFolder] = useState(folders[0]);
+  const [folder, setFolder] = useState("general");
   const [uploadStatus, setUploadStatus] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [submissions, setSubmissions] = useState<
@@ -192,7 +348,8 @@ export default function TeacherDashboard() {
   const [viewingStudentFiles, setViewingStudentFiles] = useState<string | null>(null);
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [newLesson, setNewLesson] = useState({ title: '', description: '' });
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [_activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [viewingChallengeSubmissions, setViewingChallengeSubmissions] = useState<Challenge | null>(null);
   
   // Grading states
   const [selectedPoints, setSelectedPoints] = useState<{[key: string]: number}>({});
@@ -200,9 +357,8 @@ export default function TeacherDashboard() {
   const [editingStudent, setEditingStudent] = useState<string | null>(null);
   
   // UI states
-  
   const [activeRecommendation, setActiveRecommendation] = useState<number | null>(null);
-console.log(activityLogs)
+
   // Statistics states
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -211,18 +367,19 @@ console.log(activityLogs)
     totalSubmissions: 0,
     averagePoints: 0,
     successRate: 0,
-    lessonProgress: 0
+    lessonProgress: 0,
+    communityMembers: 0,
+    activeChallenges: 0
   });
 
-  // New items for today
-  const [newItemsToday] = useState([
-    { id: 1, title: t?.('challenge_algorithms') || "Algorithm Challenge", type: "assignment", time: "2 hours" },
-    { id: 2, title: t?.('new_course_ml') || "New Course: Machine Learning", type: "course", time: "4 hours" },
-    { id: 3, title: t?.('student_file_project') || "Student File: project.pl", type: "submission", time: "6 hours" },
-    { id: 4, title: t?.('homework_check') || "Homework Check", type: "grading", time: "8 hours" },
-  ]);
-console.log(newItemsToday)
-  // Form state
+  const initialInstructions = [
+    { id: 1, text: "The goal of the assignment is to create an expert system that collects, organizes, and uses knowledge from a school subject (biology, chemistry, or physics), applying logical rules to derive new information." },
+    { id: 2, text: "Develop a working expert system on a topic chosen by the student from: Biology (e.g., insects, ecosystems, organs), Chemistry (e.g., substances, reactions, acids and bases), or Physics (e.g., motion, forces, electricity)." },
+    { id: 3, text: "The system must be implemented in Prolog and start with the main predicate start/0." },
+  ];
+
+  const [instructions, setInstructions] = useState(initialInstructions);
+  
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormData>({
     title: "",
     description: "",
@@ -265,36 +422,6 @@ start :-
     category: "Programming"
   });
 
-  const [instructions, setInstructions] = useState<InstructionItem[]>(initialInstructions);
-
-  // Add instruction function
-  const addInstruction = () => {
-    const newId = instructions.length > 0 ? Math.max(...instructions.map(i => i.id)) + 1 : 1;
-    setInstructions([...instructions, { id: newId, text: "" }]);
-  };
-
-  // Update instruction function
-  const updateInstruction = (id: number, text: string) => {
-    setInstructions(instructions.map(inst => 
-      inst.id === id ? { ...inst, text } : inst
-    ));
-    setAssignmentForm({
-      ...assignmentForm,
-      instructions: instructions.map(inst => 
-        inst.id === id ? text : inst.text
-      )
-    });
-  };
-
-  // Remove instruction function
-  const removeInstruction = (id: number) => {
-    setInstructions(instructions.filter(inst => inst.id !== id));
-    setAssignmentForm({
-      ...assignmentForm,
-      instructions: instructions.filter(inst => inst.id !== id).map(inst => inst.text)
-    });
-  };
-
   // Theme classes
   const themeClasses = {
     light: {
@@ -316,6 +443,794 @@ start :-
   };
 
   const currentTheme = themeClasses[theme];
+
+  // Зареждане на всички потребители
+  const loadAllUsers = async () => {
+    try {
+      const usersQuery = query(collection(db, "users"));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      const usersData: Array<{
+        uid: string;
+        username: string;
+        email: string;
+        role: string;
+      }> = [];
+      
+      usersSnapshot.forEach((doc) => {
+        const user = doc.data();
+        usersData.push({
+          uid: doc.id,
+          username: user.fullName || user.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
+          email: user.email || "",
+          role: user.role || 'student'
+        });
+      });
+      
+      setAllUsers(usersData);
+    } catch (error) {
+      console.error("Error loading all users:", error);
+    }
+  };
+
+  // Зареждане на съобщенията
+  useEffect(() => {
+    if (!user) return;
+    
+    const messagesQuery = query(
+      collection(db, "messages"),
+      where("receiverId", "==", user.uid),
+      orderBy("timestamp", "desc")
+    );
+    
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      const messagesData: Message[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        messagesData.push({
+          id: doc.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          receiverId: data.receiverId,
+          receiverName: data.receiverName,
+          content: data.content,
+          timestamp: data.timestamp,
+          read: data.read || false,
+          type: data.type || 'direct'
+        });
+      });
+      
+      setMessages(messagesData);
+    });
+    
+    return () => unsubscribe();
+  }, [user]);
+
+  // Зареждане на общностите
+  // В началото на useEffect hooks секцията:
+useEffect(() => {
+  if (!user) return;
+  
+  const communitiesQuery = query(
+    collection(db, "communities"),
+    where("teacherId", "==", user.uid)
+  );
+  
+  const unsubscribe = onSnapshot(communitiesQuery, (snapshot) => {
+    const communitiesData: Community[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      communitiesData.push({
+        id: doc.id,
+        name: data.name,
+        description: data.description,
+        teacherId: data.teacherId,
+        institution: data.institution || userData?.institution || "Unknown",
+        gradeLevel: data.gradeLevel,
+        subject: data.subject,
+        memberCount: data.memberCount || 0,
+        studentIds: data.studentIds || [],
+        pendingRequests: data.pendingRequests || [],
+        createdAt: data.createdAt,
+        isPublic: data.isPublic || false,
+        inviteCode: data.inviteCode,
+        challenges: data.challenges || [],
+        settings: data.settings || {
+          allowStudentChallenges: false,
+          allowInterCommunityChallenges: true,
+          allowStudentMessages: true,
+          autoApproveStudents: false,
+          privacy: "private"
+        }
+      });
+    });
+    
+    setCommunities(communitiesData);
+    
+    // Критична промяна: Ако няма избрано комюнити и има поне едно, изберете първото
+    if (communitiesData.length > 0 && !selectedCommunity) {
+      setSelectedCommunity(communitiesData[0].id);
+    }
+    
+    console.log("DEBUG: onSnapshot - communities updated:", {
+      count: communitiesData.length,
+      selectedCommunity
+    });
+  });
+  
+  return () => unsubscribe();
+}, [user, userData]);
+
+  // Зареждане на общности, предизвикателства и потребители
+  useEffect(() => {
+    if (userData?.role === 'teacher' && user) {
+      loadCommunities();
+      loadChallenges();
+      loadAllSystemUsers();
+    }
+  }, [user, userData]);
+
+  // Зареждане на всички потребители в системата
+  useEffect(() => {
+    if (user) {
+      loadAllUsers();
+    }
+  }, [user]);
+
+  // Зареждане на submissions
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "prologCodes"),
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().title,
+        date: new Date(doc.data().createdAt?.toMillis()).toLocaleString(),
+        status: doc.data().status ?? "success",
+        code: doc.data().code
+      }));
+
+      setSubmissions(data);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+  if (
+    (selectedTab === "dashboard" || selectedTab === "students") &&
+    (userData?.role === 'teacher' || userData?.role === 'admin') &&
+    communities.length > 0
+  ) {
+    loadAllStudentsData();
+    loadActivityLogs();
+  }
+}, [selectedTab, userData?.role, communities]);
+
+
+  // Зареждане на assignments
+  useEffect(() => {
+    if (selectedTab === "assignments" || selectedTab === "dashboard") {
+      loadAssignments();
+    }
+  }, [selectedTab]);
+
+  const loadCommunities = async () => {
+  if (!user) return;
+  
+  try {
+    const q = query(
+      collection(db, "communities"),
+      where("teacherId", "==", user.uid)
+    );
+    
+    const snapshot = await getDocs(q);
+    const communitiesData: Community[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      communitiesData.push({
+        id: doc.id,
+        name: data.name,
+        description: data.description,
+        teacherId: data.teacherId,
+        institution: data.institution || userData?.institution || "Unknown",
+        gradeLevel: data.gradeLevel,
+        subject: data.subject,
+        memberCount: data.memberCount || 0,
+        studentIds: data.studentIds || [],
+        pendingRequests: data.pendingRequests || [],
+        createdAt: data.createdAt,
+        isPublic: data.isPublic || false,
+        inviteCode: data.inviteCode,
+        challenges: data.challenges || [],
+        settings: data.settings || {
+          allowStudentChallenges: false,
+          allowInterCommunityChallenges: true,
+          allowStudentMessages: true,
+          autoApproveStudents: false,
+          privacy: "private"
+        }
+      });
+    });
+    
+    setCommunities(communitiesData);
+    
+    // Критична промяна: Ако няма избрано комюнити и има поне едно, изберете първото
+    if (communitiesData.length > 0 && !selectedCommunity) {
+      setSelectedCommunity(communitiesData[0].id);
+    }
+    
+    console.log("DEBUG: Loaded communities:", {
+      count: communitiesData.length,
+      communities: communitiesData.map(c => ({ id: c.id, name: c.name })),
+      selectedCommunity
+    });
+    
+  } catch (error) {
+    console.error("Error loading communities:", error);
+  }
+};
+
+  const loadChallengeSubmissions = async (challengeId: string) => {
+    console.log("Loading submissions for challenge:", challengeId);
+    
+    try {
+      // Зареждане на решения от challengeSolutions
+      const solutionsQuery = query(
+        collection(db, "challengeSolutions"),
+        where("challengeId", "==", challengeId)
+      );
+      
+      const solutionsSnapshot = await getDocs(solutionsQuery);
+      const submissionsData: ChallengeSubmission[] = [];
+      
+      console.log("Found solutions in challengeSolutions:", solutionsSnapshot.size);
+      
+      solutionsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        console.log("Solution data:", data);
+        
+        submissionsData.push({
+          id: doc.id,
+          studentId: data.studentId,
+          studentName: data.studentName || "Unknown Student",
+          submittedAt: data.submittedAt,
+          files: data.files || [],
+          notes: data.notes || "",
+          score: data.evaluation?.score,
+          status: data.status || 'joined',
+          solutionCode: data.solutionCode || "",
+          evaluation: data.evaluation || {},
+          communityId: data.communityId
+        });
+      });
+      
+      console.log(`✅ Loaded ${submissionsData.length} submissions from challengeSolutions`);
+      
+      // Ако няма решения, провери в challenges колекцията
+      if (submissionsData.length === 0) {
+        console.log("No solutions in challengeSolutions, checking challenges collection...");
+        
+        try {
+          const challengeDoc = await getDoc(doc(db, 'challenges', challengeId));
+          if (challengeDoc.exists()) {
+            const challengeData = challengeDoc.data();
+            console.log("Challenge data:", challengeData);
+            
+            if (challengeData.submissions && Array.isArray(challengeData.submissions)) {
+              challengeData.submissions.forEach((sub: any) => {
+                submissionsData.push({
+                  studentId: sub.studentId,
+                  studentName: sub.studentName || "Unknown Student",
+                  submittedAt: sub.submittedAt,
+                  notes: sub.notes || "",
+                  status: sub.status || 'joined'
+                });
+              });
+              console.log(`✅ Loaded ${challengeData.submissions.length} submissions from challenges collection`);
+            }
+          }
+        } catch (fallbackError) {
+          console.error("Fallback error:", fallbackError);
+        }
+      }
+      
+      return submissionsData;
+      
+    } catch (error) {
+      console.error("❌ Error loading challenge submissions:", error);
+      return [];
+    }
+  };
+
+  const loadChallenges = async () => {
+    if (!user) return;
+    
+    try {
+      const q = query(
+        collection(db, "challenges"),
+        where("createdBy", "==", user.uid)
+      );
+      
+      const snapshot = await getDocs(q);
+      const challengesData: Challenge[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        challengesData.push({
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          creatorCommunityId: data.creatorCommunityId,
+          targetCommunityId: data.targetCommunityId,
+          createdBy: data.createdBy,
+          status: data.status || 'pending',
+          dueDate: data.dueDate,
+          category: data.category || "General",
+          difficulty: data.difficulty || 'medium',
+          points: data.points || 50,
+          submissions: data.submissions || [],
+          createdAt: data.createdAt
+        });
+      });
+      
+      setChallenges(challengesData);
+      
+    } catch (error) {
+      console.error("Error loading challenges:", error);
+    }
+  };
+
+  const loadAllSystemUsers = async () => {
+    try {
+      const usersQuery = query(collection(db, "users"));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      const usersData: Array<{
+        uid: string;
+        username: string;
+        email: string;
+        role: string;
+        fullName?: string;
+        class?: string;
+        communityId?: string;
+        communityStatus?: string;
+      }> = [];
+      
+      usersSnapshot.forEach((doc) => {
+        const user = doc.data();
+        usersData.push({
+          uid: doc.id,
+          username: user.fullName || user.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
+          fullName: user.fullName,
+          email: user.email || "",
+          role: user.role || 'student',
+          class: user.class || 'N/A',
+          communityId: user.communityId || null,
+          communityStatus: user.communityStatus || null
+        });
+      });
+      
+      setAllSystemUsers(usersData);
+      console.log("📋 Loaded all system users:", usersData.length);
+    } catch (error) {
+      console.error("Error loading all system users:", error);
+    }
+  };
+
+  const handleMarkAsRead = async (messageId: string) => {
+    try {
+      await updateDoc(doc(db, 'messages', messageId), {
+        read: true
+      });
+      loadMessages();
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const unreadMessages = messages.filter(m => !m.read && m.receiverId === user?.uid);
+      
+      for (const msg of unreadMessages) {
+        await updateDoc(doc(db, 'messages', msg.id), {
+          read: true
+        });
+      }
+      
+      loadMessages();
+      setUploadStatus("✅ All messages marked as read!");
+    } catch (error) {
+      console.error("Error marking all messages as read:", error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm("Are you sure you want to delete this message?")) return;
+    
+    try {
+      await deleteDoc(doc(db, 'messages', messageId));
+      loadMessages();
+      setUploadStatus("✅ Message deleted!");
+    } catch (error) {
+      console.error("Error deleting message:", error);
+    }
+  };
+
+  const loadMessages = async () => {
+    if (!user) return;
+    
+    try {
+      // Оптимизирана заявка - разделена на две, за да избегнем сложни OR заявки
+      const receivedQ = query(
+        collection(db, "messages"),
+        where("receiverId", "==", user.uid),
+        orderBy("timestamp", "desc"),
+        limit(50)
+      );
+      
+      const sentQ = query(
+        collection(db, "messages"),
+        where("senderId", "==", user.uid),
+        orderBy("timestamp", "desc"),
+        limit(50)
+      );
+      
+      const [receivedSnapshot, sentSnapshot] = await Promise.all([
+        getDocs(receivedQ),
+        getDocs(sentQ)
+      ]);
+      
+      const allMessages: Message[] = [];
+      
+      receivedSnapshot.forEach((doc) => {
+        const data = doc.data();
+        allMessages.push({
+          id: doc.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          receiverId: data.receiverId,
+          receiverName: data.receiverName,
+          content: data.content,
+          timestamp: data.timestamp,
+          read: data.read || false,
+          type: data.type || 'direct'
+        });
+      });
+      
+      sentSnapshot.forEach((doc) => {
+        const data = doc.data();
+        allMessages.push({
+          id: doc.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          receiverId: data.receiverId,
+          receiverName: data.receiverName,
+          content: data.content,
+          timestamp: data.timestamp,
+          read: true,
+          type: data.type || 'direct'
+        });
+      });
+      
+      // Сортиране по дата
+      allMessages.sort((a, b) => 
+        (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
+      );
+      
+      setMessages(allMessages);
+      
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  };
+
+  const handleCreateCommunity = async () => {
+  if (!user || !userData) {
+    alert("Please login as a teacher!");
+    return;
+  }
+
+  try {
+    const communityRef = doc(collection(db, 'communities'));
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    const newCommunity: Community = {
+      id: communityRef.id,
+      name: communityForm.name,
+      description: communityForm.description,
+      teacherId: user.uid,
+      institution: userData.institution || "Unknown",
+      gradeLevel: communityForm.gradeLevel,
+      subject: communityForm.subject,
+      memberCount: 1,
+      studentIds: [],
+      pendingRequests: [],
+      createdAt: serverTimestamp(),
+      isPublic: communityForm.privacy === 'public',
+      inviteCode,
+      challenges: [],
+      settings: {
+        allowStudentChallenges: communityForm.allowStudentChallenges,
+        allowInterCommunityChallenges: communityForm.allowInterCommunityChallenges,
+        allowStudentMessages: communityForm.allowStudentMessages,
+        autoApproveStudents: communityForm.autoApprove,
+        privacy: communityForm.privacy
+      }
+    };
+    
+    await setDoc(communityRef, newCommunity);
+    
+    await updateDoc(doc(db, 'users', user.uid), {
+      communityId: communityRef.id,
+      createdCommunities: arrayUnion(communityRef.id)
+    });
+    
+    setUploadStatus("✅ Community created successfully!");
+    setShowCommunityForm(false);
+    
+    // Критична промяна: Рефрешнете комюнитита веднага след създаване
+    await loadCommunities();
+    
+    // Критична промяна: Задайте новосъздаденото комюнити като избрано
+    setSelectedCommunity(communityRef.id);
+    
+    // Ресетване на формата
+    setCommunityForm({
+      name: "",
+      description: "",
+      gradeLevel: "",
+      subject: "",
+      privacy: "private",
+      autoApprove: false,
+      allowStudentMessages: true,
+      allowStudentChallenges: false,
+      allowInterCommunityChallenges: true
+    });
+    
+    console.log("DEBUG: Created new community:", {
+      id: communityRef.id,
+      name: newCommunity.name,
+      selectedCommunity: communityRef.id
+    });
+    
+  } catch (error) {
+    console.error("Error creating community:", error);
+    setUploadStatus("❌ Error creating community!");
+  }
+};
+
+  const handleCreateChallenge = async () => {
+    if (!user || !selectedCommunity) {
+      alert("Please select a community first!");
+      return;
+    }
+
+    try {
+      const challengeRef = doc(collection(db, 'challenges'));
+      
+      const newChallenge: Challenge = {
+        id: challengeRef.id,
+        title: challengeForm.title,
+        description: challengeForm.description,
+        creatorCommunityId: selectedCommunity,
+        targetCommunityId: challengeForm.targetCommunityId,
+        createdBy: user.uid,
+        status: 'pending',
+        dueDate: challengeForm.dueDate,
+        category: challengeForm.category,
+        difficulty: challengeForm.difficulty,
+        points: challengeForm.points,
+        submissions: [],
+        createdAt: serverTimestamp()
+      };
+      
+      await setDoc(challengeRef, newChallenge);
+      
+      if (selectedCommunity) {
+        await updateDoc(doc(db, 'communities', selectedCommunity), {
+          challenges: arrayUnion(challengeRef.id)
+        });
+      }
+      
+      if (challengeForm.targetCommunityId) {
+        await updateDoc(doc(db, 'communities', challengeForm.targetCommunityId), {
+          challenges: arrayUnion(challengeRef.id)
+        });
+      }
+      
+      setUploadStatus("✅ Challenge sent successfully!");
+      setShowChallengeForm(false);
+      setChallengeForm({
+        title: "",
+        description: "",
+        targetCommunityId: "",
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        category: "Programming",
+        difficulty: "medium",
+        points: 50
+      });
+      
+      loadChallenges();
+      
+    } catch (error) {
+      console.error("Error creating challenge:", error);
+      setUploadStatus("❌ Error creating challenge!");
+    }
+  };
+
+  const handleSendMessage = async (type: 'direct' | 'community' | 'broadcast' = 'direct') => {
+    if (!user || !newMessage.trim()) return;
+
+    try {
+      let receivers: string[] = [];
+      
+      if (type === 'direct' && selectedStudent) {
+        receivers = [selectedStudent.uid!];
+      } else if (type === 'community' && selectedCommunity) {
+        const community = getCurrentCommunity();
+        receivers = community?.studentIds || [];
+      } else if (type === 'broadcast') {
+        receivers = allUsers.map(u => u.uid).filter(Boolean);
+      }
+      
+      for (const receiverId of receivers) {
+        const messageRef = doc(collection(db, 'messages'));
+        
+        const receiver = allUsers.find(u => u.uid === receiverId) || 
+                        students.find(s => s.uid === receiverId) || 
+                        { username: "Unknown User", email: "" };
+        
+        const newMessageData: Message = {
+          id: messageRef.id,
+          senderId: user.uid,
+          senderName: userData?.fullName || user.email?.split('@')[0] || "Teacher",
+          receiverId: receiverId,
+          receiverName: receiver.username,
+          content: newMessage,
+          timestamp: serverTimestamp(),
+          read: false,
+          type: type
+        };
+        
+        await setDoc(messageRef, newMessageData);
+      }
+      
+      setNewMessage("");
+      setUploadStatus(`✅ ${receivers.length} message(s) sent successfully!`);
+      loadMessages();
+      
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setUploadStatus("❌ Error sending message!");
+    }
+  };
+
+  const loadAllMessages = async () => {
+    if (!user) return;
+    
+    try {
+      const receivedQ = query(
+        collection(db, "messages"),
+        where("receiverId", "==", user.uid),
+        orderBy("timestamp", "desc")
+      );
+      
+      const sentQ = query(
+        collection(db, "messages"),
+        where("senderId", "==", user.uid),
+        orderBy("timestamp", "desc")
+      );
+      
+      const [receivedSnapshot, sentSnapshot] = await Promise.all([
+        getDocs(receivedQ),
+        getDocs(sentQ)
+      ]);
+      
+      const allMessages: Message[] = [];
+      
+      receivedSnapshot.forEach((doc) => {
+        const data = doc.data();
+        allMessages.push({
+          id: doc.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          receiverId: data.receiverId,
+          receiverName: data.receiverName,
+          content: data.content,
+          timestamp: data.timestamp,
+          read: data.read || false,
+          type: data.type || 'direct'
+        });
+      });
+      
+      sentSnapshot.forEach((doc) => {
+        const data = doc.data();
+        allMessages.push({
+          id: doc.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          receiverId: data.receiverId,
+          receiverName: data.receiverName,
+          content: data.content,
+          timestamp: data.timestamp,
+          read: true,
+          type: data.type || 'direct'
+        });
+      });
+      
+      allMessages.sort((a, b) => 
+        (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
+      );
+      
+      setMessages(allMessages);
+      
+    } catch (error) {
+      console.error("Error loading all messages:", error);
+    }
+  };
+
+  const handleApproveRequest = async (studentId: string, communityId: string) => {
+    try {
+      const communityRef = doc(db, 'communities', communityId);
+      
+      await updateDoc(communityRef, {
+        studentIds: arrayUnion(studentId),
+        pendingRequests: arrayRemove(studentId),
+        memberCount: (communities.find(c => c.id === communityId)?.memberCount || 0) + 1
+      });
+      
+      await updateDoc(doc(db, 'users', studentId), {
+        communityId: communityId,
+        communityStatus: 'member'
+      });
+      
+      setUploadStatus("✅ Student approved successfully!");
+      loadCommunities();
+      
+    } catch (error) {
+      console.error("Error approving student:", error);
+      setUploadStatus("❌ Error approving student!");
+    }
+  };
+
+  const handleRejectRequest = async (studentId: string, communityId: string) => {
+    try {
+      const communityRef = doc(db, 'communities', communityId);
+      
+      await updateDoc(communityRef, {
+        pendingRequests: arrayRemove(studentId)
+      });
+      
+      setUploadStatus("✅ Request rejected!");
+      loadCommunities();
+      
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      setUploadStatus("❌ Error rejecting request!");
+    }
+  };
+  // Добавете тази функция в TeacherDashboard компонента, след декларацията на променливите:
+const getStatusColor = (status: string): string => {
+  const statusColorMap: Record<string, string> = {
+    'joined': 'bg-blue-500/20 text-blue-500',
+    'submitted': 'bg-yellow-500/20 text-yellow-500',
+    'evaluated': 'bg-green-500/20 text-green-500',
+    'completed': 'bg-purple-500/20 text-purple-500'
+  };
+  
+  return statusColorMap[status] || 'bg-gray-500/20 text-gray-500';
+};
 
   // Helper functions
   const getColorByIndex = (index: number): string => {
@@ -351,255 +1266,137 @@ start :-
         default: return t?.('status_pending') || "Pending";
       }
     }
-    console.log(getStatusClass, getStatusText, getFileStatusText)
     if (file.code.includes('ERROR') || file.code.includes('error')) return t?.('status_error') || "Error";
     if (file.code.length > 1000) return t?.('status_success') || "Success";
     return t?.('status_pending') || "Pending";
   };
 
-  // Handler functions for grading
-  const handleQuickPoints = (studentId: string, points: number) => {
-    setSelectedPoints(prev => ({
-      ...prev,
-      [studentId]: points
-    }));
+  const getCurrentCommunity = () => {
+    return communities.find(c => c.id === selectedCommunity);
   };
-
-  const handleSaveGrade = async (student: Student) => {
-    const points = selectedPoints[student.username] || 0;
-    const feedback = feedbackText[student.username] || "";
-    try {
-      console.log(feedback);
-      console.log(`Saving grade for ${student.username}: ${points}/10`);
-      alert(`${t?.('grade_saved') || 'Grade saved'}: ${points}/10 ${t?.('for') || 'for'} ${student.username}`);
-      
-      setStudents(prev => prev.map(s => 
-        s.username === student.username 
-          ? { ...s, averagePoints: points } 
-          : s
-      ));
-    } catch (error) {
-      console.error("Error saving grade:", error);
-    }
-  };
-
-  const handleAddFeedbackTag = (studentId: string, tag: string) => {
-    setFeedbackText(prev => ({
-      ...prev,
-      [studentId]: (prev[studentId] || "") + (prev[studentId] ? '\n' : '') + tag
-    }));
-  };
-
-  const downloadFile = (file: StudentFile) => {
-    const element = document.createElement('a');
-    const fileBlob = new Blob([file.code], { type: 'text/plain' });
-    element.href = URL.createObjectURL(fileBlob);
-    element.download = file.originalFileName;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
-  const openFileInNewTab = (file: StudentFile) => {
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(`
-        <html>
-          <head>
-            <title>${file.originalFileName}</title>
-            <style>
-              body { 
-                font-family: monospace; 
-                margin: 20px; 
-                background: #1e1e1e; 
-                color: #fff;
-                white-space: pre-wrap;
-              }
-            </style>
-          </head>
-          <body>${file.code}</body>
-        </html>
-      `);
-      newWindow.document.close();
-    }
-  };
-
-  // Load submissions
-  useEffect(() => {
-    if (!user) return;
-
-    const q = query(
-      collection(db, "prologCodes"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
+console.log(getStatusClass, getStatusText, getFileStatusText)
+  const getCommunityStudents = () => {
+    if (!selectedCommunity) return students;
+    const community = getCurrentCommunity();
+    return students.filter(student => 
+      community?.studentIds.includes(student.uid || "") ||
+      student.communityId === selectedCommunity
     );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        name: doc.data().title,
-        date: new Date(doc.data().createdAt?.toMillis()).toLocaleString(),
-        status: doc.data().status ?? "success",
-        code: doc.data().code
-      }));
-
-      setSubmissions(data);
-    });
-
-    return () => unsub();
-  }, [user]);
-
-  // Load students and activity logs
-  useEffect(() => {
-    if ((selectedTab === "dashboard" || selectedTab === "students") && (userData?.role === 'teacher' || userData?.role === 'admin')) {
-      loadAllStudentsData();
-      loadActivityLogs();
-    }
-  }, [selectedTab, userData?.role]);
-
-  // Load assignments
-  useEffect(() => {
-    if (selectedTab === "assignments" || selectedTab === "dashboard") {
-      loadAssignments();
-    }
-  }, [selectedTab]);
+  };
 
   const loadActivityLogs = async () => {
-  try {
-    console.log("📋 Loading activity logs...");
-    
-    const q = query(
-      collection(db, "activityLogs"),
-      orderBy("timestamp", "desc"),
-      limit(20)  // Сега limit ще бъде дефинирана
-    );
-    
-    const snapshot = await getDocs(q);
-    const logs: ActivityLog[] = [];
-    
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      console.log("📝 Activity log data:", data);
+    try {
+      const q = query(
+        collection(db, "activityLogs"),
+        orderBy("timestamp", "desc"),
+        limit(20)
+      );
       
-      logs.push({
-        id: doc.id,
-        studentId: data.userId || "",
-        studentName: data.userName || data.user || "Unknown Student",
-        action: data.action || "Unknown action",
-        timestamp: data.timestamp || serverTimestamp(),
-        details: data.details || "",
-        file: data.target || "",
-        status: data.actionType || 'general'
+      const snapshot = await getDocs(q);
+      const logs: ActivityLog[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        logs.push({
+          id: doc.id,
+          studentId: data.userId || "",
+          studentName: data.userName || data.user || "Unknown Student",
+          action: data.action || "Unknown action",
+          timestamp: data.timestamp || serverTimestamp(),
+          details: data.details || "",
+          file: data.target || "",
+          status: data.actionType || 'general'
+        });
       });
-    });
-    
-    console.log(`✅ Loaded ${logs.length} activity logs`);
-    setActivityLogs(logs);
-    
-  } catch (error) {
-    console.error("❌ Error loading activity logs:", error);
-    
-    // Създайте примерни логове ако няма реални
-    const sampleLogs = generateSampleActivityLogs();
-    console.log(`📋 Generated ${sampleLogs.length} sample activity logs`);
-    setActivityLogs(sampleLogs);
-  }
-};
-
-// Функция за генериране на примерни логове
-const generateSampleActivityLogs = (): ActivityLog[] => {
-  const sampleLogs: ActivityLog[] = [];
-  const now = new Date();
-  
-  const sampleData = [
-    {
-      studentName: "John Doe",
-      action: "Submitted Prolog code",
-      file: "expert_system.pl",
-      details: "Created expert system for biology project"
-    },
-    {
-      studentName: "Jane Smith",
-      action: "Uploaded assignment file",
-      file: "assignment_1.pl",
-      details: "Completed assignment on logical rules"
-    },
-    {
-      studentName: "Alex Johnson",
-      action: "Started new project",
-      file: "project.pl",
-      details: "Working on AI expert system"
-    },
-    {
-      studentName: "Maria Garcia",
-      action: "Completed exercise",
-      file: "exercise_3.pl",
-      details: "Successfully solved all problems"
-    },
-    {
-      studentName: "David Brown",
-      action: "Submitted homework",
-      file: "homework_2.pl",
-      details: "Submitted before deadline"
+      
+      setActivityLogs(logs);
+      
+    } catch (error) {
+      console.error("Error loading activity logs:", error);
+      
+      const sampleLogs = [
+        {
+          id: "1",
+          studentId: "student-1",
+          studentName: "John Doe",
+          action: "Submitted Prolog code",
+          timestamp: new Date(),
+          details: "Created expert system for biology project",
+          file: "expert_system.pl",
+          status: 'submitted'
+        },
+        {
+          id: "2",
+          studentId: "student-2",
+          studentName: "Jane Smith",
+          action: "Uploaded assignment file",
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          details: "Completed assignment on logical rules",
+          file: "assignment_1.pl",
+          status: 'submitted'
+        }
+      ];
+      setActivityLogs(sampleLogs);
     }
-  ];
-  
-  sampleData.forEach((data, index) => {
-    sampleLogs.push({
-      id: `sample-${index}`,
-      studentId: `student-${index}`,
-      studentName: data.studentName,
-      action: data.action,
-      timestamp: new Date(now.getTime() - index * 2 * 60 * 60 * 1000), // Различни времена
-      details: data.details,
-      file: data.file,
-      status: 'submitted'
-    });
-  });
-  
-  return sampleLogs;
-};
+  };
 
   const loadAssignments = async () => {
     setLoadingAssignments(true);
     try {
+      if (!user || !user.uid) {
+        console.log("No user found, cannot load assignments");
+        setAssignments([]);
+        return;
+      }
+      
+      console.log("Loading assignments for teacher:", user.uid);
+      
       const q = query(
         collection(db, "assignments"),
+        where("teacherId", "==", user.uid),
         orderBy("createdAt", "desc")
       );
       
       const snapshot = await getDocs(q);
       const assignmentsData: Assignment[] = [];
       
+      console.log("Found assignments:", snapshot.size);
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
-        assignmentsData.push({
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          objective: data.objective,
-          topic: data.topic,
-          subject: data.subject,
-          requirements: data.requirements,
-          instructions: data.instructions,
-          teacherId: data.teacherId,
-          teacherName: data.teacherName,
-          createdAt: data.createdAt,
-          dueDate: data.dueDate,
-          status: data.status || 'active',
-          difficulty: data.difficulty || 'medium',
-          points: data.points || 100,
-          exampleCode: data.exampleCode,
-          backgroundImage: data.backgroundImage || assignmentBackgrounds[Math.floor(Math.random() * assignmentBackgrounds.length)],
-          category: data.category || categories[Math.floor(Math.random() * categories.length)],
-          progress: data.progress || 0,
-          actionText: t?.('view') || "View"
-        });
+        
+        if (data.teacherId === user.uid) {
+          assignmentsData.push({
+            id: doc.id,
+            title: data.title,
+            description: data.description,
+            objective: data.objective,
+            topic: data.topic,
+            subject: data.subject,
+            requirements: data.requirements,
+            instructions: data.instructions,
+            teacherId: data.teacherId,
+            teacherName: data.teacherName,
+            createdAt: data.createdAt,
+            dueDate: data.dueDate,
+            status: data.status || 'active',
+            difficulty: data.difficulty || 'medium',
+            points: data.points || 100,
+            exampleCode: data.exampleCode,
+            backgroundImage: data.backgroundImage || assignmentBackgrounds[Math.floor(Math.random() * assignmentBackgrounds.length)],
+            category: data.category || categories[Math.floor(Math.random() * categories.length)],
+            progress: data.progress || 0,
+            actionText: t?.('view') || "View"
+          });
+        }
       });
       
+      console.log("Filtered assignments:", assignmentsData.length);
       setAssignments(assignmentsData);
+      
     } catch (error) {
-      console.error(t?.('load_assignments_error') || "Error loading assignments:", error);
+      console.error("❌ " + (t?.('load_assignments_error') || "Error loading assignments:"), error);
+      setAssignments([]);
     } finally {
       setLoadingAssignments(false);
     }
@@ -717,53 +1514,70 @@ const generateSampleActivityLogs = (): ActivityLog[] => {
   const loadAllStudentsData = async () => {
     setLoadingStudents(true);
     try {
-      console.log("🔄 " + (t?.('loading_students') || "Loading students..."));
-      
       const currentUserRole = userData?.role;
       if (currentUserRole !== 'teacher' && currentUserRole !== 'admin') {
-        console.log("❌ " + (t?.('no_access_rights') || "No access rights"));
         setStudents([]);
         return;
       }
 
+      // Вземи ID-тата на учениците от всички ваши общности
+      const myStudentIds = new Set<string>();
+      
+      communities.forEach(community => {
+        community.studentIds.forEach(studentId => {
+          myStudentIds.add(studentId);
+        });
+      });
+
+      console.log("DEBUG: My communities student IDs:", Array.from(myStudentIds));
+
+      if (myStudentIds.size === 0) {
+        console.log("DEBUG: No students found in your communities");
+        setStudents([]);
+        return;
+      }
+
+      // Зареди всички потребители
       const usersQuery = query(collection(db, "users"));
       const usersSnapshot = await getDocs(usersQuery);
       
       const usersData: Record<string, any> = {};
-      const studentUserIds: string[] = [];
       
       usersSnapshot.forEach((doc) => {
         const user = doc.data();
-        usersData[doc.id] = user;
-        
-        if (user.role === 'student') {
-          studentUserIds.push(doc.id);
-        }
+        usersData[doc.id] = {
+          ...user,
+          uid: doc.id,
+          fullName: user.fullName || user.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
+          role: user.role || 'student',
+          email: user.email || '',
+          class: user.class || 'N/A',
+          communityId: user.communityId || null,
+          communityStatus: user.communityStatus || null
+        };
       });
 
+      // Зареди всички кодове
       const codesQuery = query(collection(db, "prologCodes"));
       const codesSnapshot = await getDocs(codesQuery);
       
-      const filesByStudent: Record<string, StudentFile[]> = {};
+      const filesByUserId: Record<string, StudentFile[]> = {};
       
       codesSnapshot.forEach((doc) => {
         const data = doc.data();
         const userId = data.userId;
         
-        if (studentUserIds.includes(userId)) {
-          const studentName = data.studentName || 
-                           data.username || 
-                           usersData[userId]?.fullName || 
-                           usersData[userId]?.email?.split('@')[0] || 
-                           `Student_${userId.substring(0, 6)}`;
+        if (myStudentIds.has(userId)) {
+          const userData = usersData[userId];
+          const studentName = userData.fullName || 
+                           userData.email?.split('@')[0] || 
+                           `User_${userId.substring(0, 6)}`;
           
-          const studentKey = studentName;
-          
-          if (!filesByStudent[studentKey]) {
-            filesByStudent[studentKey] = [];
+          if (!filesByUserId[userId]) {
+            filesByUserId[userId] = [];
           }
           
-          filesByStudent[studentKey].push({
+          filesByUserId[userId].push({
             id: doc.id,
             username: studentName,
             originalFileName: data.originalFileName || data.title || t?.('untitled') || "Untitled",
@@ -783,17 +1597,17 @@ const generateSampleActivityLogs = (): ActivityLog[] => {
 
       const studentsArray: Student[] = [];
       
-      Object.keys(filesByStudent).forEach(studentKey => {
-        const studentFiles = filesByStudent[studentKey];
+      Array.from(myStudentIds).forEach(userId => {
+        const user = usersData[userId];
+        if (!user) return;
+        
+        const role = user.role;
+        if (role !== 'student') return;
+        
+        const studentFiles = filesByUserId[userId] || [];
         const sortedFiles = studentFiles.sort((a, b) => 
           new Date(b.createdAt?.toMillis?.() || 0).getTime() - 
           new Date(a.createdAt?.toMillis?.() || 0).getTime()
-        );
-
-        const user = Object.values(usersData).find(u => 
-          u.fullName === studentKey || 
-          u.email?.split('@')[0] === studentKey ||
-          `Student_${u.uid?.substring(0, 6)}` === studentKey
         );
 
         const averagePoints = studentFiles.length > 0 
@@ -805,68 +1619,61 @@ const generateSampleActivityLogs = (): ActivityLog[] => {
           new Date(lastFile.createdAt?.toMillis?.() || Date.now()).toLocaleDateString() :
           t?.('no_activity') || "No activity";
 
-        studentsArray.push({
-          username: studentKey,
-          email: user?.email || "",
-          class: user?.class || t?.('na') || "N/A",
+        const userObj: Student = {
+          username: user.fullName,
+          email: user.email,
+          class: user.class,
           files: sortedFiles,
           totalFiles: studentFiles.length,
           lastUpload: lastActivity,
-          role: 'student',
+          role: role,
           averagePoints,
           status: averagePoints >= 7 ? 'active' : averagePoints >= 5 ? 'warning' : 'inactive',
           lastActivity,
-          pendingApproval: studentFiles.some(f => !f.points && f.status === 'pending')
-        });
+          pendingApproval: studentFiles.some(f => !f.points && f.status === 'pending'),
+          uid: userId,
+          communityId: user.communityId,
+          communityStatus: user.communityStatus
+        };
+
+        studentsArray.push(userObj);
       });
 
-      // Add students without files
-      studentUserIds.forEach(userId => {
-        const user = usersData[userId];
-        if (user) {
-          const studentName = user.fullName || 
-                           user.email?.split('@')[0] || 
-                           `Student_${userId.substring(0, 6)}`;
-          
-          const alreadyAdded = studentsArray.some(s => s.username === studentName);
-          
-          if (!alreadyAdded) {
-            studentsArray.push({
-              username: studentName,
-              email: user.email || "",
-              class: user.class || t?.('na') || "N/A",
-              files: [],
-              totalFiles: 0,
-              lastUpload: t?.('no_uploads') || "No uploaded files",
-              role: 'student',
-              averagePoints: 0,
-              status: 'inactive',
-              lastActivity: t?.('no_activity') || "No activity"
-            });
-          }
-        }
+      const sortedStudents = studentsArray.sort((a, b) => 
+        new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime()
+      );
+      
+      console.log("📊 DEBUG Loaded MY students:", {
+        myStudentIdsCount: myStudentIds.size,
+        loadedStudentsCount: sortedStudents.length,
+        myStudents: sortedStudents.map(s => ({
+          name: s.username,
+          uid: s.uid,
+          communityId: s.communityId
+        }))
       });
+      
+      setStudents(sortedStudents);
 
-      studentsArray.sort((a, b) => b.totalFiles - a.totalFiles);
-      setStudents(studentsArray);
-
-      // Update statistics
-      const totalStudents = studentsArray.length;
-      const activeStudents = studentsArray.filter(s => s.status === 'active').length;
-      const pendingApprovals = studentsArray.filter(s => s.pendingApproval).length;
-      const totalSubmissions = studentsArray.reduce((sum, s) => sum + s.totalFiles, 0);
-      const avgPoints = totalStudents > 0 ? 
-        studentsArray.reduce((sum, s) => sum + (s.averagePoints || 0), 0) / totalStudents : 0;
+      // Актуализирай статистиките
+      const totalMyStudents = sortedStudents.length;
+      const activeMyStudents = sortedStudents.filter(s => s.status === 'active').length;
+      const pendingApprovals = sortedStudents.filter(s => s.pendingApproval).length;
+      const totalSubmissions = sortedStudents.reduce((sum, s) => sum + s.totalFiles, 0);
+      const avgPoints = totalMyStudents > 0 ? 
+        sortedStudents.reduce((sum, s) => sum + (s.averagePoints || 0), 0) / totalMyStudents : 0;
       
       setStats(prev => ({
         ...prev,
-        totalStudents,
-        activeStudents,
+        totalStudents: totalMyStudents,
+        activeStudents: activeMyStudents,
         pendingApprovals,
         totalSubmissions,
         averagePoints: avgPoints,
-        successRate: totalSubmissions > 0 ? Math.round((activeStudents / totalStudents) * 100) : 0,
-        lessonProgress: Math.round((assignments.filter(a => a.status === 'active').length / Math.max(assignments.length, 1)) * 100)
+        successRate: totalMyStudents > 0 ? Math.round((activeMyStudents / totalMyStudents) * 100) : 0,
+        lessonProgress: Math.round((assignments.filter(a => a.status === 'active').length / Math.max(assignments.length, 1)) * 100),
+        communityMembers: communities.reduce((sum, c) => sum + c.memberCount, 0),
+        activeChallenges: challenges.filter(c => c.status === 'accepted' || c.status === 'pending').length
       }));
       
     } catch (error) {
@@ -904,27 +1711,27 @@ const generateSampleActivityLogs = (): ActivityLog[] => {
     let path = `${folder}/${finalFileName}`;
 
     try {
-      const { data: uploadData, error } = await supabase.storage
+      const { data: _uploadData, error } = await supabase.storage
         .from("prolog-files")
         .upload(path, file, { 
           upsert: false,
           cacheControl: '3600',
           contentType: file.type || 'text/plain'
         });
-console.log(uploadData)
+
       if (error) {
         if (error.message.includes('already exists')) {
           const newRandomId = Math.random().toString(36).substring(2, 8);
           const newFinalFileName = `${username}_${safeFileName}_${shortTimestamp}${newRandomId}.pl`;
           const newPath = `${folder}/${newFinalFileName}`;
           
-          const { data: retryData, error: retryError } = await supabase.storage
+          const { data: _retryData, error: retryError } = await supabase.storage
             .from("prolog-files")
             .upload(newPath, file, { 
               upsert: false,
               cacheControl: '3600'
             });
-console.log(retryData)
+
           if (retryError) {
             setUploadStatus("❌ " + (t?.('upload_failed') || "Upload failed:") + " " + retryError.message);
             return;
@@ -992,7 +1799,6 @@ console.log(retryData)
     }
   };
 
-  // Handle add lesson
   const handleAddLesson = () => {
     if (!newLesson.title.trim()) {
       alert(t?.('lesson_title_required') || "Lesson title is required");
@@ -1012,17 +1818,359 @@ console.log(retryData)
     setNewLesson({ title: '', description: '' });
     setShowLessonForm(false);
   };
+const handleRejectChallenge = async (challengeId: string) => {
+  try {
+    const challengeRef = doc(db, 'challenges', challengeId);
+    
+    await updateDoc(challengeRef, {
+      status: 'rejected'
+    });
+    
+    setUploadStatus(t?.('challenge_rejected') || "Challenge rejected!");
+    loadChallenges();
+    
+    // Ако се преглеждат submissions, затвори модала
+    if (viewingChallengeSubmissions?.id === challengeId) {
+      setViewingChallengeSubmissions(null);
+    }
+    
+  } catch (error) {
+    console.error("Error rejecting challenge:", error);
+    setUploadStatus(t?.('challenge_reject_error') || "Error rejecting challenge!");
+  }
+};
+  const handleQuickPoints = (studentId: string, points: number) => {
+    setSelectedPoints(prev => ({
+      ...prev,
+      [studentId]: points
+    }));
+  };
 
-  // Calculate statistics
+  const handleSaveGrade = async (student: Student) => {
+    const points = selectedPoints[student.username] || 0;
+    const feedback = feedbackText[student.username] || "";
+    console.log(feedback)
+    try {
+      alert(`${t?.('grade_saved') || 'Grade saved'}: ${points}/10 ${t?.('for') || 'for'} ${student.username}`);
+      
+      setStudents(prev => prev.map(s => 
+        s.username === student.username 
+          ? { ...s, averagePoints: points } 
+          : s
+      ));
+    } catch (error) {
+      console.error("Error saving grade:", error);
+    }
+  };
+
+  const handleAddFeedbackTag = (studentId: string, tag: string) => {
+    setFeedbackText(prev => ({
+      ...prev,
+      [studentId]: (prev[studentId] || "") + (prev[studentId] ? '\n' : '') + tag
+    }));
+  };
+
+  const downloadFile = (file: StudentFile) => {
+    const element = document.createElement('a');
+    const fileBlob = new Blob([file.code], { type: 'text/plain' });
+    element.href = URL.createObjectURL(fileBlob);
+    element.download = file.originalFileName;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const openFileInNewTab = (file: StudentFile) => {
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>${file.originalFileName}</title>
+            <style>
+              body { 
+                font-family: monospace; 
+                margin: 20px; 
+                background: #1e1e1e; 
+                color: #fff;
+                white-space: pre-wrap;
+              }
+            </style>
+          </head>
+          <body>${file.code}</body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+  };
+
+  const addInstruction = () => {
+    const newId = instructions.length > 0 ? Math.max(...instructions.map(i => i.id)) + 1 : 1;
+    setInstructions([...instructions, { id: newId, text: "" }]);
+  };
+
+  const updateInstruction = (id: number, text: string) => {
+    setInstructions(instructions.map(inst => 
+      inst.id === id ? { ...inst, text } : inst
+    ));
+    setAssignmentForm({
+      ...assignmentForm,
+      instructions: instructions.map(inst => 
+        inst.id === id ? text : inst.text
+      )
+    });
+  };
+
+  const removeInstruction = (id: number) => {
+    setInstructions(instructions.filter(inst => inst.id !== id));
+    setAssignmentForm({
+      ...assignmentForm,
+      instructions: instructions.filter(inst => inst.id !== id).map(inst => inst.text)
+    });
+  };
+
+  
+  // ДОБАВЕНА ФУНКЦИЯ: Приемане на предизвикателство
+  const handleAcceptChallenge = async (challengeId: string) => {
+    try {
+      const challengeRef = doc(db, 'challenges', challengeId);
+      
+      await updateDoc(challengeRef, {
+        status: 'accepted'
+      });
+      
+      setUploadStatus(t?.('challenge_accepted') || "Challenge accepted!");
+      loadChallenges();
+      
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      setUploadStatus(t?.('challenge_accept_error') || "Error accepting challenge!");
+    }
+  };
+
+  // ДОБАВЕНА ФУНКЦИЯ: Отговор на предизвикателство
+  const handleChallengeResponse = async (challengeId: string, responseContent: string, solutionCode?: string) => {
+    if (!user || !userData) return;
+
+    try {
+      const challengeRef = doc(db, 'challenges', challengeId);
+      
+      await updateDoc(challengeRef, {
+        status: 'responded',
+        response: {
+          respondedAt: serverTimestamp(),
+          responderId: user.uid,
+          responderName: userData.fullName || user.email?.split('@')[0],
+          content: responseContent,
+          solutionCode: solutionCode || ''
+        }
+      });
+
+      // Изпращане на съобщение до създателя на предизвикателството
+      const challenge = challenges.find(c => c.id === challengeId);
+      if (challenge) {
+        const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
+        if (creatorCommunity) {
+          const messageRef = doc(collection(db, 'messages'));
+          await setDoc(messageRef, {
+            senderId: user.uid,
+            senderName: userData.fullName || user.email?.split('@')[0],
+            receiverId: creatorCommunity.teacherId,
+            receiverName: creatorCommunity.name,
+            content: `Отговор на вашето предизвикателство "${challenge.title}": ${responseContent.substring(0, 100)}...`,
+            timestamp: serverTimestamp(),
+            read: false,
+            type: 'challenge_response'
+          });
+        }
+      }
+
+      setUploadStatus("✅ Отговорът е изпратен успешно!");
+      loadChallenges();
+      setShowResponseForm(false);
+      setChallengeResponseForm({ content: "", solutionCode: "" });
+      
+    } catch (error) {
+      console.error("Грешка при изпращане на отговор:", error);
+      setUploadStatus("❌ Грешка при изпращане на отговор!");
+    }
+  };
+
+  // Компонент за нишка от съобщения
+  const MessageThread = ({ threadId, onClose }: { threadId: string, onClose: () => void }) => {
+    const [threadMessages, setThreadMessages] = useState<Message[]>([]);
+    const [newThreadMessage, setNewThreadMessage] = useState("");
+    
+    useEffect(() => {
+      loadThreadMessages();
+    }, [threadId]);
+    
+    const loadThreadMessages = async () => {
+      if (!user) return;
+      
+      try {
+        // Зареждане на съобщенията от и до потребителя
+        const receivedQ = query(
+          collection(db, "messages"),
+          where("receiverId", "==", user.uid),
+          where("senderId", "==", threadId),
+          orderBy("timestamp", "asc")
+        );
+        
+        const sentQ = query(
+          collection(db, "messages"),
+          where("senderId", "==", user.uid),
+          where("receiverId", "==", threadId),
+          orderBy("timestamp", "asc")
+        );
+        
+        const [receivedSnapshot, sentSnapshot] = await Promise.all([
+          getDocs(receivedQ),
+          getDocs(sentQ)
+        ]);
+        
+        const messagesData: Message[] = [];
+        
+        receivedSnapshot.forEach((doc) => {
+          const data = doc.data();
+          messagesData.push({
+            id: doc.id,
+            senderId: data.senderId,
+            senderName: data.senderName,
+            receiverId: data.receiverId,
+            receiverName: data.receiverName,
+            content: data.content,
+            timestamp: data.timestamp,
+            read: data.read || false,
+            type: data.type || 'direct'
+          });
+        });
+        
+        sentSnapshot.forEach((doc) => {
+          const data = doc.data();
+          messagesData.push({
+            id: doc.id,
+            senderId: data.senderId,
+            senderName: data.senderName,
+            receiverId: data.receiverId,
+            receiverName: data.receiverName,
+            content: data.content,
+            timestamp: data.timestamp,
+            read: true,
+            type: data.type || 'direct'
+          });
+        });
+        
+        // Сортиране по време
+        messagesData.sort((a, b) => 
+          (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0)
+        );
+        
+        setThreadMessages(messagesData);
+      } catch (error) {
+        console.error("Error loading thread messages:", error);
+      }
+    };
+    
+    const sendThreadMessage = async () => {
+      if (!user || !threadId || !newThreadMessage.trim()) return;
+      
+      try {
+        const messageRef = doc(collection(db, 'messages'));
+        
+        const receiverName = 
+          students.find(s => s.uid === threadId)?.username || 
+          communities.find(c => c.id === threadId)?.name || 
+          "Unknown";
+        
+        const newMessageData: Message = {
+          id: messageRef.id,
+          senderId: user.uid,
+          senderName: userData?.fullName || user.email?.split('@')[0] || "Teacher",
+          receiverId: threadId,
+          receiverName: receiverName,
+          content: newThreadMessage,
+          timestamp: serverTimestamp(),
+          read: false,
+          type: 'direct'
+        };
+        
+        await setDoc(messageRef, newMessageData);
+        setNewThreadMessage("");
+        loadThreadMessages();
+        
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    };
+    
+    return (
+      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-black/80' : 'bg-black/60'}`}>
+        <div className="absolute inset-0" onClick={onClose} />
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          className={`relative w-full max-w-2xl rounded-2xl border overflow-hidden ${
+            theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+          }`}
+        >
+          <div className="p-6 h-[600px] flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold">Message Thread</h3>
+              <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+              {threadMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`p-3 rounded-lg ${
+                    msg.senderId === user?.uid
+                      ? theme === 'dark' ? 'bg-blue-500/20 ml-auto' : 'bg-blue-100 ml-auto'
+                      : theme === 'dark' ? 'bg-white/5 mr-auto' : 'bg-gray-100 mr-auto'
+                  } max-w-[80%]`}
+                >
+                  <div className="font-medium text-sm mb-1">
+                    {msg.senderName}
+                  </div>
+                  <div className="text-sm">{msg.content}</div>
+                  <div className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {new Date(msg.timestamp?.toMillis?.() || Date.now()).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newThreadMessage}
+                onChange={(e) => setNewThreadMessage(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-1 p-3 rounded-lg border"
+                onKeyPress={(e) => e.key === 'Enter' && sendThreadMessage()}
+              />
+              <button
+                onClick={sendThreadMessage}
+                className="px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
+  // Статистики
   const totalSubmissions = submissions.length;
   const successfulSubmissions = submissions.filter(s => s.status === "success").length;
-  const fileUploads = submissions.filter(s => s.name.includes("File:")).length;
   const successRate = totalSubmissions > 0 ? Math.round((successfulSubmissions / totalSubmissions) * 100) : 0;
   const activeAssignments = assignments.filter(a => a.status === "active").length;
-  const completedAssignments = activeAssignments;
-  const totalAssignmentsCount = assignments.length;
-  const completionRate = totalAssignmentsCount > 0 ? Math.round((completedAssignments / totalAssignmentsCount) * 100) : 0;
-console.log(fileUploads, successRate, completionRate);
+  console.log(successRate,activeAssignments)
   const studentActivities = [...students]
     .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime())
     .slice(0, 5);
@@ -1054,49 +2202,65 @@ console.log(fileUploads, successRate, completionRate);
     }
   ];
 
-  // Stats cards data
   const statsCards = [
     {
-      title: t?.('total_students') || "Total Students",
-      value: stats.totalStudents,
+      title: t?.('my_students') || "My Students",
+      value: students.filter(s => s.role === 'student').length,
       icon: <Users className="w-6 h-6" />,
       color: "from-blue-500 to-cyan-500",
-      change: `${stats.activeStudents} active`,
-      description: t?.('registered_students') || "Registered students"
+      change: `${students.filter(s => s.role === 'student' && s.status === 'active').length} active`,
+      description: t?.('students_in_my_communities') || "Students in my communities"
     },
     {
-      title: t?.('pending_approvals') || "Pending Approvals",
-      value: stats.pendingApprovals,
-      icon: <Clock className="w-6 h-6" />,
-      color: "from-amber-500 to-orange-500",
-      change: t?.('requires_attention') || "Requires attention",
-      description: t?.('waiting_for_review') || "Waiting for review"
-    },
-    {
-      title: t?.('avg_points') || "Average Points",
-      value: stats.averagePoints.toFixed(1),
-      icon: <TrendingUp className="w-6 h-6" />,
-      color: "from-green-500 to-emerald-500",
-      change: `${stats.successRate}% success`,
-      description: t?.('student_performance') || "Student performance"
-    },
-    {
-      title: t?.('lesson_progress') || "Lesson Progress",
-      value: `${stats.lessonProgress}%`,
-      icon: <BookOpen className="w-6 h-6" />,
+      title: t?.('my_communities') || "My Communities",
+      value: communities.length,
+      icon: <GroupIcon className="w-6 h-6" />,
       color: "from-purple-500 to-pink-500",
-      change: `${activeAssignments} active`,
-      description: t?.('completed_lessons') || "Completed lessons"
+      change: `${stats.communityMembers} members`,
+      description: t?.('learning_communities') || "Learning communities"
+    },
+    {
+      title: t?.('my_assignments') || "My Assignments",
+      value: assignments.length,
+      icon: <FileText className="w-6 h-6" />,
+      color: "from-amber-500 to-orange-500",
+      change: `${assignments.filter(a => a.status === 'active').length} active`,
+      description: t?.('assignments_created_by_me') || "Assignments created by me"
+    },
+    {
+      title: t?.('other_teachers') || "Other Teachers",
+      value: allUsers.filter(u => u.role === 'teacher' && u.uid !== user?.uid).length,
+      icon: <Users className="w-6 h-6" />,
+      color: "from-green-500 to-emerald-500",
+      change: t?.('in_system') || "In system",
+      description: t?.('other_teachers_in_system') || "Other teachers in system"
     }
   ];
 
-  // Navigation items
   const navItems = [
     { 
       id: "dashboard", 
       label: t?.('dashboard') || "Dashboard", 
       icon: <BarChart3 className="w-5 h-5" />,
       badge: null
+    },
+    { 
+      id: "messages", 
+      label: t?.('messages') || "Messages", 
+      icon: <MessageCircle className="w-5 h-5" />,
+      badge: messages.filter(m => !m.read && m.receiverId === user?.uid && m.type === 'direct').length
+    },
+    { 
+      id: "communities", 
+      label: t?.('communities') || "Communities", 
+      icon: <GroupIcon className="w-5 h-5" />,
+      badge: communities.length
+    },
+    { 
+      id: "challenges", 
+      label: t?.('challenges') || "Challenges", 
+      icon: <Target className="w-5 h-5" />,
+      badge: challenges.length
     },
     { 
       id: "courses", 
@@ -1130,10 +2294,483 @@ console.log(fileUploads, successRate, completionRate);
     },
   ];
 
+  // Рендиране на общностите
+  const renderCommunitiesView = () => (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold">{t?.('communities') || "Communities"}</h2>
+          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+            {t?.('manage_learning_communities') || "Manage your learning communities"}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCommunityForm(true)}
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          {t?.('create_community') || "Create Community"}
+        </button>
+      </div>
+
+      {communities.length === 0 ? (
+        <div className={`rounded-2xl p-12 border text-center ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+            : 'bg-white border-gray-200'
+        }`}>
+          <GroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold mb-2">
+            {t?.('no_communities_yet') || "No communities yet"}
+          </h3>
+          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+            {t?.('create_first_community') || "Create your first learning community to get started"}
+          </p>
+          <button
+            onClick={() => setShowCommunityForm(true)}
+            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+          >
+            <Plus className="w-4 h-4 inline mr-2" />
+            {t?.('create_first_community') || "Create First Community"}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {communities.map((community) => (
+              <button
+                key={community.id}
+                onClick={() => setSelectedCommunity(community.id)}
+                className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all ${
+                  selectedCommunity === community.id
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white border-transparent'
+                    : theme === 'dark'
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                      : 'bg-gray-100 border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                    <GroupIcon className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium">{community.name}</div>
+                    <div className={`text-sm ${selectedCommunity === community.id ? 'text-white/80' : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {community.memberCount} members
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {selectedCommunity && getCurrentCommunity() && (
+            <div className={`rounded-2xl p-6 border ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+                : 'bg-white border-gray-200'
+            }`}>
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">{getCurrentCommunity()?.name}</h3>
+                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    {getCurrentCommunity()?.description}
+                  </p>
+                  <div className="flex items-center gap-4 mt-3">
+                    <span className={`px-3 py-1 rounded-full text-sm ${
+                      theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
+                    }`}>
+                      <Hash className="w-3 h-3 inline mr-1" />
+                      {getCurrentCommunity()?.inviteCode}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-sm ${
+                      getCurrentCommunity()?.isPublic
+                        ? 'bg-green-500/20 text-green-500'
+                        : 'bg-blue-500/20 text-blue-500'
+                    }`}>
+                      {getCurrentCommunity()?.isPublic ? 'Public' : 'Private'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowMessaging(true)}
+                    className={`px-4 py-2 rounded-lg ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    } transition-colors flex items-center gap-2`}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Message All
+                  </button>
+                  <button
+                    onClick={() => setShowChallengeForm(true)}
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium flex items-center gap-2"
+                  >
+                    <Target className="w-4 h-4" />
+                    Send Challenge
+                  </button>
+                </div>
+              </div>
+
+              {getCurrentCommunity()?.pendingRequests && getCurrentCommunity()!.pendingRequests.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-bold mb-3">{t?.('pending_requests') || "Pending Requests"} ({getCurrentCommunity()!.pendingRequests.length})</h4>
+                  <div className="space-y-2">
+                    {getCurrentCommunity()!.pendingRequests.map((studentId, index) => {
+                      const user = allSystemUsers.find(u => u.uid === studentId);
+                      
+                      return user ? (
+                        <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
+                          theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                              <UserPlus className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{user.fullName || user.username}</div>
+                              <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {user.email}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproveRequest(studentId, selectedCommunity!)}
+                              className="px-3 py-1 rounded-lg bg-green-500 text-white text-sm hover:bg-green-600 transition-colors"
+                            >
+                              {t?.('approve') || "Approve"}
+                            </button>
+                            <button
+                              onClick={() => handleRejectRequest(studentId, selectedCommunity!)}
+                              className="px-3 py-1 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600 transition-colors"
+                            >
+                              {t?.('reject') || "Reject"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
+                          theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-gray-500/20 to-gray-600/20 flex items-center justify-center">
+                              <UserPlus className="w-4 h-4 text-gray-400" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Unknown User</div>
+                              <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                ID: {studentId.substring(0, 8)}...
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproveRequest(studentId, selectedCommunity!)}
+                              className="px-3 py-1 rounded-lg bg-green-500 text-white text-sm hover:bg-green-600 transition-colors"
+                            >
+                              {t?.('approve') || "Approve"}
+                            </button>
+                            <button
+                              onClick={() => handleRejectRequest(studentId, selectedCommunity!)}
+                              className="px-3 py-1 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600 transition-colors"
+                            >
+                              {t?.('reject') || "Reject"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold">{t?.('members') || "Members"} ({getCurrentCommunity()?.memberCount || 0})</h4>
+                  <button
+                    onClick={() => setSelectedTab("students")}
+                    className={`text-sm ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}
+                  >
+                    View All →
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {getCommunityStudents().slice(0, 6).map((student, index) => (
+                    <div
+                      key={student.username}
+                      className={`p-3 rounded-lg border ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      } transition-colors`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+                          style={{ backgroundColor: getColorByIndex(index) }}
+                        >
+                          {student.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{student.username}</div>
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {student.email}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSelectedStudent(student)}
+                          className={`p-2 rounded-lg ${
+                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                          }`}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  // Рендиране на предизвикателствата
+  const renderChallengesView = () => (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold">{t?.('challenges') || "Challenges"}</h2>
+          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+            {t?.('manage_community_challenges') || "Manage and create challenges between communities"}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowChallengeForm(true)}
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          {t?.('create_challenge') || "Create Challenge"}
+        </button>
+      </div>
+
+      {challenges.length === 0 ? (
+        <div className={`rounded-2xl p-12 border text-center ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+            : 'bg-white border-gray-200'
+        }`}>
+          <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold mb-2">
+            {t?.('no_challenges_yet') || "No challenges yet"}
+          </h3>
+          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+            {t?.('create_first_challenge') || "Create your first challenge to engage communities"}
+          </p>
+          <button
+            onClick={() => setShowChallengeForm(true)}
+            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+          >
+            <Plus className="w-4 h-4 inline mr-2" />
+            {t?.('create_first_challenge') || "Create First Challenge"}
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {challenges.map((challenge) => {
+            const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
+            const targetCommunity = communities.find(c => c.id === challenge.targetCommunityId);
+            
+            return (
+              <motion.div
+                key={challenge.id}
+                whileHover={{ scale: 1.02, translateY: -5 }}
+                className={`rounded-2xl p-6 border ${
+                  theme === 'dark'
+                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+                    : 'bg-white border-gray-200'
+                } backdrop-blur-xl`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      challenge.status === 'accepted' ? 'bg-green-500/20 text-green-500' :
+                      challenge.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
+                      challenge.status === 'completed' ? 'bg-blue-500/20 text-blue-500' :
+                      challenge.status === 'responded' ? 'bg-purple-500/20 text-purple-500' :
+                      'bg-red-500/20 text-red-500'
+                    }`}>
+                      <Target className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold">{challenge.title}</h3>
+                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {challenge.category}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    challenge.difficulty === 'easy' ? 'bg-green-500/20 text-green-500' :
+                    challenge.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-500' :
+                    'bg-red-500/20 text-red-500'
+                  }`}>
+                    {challenge.difficulty}
+                  </span>
+                </div>
+
+                <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {challenge.description}
+                </p>
+
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-2 text-sm">
+                    <GroupIcon className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
+                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
+                      {t?.('from') || "From"}: {creatorCommunity?.name || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Target className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
+                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
+                      {t?.('to') || "To"}: {targetCommunity?.name || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
+                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
+                      {t?.('due') || "Due"}: {challenge.dueDate}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Trophy className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
+                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
+                      {t?.('points') || "Points"}: {challenge.points}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    challenge.status === 'accepted' ? 'bg-green-500/20 text-green-500' :
+                    challenge.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
+                    challenge.status === 'completed' ? 'bg-blue-500/20 text-blue-500' :
+                    challenge.status === 'responded' ? 'bg-purple-500/20 text-purple-500' :
+                    'bg-red-500/20 text-red-500'
+                  }`}>
+                    {challenge.status}
+                  </span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          console.log("Clicked view submissions for challenge:", challenge.id);
+                          console.log("Current challenge submissions:", challenge.submissions);
+                          
+                          const submissions = await loadChallengeSubmissions(challenge.id);
+                          console.log("Loaded submissions from function:", submissions);
+                          
+                          if (submissions.length > 0) {
+                            const challengeWithSubmissions = {
+                              ...challenge,
+                              submissions: submissions
+                            };
+                            setViewingChallengeSubmissions(challengeWithSubmissions);
+                          } else {
+                            alert("No submissions yet for this challenge.");
+                          }
+                        } catch (error) {
+                          console.error("Error loading submissions:", error);
+                          alert("Error loading submissions. Check console for details.");
+                        }
+                      }}
+                      className={`px-3 py-1 rounded text-sm ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 hover:bg-white/10' 
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {t?.('challenge_view_submissions') || "View Submissions"} ({challenge.submissions?.length || 0})
+                    </button>
+                    
+                 
+                    
+                    {challenge.status === 'pending' && communities.some(c => c.id === challenge.targetCommunityId) && (
+                      <button
+                        onClick={() => handleAcceptChallenge(challenge.id)}
+                        className={`px-3 py-1 rounded text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white`}
+                      >
+                        <CheckCircle className="w-4 h-4 inline mr-1" />
+                        {t?.('challenge_accept') || "Accept Challenge"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Показване на отговор ако има */}
+{challenge.response && (
+  <div className={`mt-4 p-4 rounded-lg ${
+    theme === 'dark' ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
+  }`}>
+    <div className="flex items-center gap-2 mb-2">
+      <MessageCircle className="w-4 h-4 text-blue-500" />
+      <span className="font-medium text-blue-500">
+        {t?.('challenge_response_title') || "Challenge Response"}
+      </span>
+    </div>
+    <p className="text-sm mb-2">{challenge.response.content}</p>
+    {challenge.response.solutionCode && (
+      <button
+        onClick={() => {
+          const newWindow = window.open('', '_blank');
+          if (newWindow) {
+            newWindow.document.write(`
+              <html>
+                <head>
+                  <title>${t?.('challenge_solution_title') || "Challenge Solution"}</title>
+                  <style>
+                    body { 
+                      font-family: monospace; 
+                      margin: 20px; 
+                      background: ${theme === 'dark' ? '#1e1e1e' : '#ffffff'}; 
+                      color: ${theme === 'dark' ? '#ffffff' : '#000000'};
+                      white-space: pre-wrap;
+                    }
+                  </style>
+                </head>
+                <body>${challenge.response?.solutionCode || ''}</body>
+              </html>
+            `);
+            newWindow.document.close();
+          }
+        }}
+        className="text-sm text-blue-500 hover:text-blue-600"
+      >
+        {t?.('challenge_view_solution_code') || "View solution code"} →
+      </button>
+    )}
+    <div className="text-xs opacity-70 mt-2">
+      {t?.('challenge_response_from') || "Response from"} {challenge.response.responderName} {t?.('challenge_response_on') || "on"} {
+        new Date(challenge.response.respondedAt?.toMillis?.() || Date.now()).toLocaleString()
+      }
+    </div>
+  </div>
+)}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} pt-24`}>
+    <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} pt-28`}>
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
@@ -1150,62 +2787,309 @@ console.log(fileUploads, successRate, completionRate);
           <div className="flex items-center gap-4">
             <button
               onClick={() => {
-                if (selectedTab === "students") loadAllStudentsData();
-                if (selectedTab === "assignments") loadAssignments();
+                loadAllMessages();
+                setShowMessaging(true);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                theme === 'dark' 
-                  ? 'bg-white/5 hover:bg-white/10' 
-                  : 'bg-gray-100 hover:bg-gray-200'
-              } transition-colors`}
+              className={`relative p-2 rounded-lg ${
+                theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+              }`}
             >
-              <RefreshCw className="w-4 h-4" /> {t?.('refresh') || "Refresh"}
+              <MessageCircle className="w-5 h-5" />
+              
+              {(() => {
+                const unreadDirect = messages.filter(m => 
+                  !m.read && m.receiverId === user?.uid && m.type === 'direct'
+                ).length;
+                
+                if (unreadDirect > 0) {
+                  return (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadDirect}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
             </button>
-            <button className={`p-2 rounded-lg ${
-              theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-            }`}>
-              <Bell className="w-5 h-5" />
-            </button>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`relative p-2 rounded-lg ${
+                  theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                <Bell className="w-5 h-5" />
+                
+                {(() => {
+                  const pendingRequestsCount = communities.reduce((total, community) => 
+                    total + community.pendingRequests.length, 0
+                  );
+                  
+                  const unreadMessagesCount = messages.filter(m => 
+                    !m.read && m.receiverId === user?.uid
+                  ).length;
+                  
+                  const totalNotifications = pendingRequestsCount + unreadMessagesCount;
+                  
+                  if (totalNotifications > 0) {
+                    return (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {totalNotifications}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </button>
+              
+              {/* Падащо меню за нотификации */}
+              {showNotifications && (
+                <div 
+                  className={`absolute right-0 mt-2 w-96 rounded-xl border shadow-lg z-50 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-900 border-gray-700' 
+                      : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold">Notifications</h4>
+                      <button 
+                        onClick={() => setShowNotifications(false)}
+                        className={`p-1 rounded ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="max-h-96 overflow-y-auto">
+                      {(() => {
+                        const allNotifications: Array<{
+                          id: string;
+                          type: 'pending_request' | 'direct_message' | 'challenge';
+                          title: string;
+                          description: string;
+                          communityId?: string;
+                          studentId?: string;
+                          challengeId?: string;
+                          timestamp: any;
+                          read: boolean;
+                        }> = [];
+                        
+                        // 1. Добавяне на чакащи заявки за общности
+                        communities.forEach(community => {
+                          community.pendingRequests.forEach(studentId => {
+                            const student = students.find(s => s.uid === studentId);
+                            allNotifications.push({
+                              id: `${community.id}-${studentId}`,
+                              type: 'pending_request',
+                              title: 'Join Request',
+                              description: `${student?.username || 'Student'} wants to join "${community.name}"`,
+                              communityId: community.id,
+                              studentId: studentId,
+                              timestamp: community.createdAt,
+                              read: false
+                            });
+                          });
+                        });
+                        
+                        // 2. Добавяне на непрочетени съобщения
+                        messages
+                          .filter(m => !m.read && m.receiverId === user?.uid)
+                          .forEach(msg => {
+                            allNotifications.push({
+                              id: msg.id,
+                              type: 'direct_message',
+                              title: 'New Message',
+                              description: `${msg.senderName}: ${msg.content.substring(0, 60)}${msg.content.length > 60 ? '...' : ''}`,
+                              studentId: msg.senderId,
+                              timestamp: msg.timestamp,
+                              read: msg.read
+                            });
+                          });
+                        
+                        // 3. Добавяне на изчакващи предизвикателства
+                        challenges
+                          .filter(ch => ch.status === 'pending' && 
+                            communities.some(c => c.id === ch.targetCommunityId && c.teacherId === user?.uid))
+                          .forEach(challenge => {
+                            const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
+                            allNotifications.push({
+                              id: challenge.id,
+                              type: 'challenge',
+                              title: 'New Challenge',
+                              description: `"${challenge.title}" from ${creatorCommunity?.name || 'Unknown Community'}`,
+                              challengeId: challenge.id,
+                              timestamp: challenge.createdAt,
+                              read: false
+                            });
+                          });
+                        
+                        // Сортиране по дата (най-новите първи)
+                        allNotifications.sort((a, b) => 
+                          (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
+                        );
+                        
+                        if (allNotifications.length === 0) {
+                          return (
+                            <div className="text-center py-8">
+                              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                                No notifications
+                              </p>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div className="space-y-3">
+                            {allNotifications.map(notification => (
+                              <div
+                                key={notification.id}
+                                className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                                  theme === 'dark' 
+                                    ? 'hover:bg-white/5 border-white/10' 
+                                    : 'hover:bg-gray-50 border-gray-200'
+                                }`}
+                                onClick={() => {
+                                  setShowNotifications(false);
+                                  
+                                  if (notification.type === 'pending_request') {
+                                    setSelectedCommunity(notification.communityId || null);
+                                    setSelectedTab('communities');
+                                  } else if (notification.type === 'direct_message') {
+                                    setActiveThread(notification.studentId || null);
+                                    setShowMessaging(true);
+                                  } else if (notification.type === 'challenge') {
+                                    setSelectedTab('challenges');
+                                  }
+                                }}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                    notification.type === 'pending_request'
+                                      ? 'bg-amber-500/20 text-amber-500'
+                                      : notification.type === 'challenge'
+                                      ? 'bg-purple-500/20 text-purple-500'
+                                      : 'bg-blue-500/20 text-blue-500'
+                                  }`}>
+                                    {notification.type === 'pending_request' ? (
+                                      <UserPlus className="w-5 h-5" />
+                                    ) : notification.type === 'challenge' ? (
+                                      <Target className="w-5 h-5" />
+                                    ) : (
+                                      <MessageCircle className="w-5 h-5" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                      <div className="font-medium text-sm">
+                                        {notification.title}
+                                      </div>
+                                      {!notification.read && (
+                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                      )}
+                                    </div>
+                                    <div className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                      {notification.description}
+                                    </div>
+                                    <div className="text-xs opacity-70">
+                                      {new Date(notification.timestamp?.toMillis?.() || Date.now()).toLocaleString()}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    
+                    {(() => {
+                      const pendingRequestsCount = communities.reduce((total, community) => 
+                        total + community.pendingRequests.length, 0
+                      );
+                      
+                      const unreadMessagesCount = messages.filter(m => 
+                        !m.read && m.receiverId === user?.uid
+                      ).length;
+                      
+                      const total = pendingRequestsCount + unreadMessagesCount;
+                      
+                      if (total > 0) {
+                        return (
+                          <div className={`mt-4 pt-4 ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const unreadMessages = messages.filter(m => !m.read && m.receiverId === user?.uid);
+                                  
+                                  for (const msg of unreadMessages) {
+                                    await updateDoc(doc(db, 'messages', msg.id), {
+                                      read: true
+                                    });
+                                  }
+                                  
+                                  loadMessages();
+                                  setShowNotifications(false);
+                                } catch (error) {
+                                  console.error("Error marking messages as read:", error);
+                                }
+                              }}
+                              className="w-full py-2 text-sm text-blue-500 hover:text-blue-600"
+                            >
+                              Mark all as read
+                            </button>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2">
             {navItems.map((item) => (
-  <button
-    key={item.id}
-    onClick={() => setSelectedTab(item.id)}
-    className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
-      selectedTab === item.id // ПРОМЕНЕТЕ selectedView НА selectedTab
-        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-        : theme === 'dark'
-        ? 'bg-white/5 hover:bg-white/10'
-        : 'bg-gray-100 hover:bg-gray-200'
-    }`}
-  >
-    {item.icon}
-    <span className="font-medium">{item.label}</span>
-    {item.badge !== null && item.badge !== undefined && (
-      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-        selectedTab === item.id // ПРОМЕНЕТЕ selectedView НА selectedTab
-          ? 'bg-white/20 text-white'
-          : theme === 'dark'
-          ? 'bg-white/10'
-          : 'bg-gray-200'
-      }`}>
-        {item.badge}
-      </span>
-    )}
-  </button>
-))}
+              <button
+                key={item.id}
+                onClick={() => setSelectedTab(item.id)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
+                  selectedTab === item.id
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                    : theme === 'dark'
+                    ? 'bg-white/5 hover:bg-white/10'
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {item.icon}
+                <span className="font-medium">{item.label}</span>
+                {item.badge !== null && item.badge !== undefined && (
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    selectedTab === item.id
+                      ? 'bg-white/20 text-white'
+                      : theme === 'dark'
+                      ? 'bg-white/10'
+                      : 'bg-gray-200'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Dashboard View */}
         {selectedTab === "dashboard" && (
           <div className="space-y-8">
-            {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {statsCards.map((stat, idx) => (
                 <motion.div
@@ -1238,9 +3122,7 @@ console.log(fileUploads, successRate, completionRate);
               ))}
             </div>
 
-            {/* Recent Student Activities & Assignments */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Student Activities */}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -1248,7 +3130,7 @@ console.log(fileUploads, successRate, completionRate);
               >
                 <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
                   <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Activity className="w-5 h-5" /> {t?.('student_activities') || "Student Activities"}
+                    <Activity className="w-5 h-5" /> {t?.('my_students_activities') || "My Students Activities"}
                   </h3>
                   
                   <div className="space-y-4">
@@ -1318,99 +3200,95 @@ console.log(fileUploads, successRate, completionRate);
                 </div>
               </motion.div>
 
-              {/* Recent Assignments */}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3 }}
               >
                 <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <h3 className="text-xl font-bold">{t?.('recent_assignments') || "Recent Assignments"}</h3>
-                    </div>
-                    <button
-                      onClick={() => setSelectedTab("assignments")}
-                      className={`px-4 py-2 rounded-lg ${
-                        theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-                      } transition-colors`}
-                    >
-                      {t?.('view_all') || "View All"} <ChevronRight className="w-4 h-4 inline ml-1" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {assignments.slice(0, 3).map((assignment) => (
-                      <div
-                        key={assignment.id}
-                        className={`p-4 rounded-xl border ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                        } transition-colors`}
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <GroupIcon className="w-5 h-5" /> {t?.('my_communities') || "My Communities"}
+                  </h3>
+                  
+                  {communities.length === 0 ? (
+                    <div className="text-center py-8">
+                      <GroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        {t?.('no_communities_dashboard') || "You haven't created any communities yet"}
+                      </p>
+                      <button
+                        onClick={() => setSelectedTab("communities")}
+                        className="mt-4 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
                       >
-                        <div className="flex items-start justify-between mb-3">
+                        {t?.('create_community') || "Create Community"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {communities.slice(0, 3).map((community) => (
+                        <div
+                          key={community.id}
+                          className={`flex items-center justify-between p-4 rounded-xl border ${
+                            theme === 'dark' 
+                              ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          } transition-colors`}
+                        >
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              assignment.category === 'Design' ? 'bg-pink-500/20 text-pink-500' :
-                              assignment.category === 'Programming' ? 'bg-blue-500/20 text-blue-500' :
-                              'bg-green-500/20 text-green-500'
+                              community.isPublic
+                                ? 'bg-green-500/20 text-green-500'
+                                : 'bg-blue-500/20 text-blue-500'
                             }`}>
-                              {assignment.category === 'Design' ? '🎨' :
-                               assignment.category === 'Programming' ? '💻' :
-                               assignment.category === 'Algorithms' ? '🧠' :
-                               assignment.category === 'Data Science' ? '📊' : '🤖'}
+                              <GroupIcon className="w-5 h-5" />
                             </div>
                             <div>
-                              <h4 className="font-medium">{assignment.title}</h4>
-                              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {assignment.category}
-                              </span>
+                              <h4 className="font-medium">{community.name}</h4>
+                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {community.memberCount} members
+                              </p>
                             </div>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            assignment.difficulty === 'easy' ? 'bg-green-500/20 text-green-500' :
-                            assignment.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-500' :
-                            'bg-red-500/20 text-red-500'
-                          }`}>
-                            {assignment.difficulty}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {community.pendingRequests.length > 0 && (
+                              <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-500">
+                                {community.pendingRequests.length} pending
+                              </span>
+                            )}
+                            <button
+                              onClick={() => {
+                                setSelectedCommunity(community.id);
+                                setSelectedTab("communities");
+                              }}
+                              className={`px-3 py-1 rounded text-sm ${
+                                theme === 'dark' 
+                                  ? 'bg-white/5 hover:bg-white/10' 
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
+                            >
+                              View
+                            </button>
+                          </div>
                         </div>
-                        <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {assignment.description.substring(0, 100)}...
-                        </p>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                            {t?.('due') || "Due"}: {assignment.dueDate}
-                          </span>
-                          <button 
-                            onClick={() => handleEditAssignment(assignment)}
-                            className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}
-                          >
-                            {t?.('view_details') || "View Details"} →
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {(userData?.role === 'teacher' || userData?.role === 'admin') && (
-                    <button
-                      onClick={() => setShowAssignmentForm(true)}
-                      className="w-full mt-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      {t?.('add_new_assignment') || "Add New Assignment"}
-                    </button>
+                      ))}
+                      
+                      <button
+                        onClick={() => setSelectedTab("communities")}
+                        className={`w-full py-3 rounded-lg ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 hover:bg-white/10' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        } transition-colors flex items-center justify-center gap-2`}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                        {t?.('view_all_communities') || "View All Communities"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </motion.div>
             </div>
 
-            {/* AI Recommendations */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1462,7 +3340,13 @@ console.log(fileUploads, successRate, completionRate);
           </div>
         )}
 
-        {/* My Lessons View */}
+        {/* Communities View */}
+        {selectedTab === "communities" && renderCommunitiesView()}
+
+        {/* Challenges View */}
+        {selectedTab === "challenges" && renderChallengesView()}
+
+        {/* Courses View */}
         {selectedTab === "courses" && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -1707,11 +3591,14 @@ console.log(fileUploads, successRate, completionRate);
             } backdrop-blur-xl`}>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold">{t?.('students') || "Students"} ({students.length})</h2>
+                  <h2 className="text-2xl font-bold">
+                    {t?.('my_students') || "My Students"} ({students.filter(s => s.role === 'student').length})
+                  </h2>
                   <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
                     {t?.('manage_students_subtitle') || "Review student submissions and assign grades"}
                   </p>
                 </div>
+                
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
@@ -2100,7 +3987,715 @@ console.log(fileUploads, successRate, completionRate);
           </div>
         )}
 
-        {/* Add Lesson Modal */}
+        {/* Messages View */}
+        {selectedTab === "messages" && <MessagesTab />}
+
+        {/* MODALS */}
+
+        {/* Community Form Modal */}
+        {showCommunityForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-black/80" onClick={() => setShowCommunityForm(false)} />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className={`relative w-full max-w-md rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                      <GroupIcon className="w-5 h-5 text-green-400" />
+                    </div>
+                    <h3 className="text-xl font-bold">{t?.('create_community') || "Create Community"}</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowCommunityForm(false)}
+                    className={`p-2 rounded-lg ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                    } transition-colors`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('community_name') || "Community Name"} *
+                    </label>
+                    <input
+                      type="text"
+                      value={communityForm.name}
+                      onChange={(e) => setCommunityForm({...communityForm, name: e.target.value})}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border border-white/10' 
+                          : 'bg-white border border-gray-300'
+                      }`}
+                      placeholder={t?.('enter_community_name') || "Enter community name"}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('description') || "Description"}
+                    </label>
+                    <textarea
+                      value={communityForm.description}
+                      onChange={(e) => setCommunityForm({...communityForm, description: e.target.value})}
+                      rows={3}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border border-white/10' 
+                          : 'bg-white border border-gray-300'
+                      }`}
+                      placeholder={t?.('enter_description') || "Enter community description"}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {t?.('grade_level') || "Grade Level"}
+                      </label>
+                      <input
+                        type="text"
+                        value={communityForm.gradeLevel}
+                        onChange={(e) => setCommunityForm({...communityForm, gradeLevel: e.target.value})}
+                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border border-white/10' 
+                            : 'bg-white border border-gray-300'
+                        }`}
+                        placeholder="e.g., 10th grade"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {t?.('subject') || "Subject"}
+                      </label>
+                      <input
+                        type="text"
+                        value={communityForm.subject}
+                        onChange={(e) => setCommunityForm({...communityForm, subject: e.target.value})}
+                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border border-white/10' 
+                            : 'bg-white border border-gray-300'
+                        }`}
+                        placeholder="e.g., Mathematics"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('privacy_settings') || "Privacy Settings"}
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="privacy"
+                          value="private"
+                          checked={communityForm.privacy === 'private'}
+                          onChange={(e) => setCommunityForm({...communityForm, privacy: e.target.value as "public" | "private"})}
+                          className="hidden"
+                        />
+                        <span className={`px-4 py-2 rounded-lg ${communityForm.privacy === 'private' ? 'bg-blue-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
+                          {t?.('private') || "Private"}
+                        </span>
+                      </label>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="privacy"
+                          value="public"
+                          checked={communityForm.privacy === 'public'}
+                          onChange={(e) => setCommunityForm({...communityForm, privacy: e.target.value as "public" | "private"})}
+                          className="hidden"
+                        />
+                        <span className={`px-4 py-2 rounded-lg ${communityForm.privacy === 'public' ? 'bg-green-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
+                          {t?.('public') || "Public"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={communityForm.autoApprove}
+                        onChange={(e) => setCommunityForm({...communityForm, autoApprove: e.target.checked})}
+                        className={`w-4 h-4 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 border-gray-600 text-blue-500'
+                            : 'bg-white border-gray-300 text-blue-600'
+                        } focus:ring-2 focus:ring-blue-500/20`}
+                      />
+                      <span className="text-sm">
+                        {t?.('auto_approve_students') || "Auto-approve student requests"}
+                      </span>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={communityForm.allowStudentMessages}
+                        onChange={(e) => setCommunityForm({...communityForm, allowStudentMessages: e.target.checked})}
+                        className={`w-4 h-4 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 border-gray-600 text-blue-500'
+                            : 'bg-white border-gray-300 text-blue-600'
+                        } focus:ring-2 focus:ring-blue-500/20`}
+                      />
+                      <span className="text-sm">
+                        {t?.('allow_student_messages') || "Allow students to send messages"}
+                      </span>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={communityForm.allowStudentChallenges}
+                        onChange={(e) => setCommunityForm({...communityForm, allowStudentChallenges: e.target.checked})}
+                        className={`w-4 h-4 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 border-gray-600 text-blue-500'
+                            : 'bg-white border-gray-300 text-blue-600'
+                        } focus:ring-2 focus:ring-blue-500/20`}
+                      />
+                      <span className="text-sm">
+                        {t?.('allow_student_challenges') || "Allow students to create challenges"}
+                      </span>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={communityForm.allowInterCommunityChallenges}
+                        onChange={(e) => setCommunityForm({...communityForm, allowInterCommunityChallenges: e.target.checked})}
+                        className={`w-4 h-4 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 border-gray-600 text-blue-500'
+                            : 'bg-white border-gray-300 text-blue-600'
+                        } focus:ring-2 focus:ring-blue-500/20`}
+                      />
+                      <span className="text-sm">
+                        {t?.('allow_inter_community_challenges') || "Allow inter-community challenges"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowCommunityForm(false)}
+                    className={`flex-1 py-3 rounded-lg ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    } transition-colors`}
+                  >
+                    {t?.('cancel') || "Cancel"}
+                  </button>
+                  <button
+                    onClick={handleCreateCommunity}
+                    disabled={!communityForm.name.trim()}
+                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-5 h-5 inline mr-2" />
+                    {t?.('create_community') || "Create Community"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Challenge Form Modal */}
+        {showChallengeForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-black/80" onClick={() => setShowChallengeForm(false)} />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className={`relative w-full max-w-md rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                      <Target className="w-5 h-5 text-green-400" />
+                    </div>
+                    <h3 className="text-xl font-bold">{t?.('create_challenge') || "Create Challenge"}</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowChallengeForm(false)}
+                    className={`p-2 rounded-lg ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                    } transition-colors`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('challenge_title') || "Challenge Title"} *
+                    </label>
+                    <input
+                      type="text"
+                      value={challengeForm.title}
+                      onChange={(e) => setChallengeForm({...challengeForm, title: e.target.value})}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border border-white/10' 
+                          : 'bg-white border border-gray-300'
+                      }`}
+                      placeholder={t?.('enter_challenge_title') || "Enter challenge title"}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('description') || "Description"} *
+                    </label>
+                    <textarea
+                      value={challengeForm.description}
+                      onChange={(e) => setChallengeForm({...challengeForm, description: e.target.value})}
+                      rows={4}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border border-white/10' 
+                          : 'bg-white border border-gray-300'
+                      }`}
+                      placeholder={t?.('enter_description') || "Enter challenge description"}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('target_community') || "Target Community"} *
+                    </label>
+                    <select
+  value={challengeForm.targetCommunityId}
+  onChange={(e) => setChallengeForm({...challengeForm, targetCommunityId: e.target.value})}
+  className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+    theme === 'dark' 
+      ? 'bg-gray-800 border-gray-700 text-gray-100' 
+      : 'bg-white border-gray-300 text-gray-900'
+  } border`}
+>
+  <option 
+    value=""
+    className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
+  >
+    {t?.('select_community') || "Select a community"}
+  </option>
+  {communities
+    // ИЗМЕНЕНИЕ: Премахнете филтъра напълно
+    .map(community => (
+      <option 
+        key={community.id} 
+        value={community.id}
+        className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
+      >
+        {community.name} ({community.memberCount} members)
+      </option>
+    ))}
+</select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {t?.('due_date') || "Due Date"}
+                      </label>
+                      <input
+                        type="date"
+                        value={challengeForm.dueDate}
+                        onChange={(e) => setChallengeForm({...challengeForm, dueDate: e.target.value})}
+                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border border-white/10' 
+                            : 'bg-white border border-gray-300'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {t?.('points') || "Points"}
+                      </label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="200"
+                        value={challengeForm.points}
+                        onChange={(e) => setChallengeForm({...challengeForm, points: parseInt(e.target.value)})}
+                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border border-white/10' 
+                            : 'bg-white border border-gray-300'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('difficulty') || "Difficulty"}
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="difficulty"
+                          value="easy"
+                          checked={challengeForm.difficulty === 'easy'}
+                          onChange={(e) => setChallengeForm({...challengeForm, difficulty: e.target.value as "easy" | "medium" | "hard"})}
+                          className="hidden"
+                        />
+                        <span className={`px-4 py-2 rounded-lg ${challengeForm.difficulty === 'easy' ? 'bg-green-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
+                          {t?.('easy') || "Easy"}
+                        </span>
+                      </label>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="difficulty"
+                          value="medium"
+                          checked={challengeForm.difficulty === 'medium'}
+                          onChange={(e) => setChallengeForm({...challengeForm, difficulty: e.target.value as "easy" | "medium" | "hard"})}
+                          className="hidden"
+                        />
+                        <span className={`px-4 py-2 rounded-lg ${challengeForm.difficulty === 'medium' ? 'bg-yellow-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
+                          {t?.('medium') || "Medium"}
+                        </span>
+                      </label>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="difficulty"
+                          value="hard"
+                          checked={challengeForm.difficulty === 'hard'}
+                          onChange={(e) => setChallengeForm({...challengeForm, difficulty: e.target.value as "easy" | "medium" | "hard"})}
+                          className="hidden"
+                        />
+                        <span className={`px-4 py-2 rounded-lg ${challengeForm.difficulty === 'hard' ? 'bg-red-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
+                          {t?.('hard') || "Hard"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowChallengeForm(false)}
+                    className={`flex-1 py-3 rounded-lg ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    } transition-colors`}
+                  >
+                    {t?.('cancel') || "Cancel"}
+                  </button>
+                  <button
+                    onClick={handleCreateChallenge}
+                    disabled={!challengeForm.title.trim() || !challengeForm.targetCommunityId}
+                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Target className="w-5 h-5 inline mr-2" />
+                    {t?.('send_challenge') || "Send Challenge"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Messaging Modal */}
+        {showMessaging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-black/80" onClick={() => {
+              setShowMessaging(false);
+              setSelectedStudent(null);
+            }} />
+            
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className={`relative w-full max-w-lg rounded-2xl border overflow-hidden ${
+                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">{t?.('quick_message') || "Quick Message"}</h3>
+                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        {t?.('quick_message_desc') || "Send a quick message to students"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedTab("messages");
+                        setShowMessaging(false);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-sm ${
+                        theme === 'dark' 
+                          ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' 
+                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                      }`}
+                    >
+                      {t?.('open_mail') || "Open Mail"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMessaging(false);
+                        setSelectedStudent(null);
+                      }}
+                      className={`p-2 rounded-lg ${
+                        theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                      }`}
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('recipient') || "Recipient"}
+                    </label>
+                    <select
+                      value={selectedStudent?.uid || selectedCommunity || "broadcast"}
+                      onChange={(e) => {
+                        if (e.target.value === "broadcast") {
+                          setSelectedStudent(null);
+                          setSelectedCommunity(null);
+                        } else if (communities.find(c => c.id === e.target.value)) {
+                          setSelectedCommunity(e.target.value);
+                          setSelectedStudent(null);
+                        } else {
+                          const user = allUsers.find(u => u.uid === e.target.value) || 
+                                     students.find(s => s.uid === e.target.value);
+                          
+                          if (user) {
+                            setSelectedStudent({
+                              username: user.username,
+                              uid: user.uid,
+                              files: [],
+                              totalFiles: 0,
+                              lastUpload: '',
+                              role: user.role
+                            });
+                            setSelectedCommunity(null);
+                          }
+                        }
+                      }}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-gray-100' 
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    >
+                      <option value="broadcast">📢 {t?.('broadcast_all_students') || "Broadcast to All Students"}</option>
+                      
+                      <optgroup 
+                        label={t?.('communities') || "Communities"}
+                        className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
+                      >
+                        {communities.map(community => (
+                          <option 
+                            key={community.id} 
+                            value={community.id}
+                            className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
+                          >
+                            👥 {community.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      
+                      <optgroup 
+                        label={t?.('students') || "Students"}
+                        className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
+                      >
+                        {students.slice(0, 5).map(student => (
+                          <option 
+                            key={student.uid} 
+                            value={student.uid}
+                            className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
+                          >
+                            👤 {student.username}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('message') || "Message"}
+                    </label>
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      rows={4}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500' 
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                      }`}
+                      placeholder={t?.('type_your_message_here') || "Type your quick message here..."}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4 border-t border-white/10 dark:border-gray-700">
+                    <button
+                      onClick={() => {
+                        setShowMessaging(false);
+                        setSelectedStudent(null);
+                        setNewMessage("");
+                      }}
+                      className={`flex-1 py-3 rounded-lg ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 hover:bg-white/10' 
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {t?.('cancel') || "Cancel"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedCommunity) {
+                          handleSendMessage('community');
+                        } else if (selectedStudent) {
+                          handleSendMessage('direct');
+                        } else {
+                          handleSendMessage('broadcast');
+                        }
+                        setShowMessaging(false);
+                        setSelectedStudent(null);
+                      }}
+                      disabled={!newMessage.trim()}
+                      className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50"
+                    >
+                      <Send className="w-5 h-5 inline mr-2" />
+                      {t?.('send_message') || "Send Message"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Нови съобщения */}
+                {messages.filter(m => !m.read && m.receiverId === user?.uid).length > 0 && (
+                  <div className={`mt-6 pt-6 border-t ${
+                    theme === 'dark' ? 'border-white/10' : 'border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold">
+                        {t?.('new_messages') || "New Messages"} ({messages.filter(m => !m.read && m.receiverId === user?.uid).length})
+                      </h4>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(t?.('mark_all_read_confirm') || "Mark all as read?")) {
+                            handleMarkAllAsRead();
+                          }
+                        }}
+                        className="text-sm text-blue-500 hover:text-blue-600"
+                      >
+                        {t?.('mark_all_read') || "Mark all read"}
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {messages
+                        .filter(m => !m.read && m.receiverId === user?.uid)
+                        .slice(0, 5)
+                        .map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`p-3 rounded-lg ${
+                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                            } group relative`}
+                          >
+                            <button
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-red-500/20 text-red-500 hover:bg-red-500/30"
+                              title={t?.('delete_message') || "Delete message"}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                            
+                            <div 
+                              className="cursor-pointer"
+                              onClick={() => handleMarkAsRead(msg.id)}
+                            >
+                              <div className="flex justify-between items-start mb-1 pr-6">
+                                <div className="font-medium text-sm">{msg.senderName}</div>
+                                <div className="text-xs opacity-70">
+                                  {new Date(msg.timestamp?.toMillis?.() || Date.now()).toLocaleTimeString()}
+                                </div>
+                              </div>
+                              <p className="text-sm truncate">{msg.content}</p>
+                              <div className="text-xs text-green-500 mt-1">
+                                {t?.('click_to_mark_read') || "Click to mark as read"}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                    
+                    {messages.filter(m => !m.read && m.receiverId === user?.uid).length > 5 && (
+                      <button
+                        onClick={() => {
+                          setSelectedTab("messages");
+                          setShowMessaging(false);
+                        }}
+                        className={`w-full mt-3 py-2 rounded-lg text-center ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 hover:bg-white/10' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        {t?.('view_all_messages') || "View all messages"} →
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Lesson Form Modal */}
         {showLessonForm && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2194,7 +4789,7 @@ console.log(fileUploads, successRate, completionRate);
           </motion.div>
         )}
 
-        {/* Student Files Modal */}
+        {/* View Student Files Modal */}
         {viewingStudentFiles && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2309,7 +4904,7 @@ console.log(fileUploads, successRate, completionRate);
           </motion.div>
         )}
 
-        {/* Grading Modal */}
+        {/* Edit Student Grade Modal */}
         {editingStudent && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2443,8 +5038,7 @@ console.log(fileUploads, successRate, completionRate);
           </motion.div>
         )}
 
-        {/* Assignment Form Modal - остава същия като преди */}
-                {/* Assignment Form Modal */}
+        {/* Assignment Form Modal */}
         {showAssignmentForm && (userData?.role === 'teacher' || userData?.role === 'admin') && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2495,7 +5089,6 @@ console.log(fileUploads, successRate, completionRate);
                 )}
 
                 <div className="space-y-6">
-                  {/* Основна информация */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">
@@ -2539,19 +5132,19 @@ console.log(fileUploads, successRate, completionRate);
                         <BookOpen className="w-4 h-4 inline mr-2" /> {t?.('subject') || "Subject"} *
                       </label>
                       <select
-  value={assignmentForm.subject}
-  onChange={(e) => setAssignmentForm({...assignmentForm, subject: e.target.value})}
-  className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-    theme === 'dark' 
-      ? 'bg-gray-800 border-gray-700 text-gray-100' 
-      : 'bg-white border-gray-300 text-gray-900'
-  } border`}
->
-  <option value="biology">{t?.('biology') || "Biology"}</option>
-  <option value="chemistry">{t?.('chemistry') || "Chemistry"}</option>
-  <option value="physics">{t?.('physics') || "Physics"}</option>
-  <option value="other">{t?.('other') || "Other"}</option>
-</select>
+                        value={assignmentForm.subject}
+                        onChange={(e) => setAssignmentForm({...assignmentForm, subject: e.target.value})}
+                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                          theme === 'dark' 
+                            ? 'bg-gray-800 border-gray-700 text-gray-100' 
+                            : 'bg-white border-gray-300 text-gray-900'
+                        } border`}
+                      >
+                        <option value="biology">{t?.('biology') || "Biology"}</option>
+                        <option value="chemistry">{t?.('chemistry') || "Chemistry"}</option>
+                        <option value="physics">{t?.('physics') || "Physics"}</option>
+                        <option value="other">{t?.('other') || "Other"}</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
@@ -2571,7 +5164,6 @@ console.log(fileUploads, successRate, completionRate);
                     </div>
                   </div>
 
-                  {/* Цел и описание */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       <Target className="w-4 h-4 inline mr-2" /> {t?.('objective') || "Objective"} *
@@ -2608,7 +5200,6 @@ console.log(fileUploads, successRate, completionRate);
                     />
                   </div>
 
-                  {/* Инструкции */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <label className="block text-sm font-medium">
@@ -2661,7 +5252,6 @@ console.log(fileUploads, successRate, completionRate);
                     </div>
                   </div>
 
-                  {/* Фонова снимка */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       <ImageIcon className="w-4 h-4 inline mr-2" /> {t?.('background_image') || "Background Image"}
@@ -2687,29 +5277,27 @@ console.log(fileUploads, successRate, completionRate);
                     </div>
                   </div>
 
-                  {/* Категория */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       <Tag className="w-4 h-4 inline mr-2" /> {t?.('category') || "Category"}
                     </label>
                     <select
-  value={assignmentForm.category}
-  onChange={(e) => setAssignmentForm({...assignmentForm, category: e.target.value})}
-  className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-    theme === 'dark' 
-      ? 'bg-gray-800 border-gray-700 text-gray-100' 
-      : 'bg-white border-gray-300 text-gray-900'
-  } border`}
->
-  {categories.map((category) => (
-    <option key={category} value={category} className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}>
-      {category}
-    </option>
-  ))}
-</select>
+                      value={assignmentForm.category}
+                      onChange={(e) => setAssignmentForm({...assignmentForm, category: e.target.value})}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700 text-gray-100' 
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } border`}
+                    >
+                      {categories.map((category) => (
+                        <option key={category} value={category} className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* Минимални изисквания */}
                   <div>
                     <h4 className="font-bold text-lg mb-4">
                       <ListChecks className="w-5 h-5 inline mr-2" /> {t?.('minimum_requirements') || "Minimum Requirements"}
@@ -2786,7 +5374,6 @@ console.log(fileUploads, successRate, completionRate);
                     </div>
                   </div>
 
-                  {/* Трудност */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       <GraduationCap className="w-4 h-4 inline mr-2" /> {t?.('difficulty') || "Difficulty"}
@@ -2834,7 +5421,6 @@ console.log(fileUploads, successRate, completionRate);
                     </div>
                   </div>
 
-                  {/* Точки */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       <Trophy className="w-4 h-4 inline mr-2" /> {t?.('points') || "Points"}
@@ -2853,7 +5439,6 @@ console.log(fileUploads, successRate, completionRate);
                     />
                   </div>
 
-                  {/* Примерен код */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       <FileCode className="w-4 h-4 inline mr-2" /> {t?.('example_code') || "Example Code"} ({t?.('optional') || "optional"})
@@ -2871,7 +5456,6 @@ console.log(fileUploads, successRate, completionRate);
                     />
                   </div>
 
-                  {/* Бутони за действие */}
                   <div className="flex gap-3 pt-4 border-t border-white/10">
                     <button
                       onClick={() => {
@@ -2900,6 +5484,360 @@ console.log(fileUploads, successRate, completionRate);
               </div>
             </motion.div>
           </motion.div>
+        )}
+
+        {/* MODAL FOR VIEWING CHALLENGE SUBMISSIONS */}
+        {viewingChallengeSubmissions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-black/80" onClick={() => setViewingChallengeSubmissions(null)} />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl border overflow-hidden ${
+                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                      <FileCheck className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">
+                        Submissions for: {viewingChallengeSubmissions.title}
+                      </h3>
+                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        {viewingChallengeSubmissions.submissions?.length || 0} submissions
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setViewingChallengeSubmissions(null)}
+                    className={`p-2 rounded-lg ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                  {viewingChallengeSubmissions.submissions && viewingChallengeSubmissions.submissions.length > 0 ? (
+                    viewingChallengeSubmissions.submissions.map((submission, index) => {
+                      const student = allSystemUsers.find(u => u.uid === submission.studentId);
+                      const studentName = submission.studentName || 
+                        student?.fullName || 
+                        student?.username || 
+                        'Unknown Student';
+                      
+                      const status = submission.status || 'joined';
+                      const statusColors = {
+                        'joined': 'bg-blue-500/20 text-blue-500',
+                        'submitted': 'bg-yellow-500/20 text-yellow-500',
+                        'evaluated': 'bg-green-500/20 text-green-500',
+                        'completed': 'bg-purple-500/20 text-purple-500'
+                      };
+                      console.log(statusColors)
+                      return (
+                        <div
+                          key={submission.id || index}
+                          className={`p-4 rounded-xl border ${
+                            theme === 'dark' 
+                              ? 'bg-white/5 border-white/10' 
+                              : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-medium mb-1">
+                                Submission {index + 1}: {studentName}
+                              </h4>
+                              <div className="flex items-center gap-3 text-sm">
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                                  Student ID: {submission.studentId.substring(0, 8)}...
+                                </span>
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                                  Submitted: {(() => {
+                                    try {
+                                      if (submission.submittedAt?.toMillis) {
+                                        return new Date(submission.submittedAt.toMillis()).toLocaleString();
+                                      } else if (typeof submission.submittedAt === 'string') {
+                                        return new Date(submission.submittedAt).toLocaleString();
+                                      }
+                                      return 'No date';
+                                    } catch {
+                                      return 'Invalid date';
+                                    }
+                                  })()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+    {status}
+  </span>
+  {submission.evaluation?.score !== undefined && (
+    <span className="px-3 py-1 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium">
+      {submission.evaluation.score}/{viewingChallengeSubmissions.points}
+    </span>
+  )}
+</div>
+                          </div>
+
+                          {submission.notes && (
+                            <div className={`mb-3 p-3 rounded-lg ${
+                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                            }`}>
+                              <p className="text-sm">{submission.notes}</p>
+                            </div>
+                          )}
+
+                          {submission.solutionCode && (
+                            <div className="mb-3">
+                              <h5 className="font-medium mb-2 text-sm">Solution Code:</h5>
+                              <div className={`p-3 rounded-lg max-h-32 overflow-y-auto font-mono text-xs ${
+                                theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'
+                              }`}>
+                                <pre className="whitespace-pre-wrap break-words">
+                                  {submission.solutionCode.substring(0, 300)}
+                                  {submission.solutionCode.length > 300 ? '...' : ''}
+                                </pre>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const newWindow = window.open('', '_blank');
+                                  if (newWindow) {
+                                    newWindow.document.write(`
+                                      <html>
+                                        <head>
+                                          <title>${studentName}'s Solution</title>
+                                          <style>
+                                            body { 
+                                              font-family: monospace; 
+                                              margin: 20px; 
+                                              background: ${theme === 'dark' ? '#1e1e1e' : '#ffffff'};
+                                              color: ${theme === 'dark' ? '#ffffff' : '#000000'};
+                                              white-space: pre-wrap;
+                                            }
+                                          </style>
+                                        </head>
+                                        <body>${submission.solutionCode}</body>
+                                      </html>
+                                    `);
+                                    newWindow.document.close();
+                                  }
+                                }}
+                                className="mt-2 text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" /> View Full Code
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center gap-3 justify-between">
+  <div className="flex-1">
+    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+      Challenge Status: <span className={`font-medium ${
+        viewingChallengeSubmissions.status === 'accepted' ? 'text-green-500' :
+        viewingChallengeSubmissions.status === 'pending' ? 'text-yellow-500' :
+        viewingChallengeSubmissions.status === 'responded' ? 'text-blue-500' :
+        'text-gray-500'
+      }`}>
+        {viewingChallengeSubmissions.status}
+      </span>
+    </p>
+    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} mt-1`}>
+      Points: {viewingChallengeSubmissions.points}
+    </p>
+  </div>
+  
+  {viewingChallengeSubmissions.status === 'accepted' && (
+    <button
+      onClick={() => {
+        // Това ще отвори форма за отговор на предизвикателството
+        setSelectedChallenge(viewingChallengeSubmissions);
+        setShowResponseForm(true);
+      }}
+      className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium flex items-center gap-2 hover:from-blue-600 hover:to-cyan-600 transition-all"
+    >
+      <MessageCircle className="w-4 h-4" />
+      {t?.('challenge_respond') || "Respond to Challenge"}
+    </button>
+  )}
+
+  {viewingChallengeSubmissions.status === 'pending' && (
+    <div className="flex gap-2">
+      <button
+        onClick={() => handleAcceptChallenge(viewingChallengeSubmissions.id)}
+        className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2 hover:from-green-600 hover:to-emerald-600 transition-all"
+      >
+        <CheckCircle className="w-4 h-4" />
+        {t?.('challenge_accept') || "Accept Challenge"}
+      </button>
+      <button
+        onClick={() => {
+          // Функция за отхвърляне на предизвикателство
+          if (window.confirm(t?.('challenge_reject_confirm') || "Are you sure you want to reject this challenge?")) {
+            handleRejectChallenge(viewingChallengeSubmissions.id);
+          }
+        }}
+        className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium flex items-center gap-2 hover:from-red-600 hover:to-pink-600 transition-all"
+      >
+        <X className="w-4 h-4" />
+        {t?.('challenge_reject') || "Reject Challenge"}
+      </button>
+    </div>
+  )}
+
+  {viewingChallengeSubmissions.status === 'responded' && viewingChallengeSubmissions.response && (
+    <button
+      onClick={() => {
+        // Показване на отговора
+        alert(`Response from ${viewingChallengeSubmissions.response?.responderName}:\n\n${viewingChallengeSubmissions.response?.content}`);
+      }}
+      className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium flex items-center gap-2 hover:from-purple-600 hover:to-pink-600 transition-all"
+    >
+      <Eye className="w-4 h-4" />
+      {t?.('challenge_view_response') || "View Response"}
+    </button>
+  )}
+                      </div>
+                  </div>
+              );
+            })
+          ) : (
+                    <div className="text-center py-12">
+                      <FileCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h4 className="text-lg font-bold mb-2">No Submissions Yet</h4>
+                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        No students have submitted solutions for this challenge yet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Challenge Response Form Modal */}
+        {showResponseForm && selectedChallenge && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-black/80" onClick={() => setShowResponseForm(false)} />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className={`relative w-full max-w-md rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-green-400" />
+                    </div>
+                    <h3 className="text-xl font-bold">
+                      {t?.('challenge_respond') || "Respond to Challenge"}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowResponseForm(false)}
+                    className={`p-2 rounded-lg ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('challenge_response_content') || "Response Content"} *
+                    </label>
+                    <textarea
+                      value={challengeResponseForm.content}
+                      onChange={(e) => setChallengeResponseForm({...challengeResponseForm, content: e.target.value})}
+                      rows={4}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border border-white/10' 
+                          : 'bg-white border border-gray-300'
+                      }`}
+                      placeholder={t?.('challenge_response_placeholder') || "Write your response to the challenge..."}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t?.('challenge_solution_code') || "Solution Code"} ({t?.('optional') || "optional"})
+                    </label>
+                    <textarea
+                      value={challengeResponseForm.solutionCode}
+                      onChange={(e) => setChallengeResponseForm({...challengeResponseForm, solutionCode: e.target.value})}
+                      rows={6}
+                      className={`w-full rounded-xl p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border border-white/10' 
+                          : 'bg-white border border-gray-300'
+                      }`}
+                      placeholder={t?.('challenge_solution_code_placeholder') || "Enter your solution code here (optional)..."}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowResponseForm(false);
+                      setChallengeResponseForm({ content: "", solutionCode: "" });
+                    }}
+                    className={`flex-1 py-3 rounded-lg ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                  >
+                    {t?.('cancel') || "Cancel"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedChallenge) {
+                        handleChallengeResponse(
+                          selectedChallenge.id,
+                          challengeResponseForm.content,
+                          challengeResponseForm.solutionCode
+                        );
+                      }
+                    }}
+                    disabled={!challengeResponseForm.content.trim()}
+                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50"
+                  >
+                    <Send className="w-5 h-5 inline mr-2" />
+                    {t?.('challenge_send_response') || "Send Response"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Message Thread Modal */}
+        {activeThread && (
+          <MessageThread
+            threadId={activeThread}
+            onClose={() => setActiveThread(null)}
+          />
         )}
       </div>
     </div>
