@@ -901,7 +901,7 @@ export default function MessagesTab() {
       const batch = writeBatch(db);
       let hasOptimistic = false;
       let operations = 0;
-   
+   console.log(hasOptimistic)
       for (const messageId of selectedMessages) {
         if (optimisticMessagesRef.current.has(messageId)) {
           hasOptimistic = true;
