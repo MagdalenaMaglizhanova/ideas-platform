@@ -11,6 +11,79 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  untitled_assignment:string;
+learn_and_practice:string;
+unknown_action:string;
+requested_to_join_community:string;
+not_specified:string;
+submission:string;
+no_lessons_yet:string;
+create_first_lesson:string;
+
+
+mark_all_as_read_confirm:string;
+symbolic_ai_expert_system: string;
+notifications: string;
+delete_notification: string;
+
+  // Общности
+  unnamed_community: string;
+  no_description: string;
+  untitled_challenge: string;
+  challenge_solution: string;
+  challenge: string;
+  joined_the_challenge: string;
+  submitted_challenge_solution: string;
+  
+  // Съобщения
+  delete_message_error: string;
+  delete_all_messages_error: string;
+  delete_read_messages_confirm: string;
+  delete_unread_messages_confirm: string;
+  unread_messages: string;
+  delete_messages_error: string;
+  mark_messages_error: string;
+  no_messages_from_user: string;
+  this_user: string;
+  delete_messages_from_user_confirm: string;
+  messages_from: string;
+  deleted: string;
+  
+  // Задания и файлове
+  unknown_assignment: string;
+  unknown_file: string;
+  introduction_to_prolog: string;
+  excellent_work_prolog: string;
+  expert_systems_design: string;
+  good_work_detailed_rules: string;
+  symbol_ai_expert_system: string;
+  submitted_prolog_code: string;
+  submitted_assignment: string;
+  accepted: string;
+  
+  // Нотификации
+  delete_notification_error: string;
+  delete_all_notifications_error: string;
+  notification: string;
+  work_on_challenges: string;
+
+  
+  // Оценки
+  detailed_view: string;
+  view_grade_details: string;
+
+  
+  // Общи бутони и действия
+  delete_all: string;
+  delete_all_messages_confirm: string;
+  delete_all_notifications_confirm: string;
+  new_messages_will_appear_here: string;
+  new_notifications_will_appear_here: string;
+  today: string;
+  grade_received: string;
+  system: string;
+  no_notifications: string;
+
   good_logic: string;
 improve_comments: string;
 grade_assignment: string;
@@ -1387,7 +1460,7 @@ const translations: Translations = {
     databases: "Databases",
     algorithms: "Algorithms",
     logic_programming: "Logic Programming",
-    about_us:"Abaut us",
+    about_us:"About us",
   prolog_demo:"Prolog Demo",
     // Заглавия и подзаглавия
     learning_topics: "Learning Topics",
@@ -1478,6 +1551,8 @@ const translations: Translations = {
     tab_examples: "Examples",
     tab_tutorials: "Tutorials",
     tab_resources: "Resources",
+    no_lessons_yet: "No lesson yet",
+create_first_lesson: "Create first lesson",
     
     // Основи на Prolog - заглавия
     basics_facts_title: "Facts",
@@ -1814,6 +1889,72 @@ create_feature_1: "Structuring learning materials",
 create_feature_2: "Semantic connections between concepts",
 create_feature_3: "Categorization and tagging",
 start_creating: "Start Creating",
+untitled_assignment: "Untitled Assignment",
+  learn_and_practice: "Learn and practice",
+  unknown_action: "Unknown action",
+  requested_to_join_community: "Requested to join community",
+  not_specified: "Not specified",
+  submission: "Submission",
+  mark_all_as_read_confirm: "Mark all messages as read?",
+  symbolic_ai_expert_system: "Symbolic AI / Expert System",
+  notifications: "Notifications",
+  delete_notification: "Delete notification",
+  
+  // Communities
+  unnamed_community: "Unnamed Community",
+  no_description: "No description",
+  untitled_challenge: "Untitled Challenge",
+  challenge_solution: "Challenge Solution",
+  challenge: "Challenge",
+  joined_the_challenge: "Joined the challenge",
+  submitted_challenge_solution: "Submitted Challenge Solution",
+  
+  // Messages
+  delete_message_error: "Error deleting message",
+  delete_all_messages_error: "Error deleting all messages",
+  delete_read_messages_confirm: "Delete read messages?",
+  delete_unread_messages_confirm: "Delete unread messages?",
+  unread_messages: "unread messages",
+  delete_messages_error: "Error deleting messages",
+  mark_messages_error: "Error marking messages",
+  no_messages_from_user: "No messages from this user",
+  this_user: "this user",
+  delete_messages_from_user_confirm: "Delete all messages from",
+  messages_from: "messages from",
+  deleted: "deleted",
+  
+  // Assignments and files
+  unknown_assignment: "Unknown Assignment",
+  unknown_file: "Unknown file",
+  introduction_to_prolog: "Introduction to Prolog",
+  excellent_work_prolog: "Excellent work! Your understanding of Prolog basics is solid.",
+  expert_systems_design: "Expert Systems Design",
+  good_work_detailed_rules: "Good work, but could use more detailed rules.",
+  symbol_ai_expert_system: "Symbolic AI / Expert System",
+  submitted_prolog_code: "Submitted Prolog code",
+  submitted_assignment: "Submitted assignment",
+  accepted: "accepted",
+  
+  // Notifications
+  delete_notification_error: "Error deleting notification",
+  delete_all_notifications_error: "Error deleting all notifications",
+  notification: "Notification",
+  work_on_challenges: "Work on Challenges",
+  
+  // Grades
+  detailed_view: "Detailed View",
+  view_grade_details: "View Grade Details",
+  
+  // Common buttons and actions
+  delete_all: "Delete All",
+  delete_all_messages_confirm: "Delete all messages?",
+  delete_all_notifications_confirm: "Delete all notifications?",
+  new_messages_will_appear_here: "New messages will appear here",
+  new_notifications_will_appear_here: "New notifications will appear here",
+  today: "Today",
+  grade_received: "Grade Received",
+  system: "System",
+  no_notifications: "No notifications",
 
 use_knowledge_title: "Use Knowledge Bases",
 use_knowledge_desc: "Search and use already created knowledge bases for your educational projects and research.",
@@ -2783,6 +2924,8 @@ total_assignments_count: 'Общо задания',
     tutorial_variables_ex2: "Анонимната променлива _ съвпада с всичко веднъж",
     tutorial_variables_ex3: "Използвайте същата променлива, за да изисквате една и съща стойност",
     tutorial_variables_ex4: "Променливите се инстанцират по време на изпълнение",
+    no_lessons_yet: "Няма добавени уроци",
+create_first_lesson: "Създай първият си урок",
     inbox: "Входящи",
   starred: "Отметнати",
   sent: "Изпратени",
@@ -2952,6 +3095,72 @@ total_assignments_count: 'Общо задания',
     learn_skills: 'Научете умения',
     demo_title_part1: 'Вижте IDEAS',
     demo_title_part2: 'в действие',
+    untitled_assignment: "Задание без заглавие",
+  learn_and_practice: "Учене и практика",
+  unknown_action: "Неизвестно действие",
+  requested_to_join_community: "Заявено присъединяване към общност",
+  not_specified: "Не е указано",
+  submission: "Подаване",
+  mark_all_as_read_confirm: "Маркирай всички съобщения като прочетени?",
+  symbolic_ai_expert_system: "Символен AI / Експертна система",
+  notifications: "Нотификации",
+  delete_notification: "Изтрий нотификация",
+  
+  // Communities
+  unnamed_community: "Общност без име",
+  no_description: "Няма описание",
+  untitled_challenge: "Предизвикателство без заглавие",
+  challenge_solution: "Решение на предизвикателство",
+  challenge: "Предизвикателство",
+  joined_the_challenge: "Присъедини се към предизвикателството",
+  submitted_challenge_solution: "Изпратено решение на предизвикателство",
+  
+  // Messages
+  delete_message_error: "Грешка при изтриване на съобщението",
+  delete_all_messages_error: "Грешка при изтриване на всички съобщения",
+  delete_read_messages_confirm: "Изтрий прочетените съобщения?",
+  delete_unread_messages_confirm: "Изтрий непрочетените съобщения?",
+  unread_messages: "непрочетени съобщения",
+  delete_messages_error: "Грешка при изтриване на съобщения",
+  mark_messages_error: "Грешка при маркиране на съобщения",
+  no_messages_from_user: "Няма съобщения от този потребител",
+  this_user: "този потребител",
+  delete_messages_from_user_confirm: "Изтрий всички съобщения от",
+  messages_from: "съобщения от",
+  deleted: "изтрити",
+  
+  // Assignments and files
+  unknown_assignment: "Непознато задание",
+  unknown_file: "Непознат файл",
+  introduction_to_prolog: "Въведение в Prolog",
+  excellent_work_prolog: "Отлична работа! Разбирането ви за основите на Prolog е солидно.",
+  expert_systems_design: "Дизайн на експертни системи",
+  good_work_detailed_rules: "Добра работа, но биха помогнали по-детайлни правила.",
+  symbol_ai_expert_system: "Символен AI / Експертна система",
+  submitted_prolog_code: "Изпратен Prolog код",
+  submitted_assignment: "Изпратено задание",
+  accepted: "приети",
+  
+  // Notifications
+  delete_notification_error: "Грешка при изтриване на нотификация",
+  delete_all_notifications_error: "Грешка при изтриване на всички нотификации",
+  notification: "Нотификация",
+  work_on_challenges: "Работа по предизвикателства",
+  
+  // Grades
+  detailed_view: "Детайлен изглед",
+  view_grade_details: "Виж детайли на оценката",
+  
+  // Common buttons and actions
+  delete_all: "Изтрий всички",
+  delete_all_messages_confirm: "Изтрий всички съобщения?",
+  delete_all_notifications_confirm: "Изтрий всички нотификации?",
+  new_messages_will_appear_here: "Новите съобщения ще се появят тук",
+  new_notifications_will_appear_here: "Новите нотификации ще се появят тук",
+  today: "Днес",
+  grade_received: "Получена оценка",
+  system: "Система",
+  no_notifications: "Няма нотификации",
     demo_description: 'Изживейте как нашата платформа трансформира сложните програмни концепции в ангажиращи, интерактивни учебни преживявания, които учениците обичат.',
     demo_feature1_title: 'Визуален интерфейс за програмиране',
     demo_feature1_description: 'Плъзгане и пускане на логически блокове за интуитивно учене',
@@ -3834,6 +4043,8 @@ loading_assignments: 'Cargando tareas...',
   message_type: "Tipo de mensaje",
   personal: "Personal",
   sending_to: "Enviando a",
+  no_lessons_yet: "Aún no hay lección",
+create_first_lesson: "Crear la primera lección",
   message_to_community_desc: "Este mensaje será enviado a todos",
   users_on_platform: "usuarios en la plataforma",
   username_or_email: "Nombre de usuario o correo",
@@ -4631,6 +4842,72 @@ success: "Éxito",
     uncategorized: 'Sin categorizar',
     completed_assignments: 'Tareas Completadas',
     in_progress_assignments: 'Tareas en Progreso',
+    untitled_assignment: "Tarea sin título",
+  learn_and_practice: "Aprender y practicar",
+  unknown_action: "Acción desconocida",
+  requested_to_join_community: "Solicitado unirse a la comunidad",
+  not_specified: "No especificado",
+  submission: "Envío",
+  mark_all_as_read_confirm: "¿Marcar todos los mensajes como leídos?",
+  symbolic_ai_expert_system: "IA Simbólica / Sistema Experto",
+  notifications: "Notificaciones",
+  delete_notification: "Eliminar notificación",
+  
+  // Communities
+  unnamed_community: "Comunidad sin nombre",
+  no_description: "Sin descripción",
+  untitled_challenge: "Desafío sin título",
+  challenge_solution: "Solución de desafío",
+  challenge: "Desafío",
+  joined_the_challenge: "Se unió al desafío",
+  submitted_challenge_solution: "Solución de desafío enviada",
+  
+  // Messages
+  delete_message_error: "Error al eliminar el mensaje",
+  delete_all_messages_error: "Error al eliminar todos los mensajes",
+  delete_read_messages_confirm: "¿Eliminar mensajes leídos?",
+  delete_unread_messages_confirm: "¿Eliminar mensajes no leídos?",
+  unread_messages: "mensajes no leídos",
+  delete_messages_error: "Error al eliminar mensajes",
+  mark_messages_error: "Error al marcar mensajes",
+  no_messages_from_user: "No hay mensajes de este usuario",
+  this_user: "este usuario",
+  delete_messages_from_user_confirm: "Eliminar todos los mensajes de",
+  messages_from: "mensajes de",
+  deleted: "eliminados",
+  
+  // Assignments and files
+  unknown_assignment: "Tarea desconocida",
+  unknown_file: "Archivo desconocido",
+  introduction_to_prolog: "Introducción a Prolog",
+  excellent_work_prolog: "¡Excelente trabajo! Tu comprensión de los conceptos básicos de Prolog es sólida.",
+  expert_systems_design: "Diseño de Sistemas Expertos",
+  good_work_detailed_rules: "Buen trabajo, pero podrías usar reglas más detalladas.",
+  symbol_ai_expert_system: "IA Simbólica / Sistema Experto",
+  submitted_prolog_code: "Código Prolog enviado",
+  submitted_assignment: "Tarea enviada",
+  accepted: "aceptados",
+  
+  // Notifications
+  delete_notification_error: "Error al eliminar la notificación",
+  delete_all_notifications_error: "Error al eliminar todas las notificaciones",
+  notification: "Notificación",
+  work_on_challenges: "Trabajar en Desafíos",
+  
+  // Grades
+  detailed_view: "Vista Detallada",
+  view_grade_details: "Ver Detalles de la Calificación",
+  
+  // Common buttons and actions
+  delete_all: "Eliminar Todo",
+  delete_all_messages_confirm: "¿Eliminar todos los mensajes?",
+  delete_all_notifications_confirm: "¿Eliminar todas las notificaciones?",
+  new_messages_will_appear_here: "Los nuevos mensajes aparecerán aquí",
+  new_notifications_will_appear_here: "Las nuevas notificaciones aparecerán aquí",
+  today: "Hoy",
+  grade_received: "Calificación Recibida",
+  system: "Sistema",
+  no_notifications: "No hay notificaciones",
     
     // Статуси за потребители
     warning: 'Advertencia',

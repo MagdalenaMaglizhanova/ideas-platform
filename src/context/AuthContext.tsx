@@ -19,7 +19,7 @@ type UserData = {
   points?: number;
   level?: number;
   teacherCode?: string;
-  // ... други полета
+  avatar?: string;
 } | null;
 
 type AuthContextType = { 

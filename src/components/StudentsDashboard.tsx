@@ -25,10 +25,10 @@ import {
   Cpu,
   Download as DownloadIcon,
   MessageCircle,
-  Send,
   Group as GroupIcon,
   UserPlus,
-  Hash
+  Hash,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -49,11 +49,11 @@ import {
   setDoc,
   updateDoc,
   arrayUnion,
-  writeBatch
+  writeBatch,
+  deleteDoc 
 } from "firebase/firestore";
 import StudentMessages from "./StudentMessages";
 
-// Интерфейси за общности, предизвикателства и съобщения
 interface Community {
   id: string;
   name: string;
@@ -78,6 +78,18 @@ interface Community {
   };
 }
 
+interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'grade' | 'assignment' | 'challenge' | 'system' | 'message'; // Добавете 'message'
+  timestamp: any;
+  read: boolean;
+  link?: string;
+  details?: any;
+}
+
 interface ChallengeSubmission {
   studentId: string;
   studentName?: string;
@@ -85,14 +97,8 @@ interface ChallengeSubmission {
   files?: string[];
   notes?: string;
   score?: number;
-  status?: 'joined' | 'submitted' | 'evaluated' | 'completed';
+  status?: 'joined' | 'submitted' | 'completed';
   solutionCode?: string;
-  evaluation?: {
-    score?: number;
-    feedback?: string;
-    evaluatedAt?: any;
-    evaluatedBy?: string;
-  };
 }
 
 interface Challenge {
@@ -124,7 +130,6 @@ interface Message {
   type: 'direct' | 'community' | 'broadcast';
 }
 
-// Courses data
 const courses = [
   { id: 1, title: "Prolog Basics", description: "Introduction to Prolog programming", progress: 70, color: "#FF6B8B", icon: "💻" },
   { id: 2, title: "Expert Systems", description: "Build intelligent systems", progress: 45, color: "#36D1DC", icon: "🧠" },
@@ -134,7 +139,6 @@ const courses = [
   { id: 6, title: "Problem Solving", description: "Solve real-world problems", progress: 25, color: "#FF9E6D", icon: "🎯" },
 ];
 
-// Prolog Templates
 const prologTemplates = [
   {
     id: "insects",
@@ -197,7 +201,7 @@ interface Assignment {
   requirements: {
     minFacts: number;
     minRules: number;
-    minCombinedRules: number;
+    combinedRules: number;
     minMenuItems: number;
   };
   instructions: string[];
@@ -223,7 +227,7 @@ interface Assignment {
       combinedRules: number;
       menuItems: number;
     };
-    evaluation?: {
+    grade?: {
       score?: number;
       feedback?: string;
       gradedAt?: any;
@@ -251,10 +255,11 @@ interface Submission {
   code?: string;
   assignmentId?: string;
   assignmentTitle?: string;
-  evaluation?: {
+  grade?: {
     score?: number;
     feedback?: string;
     gradedAt?: any;
+    gradedBy?: string;
   };
 }
 
@@ -276,32 +281,37 @@ export default function StudentsDashboard(): JSX.Element {
   const [selectedTab, setSelectedTab] = useState("dashboard");
   const [code, setCode] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
-  const [_showTemplates, setShowTemplates] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<string>("");
   const [selectedChallengeId, setSelectedChallengeId] = useState<string>("");
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  // В началото на компонента, след другите state променливи
-const [showGradesModal, setShowGradesModal] = useState(false);
-const [studentGrades, setStudentGrades] = useState<any[]>([]);
-const [loadingGrades, setLoadingGrades] = useState(false);
+  const [showGradesModal, setShowGradesModal] = useState(false);
+  const [studentGrades, setStudentGrades] = useState<any[]>([]);
+  const [loadingGrades, setLoadingGrades] = useState(false);
+  const isAssignmentsLoading = useRef(false);
+  const hasLoadedAssignments = useRef(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showMessages, setShowMessages] = useState(false);
   
   const [communities, setCommunities] = useState<Community[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeCommunity, setActiveCommunity] = useState<Community | null>(null);
-  const [showMessaging, setShowMessaging] = useState(false);
-  const [selectedMessageUser, setSelectedMessageUser] = useState<any>(null);
-  const [newMessage, setNewMessage] = useState("");
+  const [_showMessaging, setShowMessaging] = useState(false);
+  const [_selectedMessageUser, setSelectedMessageUser] = useState<any>(null);
   const [communityInviteCode, setCommunityInviteCode] = useState("");
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
   const [loadingData, setLoadingData] = useState({
     communities: true,
     challenges: true,
     assignments: true,
-    users: true
+    users: true,
+    notifications: true,
+    grades: true
   });
   
   const [codeMetadata, setCodeMetadata] = useState({
@@ -313,7 +323,7 @@ const [loadingGrades, setLoadingGrades] = useState(false);
     assignmentTitle: ""
   });
 
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissions, _setSubmissions] = useState<Submission[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activeRecommendation, setActiveRecommendation] = useState<number | null>(null);
 
@@ -381,10 +391,177 @@ const [loadingGrades, setLoadingGrades] = useState(false);
     }
   ];
 
-  // Зареждане на всички потребители
+  const handleDeleteNotification = async (notificationId: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteDoc(doc(db, 'messages', notificationId));
+      
+      const deletedNotification = notifications.find(n => n.id === notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      
+      if (deletedNotification && !deletedNotification.read) {
+        setUnreadNotifications(prev => Math.max(0, prev - 1));
+      }
+      
+      console.log("Notification deleted:", notificationId);
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      alert(t?.('delete_notification_error') || 'Грешка при изтриване на нотификацията!');
+    }
+  };
+
+  const handleDeleteAllNotifications = async () => {
+    if (!user || notifications.length === 0) return;
+    
+    try {
+      const batch = writeBatch(db);
+      
+      notifications.forEach(notification => {
+        const notificationRef = doc(db, 'messages', notification.id);
+        batch.delete(notificationRef);
+      });
+      
+      await batch.commit();
+      
+      setNotifications([]);
+      setUnreadNotifications(0);
+      
+      console.log("All notifications deleted");
+    } catch (error) {
+      console.error("Error deleting all notifications:", error);
+      alert(t?.('delete_all_notifications_error') || 'Грешка при изтриване на нотификациите!');
+    }
+  };
+
+  const loadNotifications = async () => {
+    if (!user) return;
+    
+    try {
+      setLoadingData(prev => ({ ...prev, notifications: true }));
+      
+      let q;
+      try {
+        q = query(
+          collection(db, 'users', user.uid, 'notifications'),
+          orderBy('timestamp', 'desc'),
+          limit(20)
+        );
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const notificationsData: Notification[] = [];
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            notificationsData.push({
+              id: doc.id,
+              userId: user.uid,
+              title: data.title || t?.('notification') || "Notification",
+              message: data.message || "",
+              type: data.type || 'system',
+              timestamp: data.timestamp,
+              read: data.read || false,
+              link: data.link,
+              details: data.details
+            });
+          });
+          
+          setNotifications(notificationsData);
+          setUnreadNotifications(notificationsData.filter(n => !n.read).length);
+          setLoadingData(prev => ({ ...prev, notifications: false }));
+        });
+        
+        return unsubscribe;
+      } catch (error) {
+        console.log("Trying main notifications collection...");
+        q = query(
+          collection(db, 'notifications'),
+          where('userId', '==', user.uid),
+          orderBy('timestamp', 'desc'),
+          limit(20)
+        );
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const notificationsData: Notification[] = [];
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            notificationsData.push({
+              id: doc.id,
+              userId: data.userId || user.uid,
+              title: data.title || t?.('notification') || "Notification",
+              message: data.message || "",
+              type: data.type || 'system',
+              timestamp: data.timestamp,
+              read: data.read || false,
+              link: data.link,
+              details: data.details
+            });
+          });
+          
+          setNotifications(notificationsData);
+          setUnreadNotifications(notificationsData.filter(n => !n.read).length);
+          setLoadingData(prev => ({ ...prev, notifications: false }));
+        });
+        
+        return unsubscribe;
+      }
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+      setLoadingData(prev => ({ ...prev, notifications: false }));
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    if (!user || unreadNotifications === 0) return;
+    
+    try {
+      const batch = writeBatch(db);
+      const unreadNotificationsList = notifications.filter(n => !n.read);
+      
+      for (const notification of unreadNotificationsList) {
+        const notificationRef = doc(db, 'messages', notification.id);
+        batch.update(notificationRef, { read: true });
+      }
+      
+      await batch.commit();
+      
+      await loadNotificationsFromMessages();
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read && user) {
+      try {
+        const notificationRef = doc(db, 'messages', notification.id);
+        await updateDoc(notificationRef, { read: true });
+        
+        setUnreadNotifications(prev => prev - 1);
+        
+        await loadNotificationsFromMessages();
+      } catch (error) {
+        console.error("Error marking notification as read:", error);
+      }
+    }
+    
+    if (notification.link) {
+      window.location.href = notification.link;
+    } else if (notification.type === 'grade') {
+      setShowGradesModal(true);
+      await loadStudentGrades();
+    } else if (notification.type === 'assignment') {
+      setSelectedTab("assignments");
+    } else if (notification.type === 'challenge') {
+      setSelectedTab("challenges");
+    }
+    
+    setShowNotifications(false);
+  };
+
   const loadAllUsers = async () => {
     try {
-      console.log("Loading all users...");
       const usersQuery = query(collection(db, "users"));
       const usersSnapshot = await getDocs(usersQuery);
       
@@ -404,15 +581,12 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       
       setAllUsers(usersData);
       setLoadingData(prev => ({ ...prev, users: false }));
-      console.log("Loaded all users:", usersData.length);
-      
     } catch (error) {
       console.error("Error loading all users:", error);
       setLoadingData(prev => ({ ...prev, users: false }));
     }
   };
 
-  // Зареждане на общностите
   const loadCommunities = async () => {
     if (!user) {
       setLoadingData(prev => ({ ...prev, communities: false }));
@@ -420,7 +594,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
     }
     
     try {
-      console.log("Loading communities for user:", user.uid);
       const q = query(
         collection(db, "communities"),
         where("studentIds", "array-contains", user.uid)
@@ -433,10 +606,10 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         const data = doc.data();
         communitiesData.push({
           id: doc.id,
-          name: data.name || "Unnamed Community",
-          description: data.description || "No description",
+          name: data.name || t?.('unnamed_community') || "Unnamed Community",
+          description: data.description || t?.('no_description') || "No description",
           teacherId: data.teacherId || "",
-          institution: data.institution || "Unknown",
+          institution: data.institution || t?.('unknown') || "Unknown",
           gradeLevel: data.gradeLevel,
           subject: data.subject,
           memberCount: data.memberCount || data.studentIds?.length || 0,
@@ -458,7 +631,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       
       setCommunities(communitiesData);
       
-      // Обновяване на статистиката
       setStats(prev => ({
         ...prev,
         communityMembers: communitiesData.reduce((sum, c) => sum + c.memberCount, 0)
@@ -469,15 +641,12 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       }
       
       setLoadingData(prev => ({ ...prev, communities: false }));
-      console.log("Loaded communities:", communitiesData.length);
-      
     } catch (error) {
       console.error("Error loading communities:", error);
       setLoadingData(prev => ({ ...prev, communities: false }));
     }
   };
 
-  // Зареждане на предизвикателствата
   const loadChallenges = async () => {
     if (!user || communities.length === 0) {
       setLoadingData(prev => ({ ...prev, challenges: false }));
@@ -485,9 +654,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
     }
     
     try {
-      console.log("Loading challenges for communities:", communities.map(c => c.id));
-      
-      // Събираме всички community IDs
       const userCommunityIds = communities.map(c => c.id);
       
       if (userCommunityIds.length === 0) {
@@ -496,7 +662,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         return;
       }
       
-      // Правим заявка за всички предизвикателства към общностите на потребителя
       const q = query(
         collection(db, "challenges"),
         where("targetCommunityId", "in", userCommunityIds),
@@ -510,14 +675,14 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         const data = doc.data();
         challengesData.push({
           id: doc.id,
-          title: data.title || "Untitled Challenge",
-          description: data.description || "No description",
+          title: data.title || t?.('untitled_challenge') || "Untitled Challenge",
+          description: data.description || t?.('no_description') || "No description",
           creatorCommunityId: data.creatorCommunityId,
           targetCommunityId: data.targetCommunityId,
-          createdBy: data.createdBy || "Unknown",
+          createdBy: data.createdBy || t?.('unknown') || "Unknown",
           status: data.status || 'pending',
           dueDate: data.dueDate,
-          category: data.category || "General",
+          category: data.category || t?.('general') || "General",
           difficulty: data.difficulty || 'medium',
           points: data.points || 50,
           submissions: data.submissions || [],
@@ -527,7 +692,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       
       setChallenges(challengesData);
       
-      // Обновяваме статистиката
       const activeChallengesCount = challengesData.filter(c => 
         c.status === 'accepted' || c.status === 'pending'
       ).length;
@@ -538,39 +702,12 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       }));
       
       setLoadingData(prev => ({ ...prev, challenges: false }));
-      console.log("Loaded challenges:", challengesData.length);
-      
     } catch (error) {
       console.error("Error loading challenges:", error);
       setLoadingData(prev => ({ ...prev, challenges: false }));
-      
-      // Fallback data за тестване
-      if (communities.length > 0) {
-        const fallbackChallenges: Challenge[] = [
-          {
-            id: "challenge-1",
-            title: "Sample Prolog Challenge",
-            description: "Create an expert system for animal classification",
-            creatorCommunityId: communities[0].id,
-            targetCommunityId: communities[0].id,
-            createdBy: communities[0].teacherId,
-            status: 'accepted',
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            category: "AI",
-            difficulty: 'medium',
-            points: 100,
-            submissions: [],
-            createdAt: new Date()
-          }
-        ];
-        
-        setChallenges(fallbackChallenges);
-        setStats(prev => ({ ...prev, activeChallenges: 1 }));
-      }
     }
   };
 
-  // Зареждане на съобщенията
   const loadMessages = async () => {
     if (!user) return;
     
@@ -578,6 +715,7 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       const q = query(
         collection(db, "messages"),
         where("receiverId", "==", user.uid),
+        where("type", "==", "direct"),
         orderBy("timestamp", "desc"),
         limit(20)
       );
@@ -587,42 +725,163 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       
       snapshot.forEach((doc) => {
         const data = doc.data();
-        messagesData.push({
-          id: doc.id,
-          senderId: data.senderId,
-          senderName: data.senderName,
-          receiverId: data.receiverId,
-          receiverName: data.receiverName,
-          content: data.content,
-          timestamp: data.timestamp,
-          read: data.read || false,
-          type: data.type || 'direct'
-        });
+        if (data.type === 'direct' || data.type === 'community') {
+          messagesData.push({
+            id: doc.id,
+            senderId: data.senderId,
+            senderName: data.senderName,
+            receiverId: data.receiverId,
+            receiverName: data.receiverName,
+            content: data.content,
+            timestamp: data.timestamp,
+            read: data.read || false,
+            type: data.type || 'direct'
+          });
+        }
       });
       
       setMessages(messagesData);
-      
     } catch (error) {
       console.error("Error loading messages:", error);
     }
   };
 
-  // Зареждане на задачите/заданията
+  const loadNotificationsFromMessages = async () => {
+    if (!user) return;
+    
+    try {
+      const q = query(
+        collection(db, "messages"),
+        where("receiverId", "==", user.uid),
+        where("type", "in", ["grade_notification", "system", "grade", "assignment", "challenge"]),
+        orderBy("timestamp", "desc"),
+        limit(20)
+      );
+      
+      const snapshot = await getDocs(q);
+      const notificationsData: Notification[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        let notificationType = data.type;
+        if (notificationType === 'grade_notification') {
+          notificationType = 'grade';
+        }
+        
+        notificationsData.push({
+          id: doc.id,
+          userId: data.receiverId || user.uid,
+          title: data.title || 
+                (data.type === 'grade_notification' ? t?.('grade_received') || "Grade Received" : t?.('system') || "System"),
+          message: data.content || "",
+          type: notificationType,
+          timestamp: data.timestamp,
+          read: data.read || false,
+          link: data.link,
+          details: data.details || {
+            gradeId: data.gradeId,
+            assignmentTitle: data.assignmentTitle,
+            points: data.content?.match(/\d+\/10/)?.[0] || ""
+          }
+        });
+      });
+      
+      setNotifications(notificationsData);
+      setUnreadNotifications(notificationsData.filter(n => !n.read).length);
+    } catch (error) {
+      console.error("Error loading notifications from messages:", error);
+    }
+  };
+
+useEffect(() => {
+  if (!user) return;
+  
+  // Първо, зареждане на нотификации - работи ✅
+  const notificationsQ = query(
+    collection(db, "messages"),
+    where("receiverId", "==", user.uid),
+    where("type", "in", ["grade_notification", "direct", "system", "assignment", "challenge"]),
+    orderBy("timestamp", "desc"),
+    limit(50)
+  );
+  
+  const unsubscribeNotifications = onSnapshot(notificationsQ, 
+    (snapshot) => {
+      console.log("✅ Notifications loaded:", snapshot.size);
+      // Обработка на нотификациите
+    },
+    (error) => {
+      console.error("❌ Error loading notifications:", error);
+      // Грешка само за нотификации
+    }
+  );
+  
+  // ВТОРО: Зареждане на редовни съобщения (директни съобщения)
+  // Използвайте по-проста заявка без type филтър
+  const messagesQ = query(
+    collection(db, "messages"),
+    where("receiverId", "==", user.uid),
+    where("type", "==", "direct"), // Само директни съобщения
+    orderBy("timestamp", "desc"),
+    limit(20)
+  );
+  
+  const unsubscribeMessages = onSnapshot(messagesQ, 
+    (snapshot) => {
+      console.log("✅ Direct messages loaded:", snapshot.size);
+      // Обработка на съобщенията
+    },
+    (error) => {
+      console.error("❌ Error loading direct messages:", error.code, error.message);
+      
+      // Ако има грешка за индекс, опитайте без orderBy
+      if (error.code === 'failed-precondition') {
+        console.log("🔄 Trying without orderBy...");
+        
+        const simpleMessagesQ = query(
+          collection(db, "messages"),
+          where("receiverId", "==", user.uid),
+          where("type", "==", "direct"),
+          limit(20)
+        );
+        
+        onSnapshot(simpleMessagesQ, 
+          (simpleSnapshot) => {
+            console.log("✅ Simple messages query successful:", simpleSnapshot.size);
+          },
+          (simpleError) => {
+            console.error("❌ Simple query also failed:", simpleError);
+          }
+        );
+      }
+    }
+  );
+  
+  return () => {
+    unsubscribeNotifications();
+    unsubscribeMessages();
+  };
+}, [user]);
   const loadAssignments = async () => {
-    if (!user) {
+    if (!user || isAssignmentsLoading.current) {
       setLoadingData(prev => ({ ...prev, assignments: false }));
       return;
     }
     
+    if (hasLoadedAssignments.current && communities.length === 0) {
+      return;
+    }
+    
+    isAssignmentsLoading.current = true;
     setLoadingAssignments(true);
+    
     try {
-      console.log("Loading assignments...");
+      await loadStudentGrades();
       
-      // Използваме учителите от общностите на потребителя
       const teacherIds = communities.map(c => c.teacherId).filter(Boolean);
       
       if (teacherIds.length === 0) {
-        console.log("No teacher IDs found");
         setAssignments([]);
         setStats(prev => ({
           ...prev,
@@ -630,13 +889,15 @@ const [loadingGrades, setLoadingGrades] = useState(false);
           completedAssignments: 0,
           pendingAssignments: 0
         }));
+        setLoadingData(prev => ({ ...prev, assignments: false }));
+        hasLoadedAssignments.current = true;
         return;
       }
       
-      // Зареждаме задачи от всички учители
+      const uniqueTeacherIds = [...new Set(teacherIds)];
       const assignmentsData: Assignment[] = [];
       
-      for (const teacherId of teacherIds) {
+      for (const teacherId of uniqueTeacherIds) {
         try {
           const assignmentsQuery = query(
             collection(db, "assignments"),
@@ -648,23 +909,26 @@ const [loadingGrades, setLoadingGrades] = useState(false);
           const snapshot = await getDocs(assignmentsQuery);
           
           snapshot.forEach((doc) => {
+            const exists = assignmentsData.some(a => a.id === doc.id);
+            if (exists) return;
+            
             const data = doc.data();
             assignmentsData.push({
               id: doc.id,
-              title: data.title || "Untitled Assignment",
-              description: data.description || "No description",
-              objective: data.objective || "Learn and practice",
-              topic: data.topic || "General",
+              title: data.title || t?.('untitled_assignment') || "Untitled Assignment",
+              description: data.description || t?.('no_description') || "No description",
+              objective: data.objective || t?.('learn_and_practice') || "Learn and practice",
+              topic: data.topic || t?.('general') || "General",
               subject: data.subject || "Prolog",
               requirements: data.requirements || {
                 minFacts: 10,
                 minRules: 5,
-                minCombinedRules: 2,
+                combinedRules: 2,
                 minMenuItems: 3
               },
               instructions: data.instructions || [],
               teacherId: data.teacherId,
-              teacherName: data.teacherName || "Teacher",
+              teacherName: data.teacherName || t?.('teacher') || "Teacher",
               createdAt: data.createdAt,
               dueDate: data.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
               status: data.status || 'active',
@@ -689,65 +953,148 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         }
       }
       
-      // Проверяваме за вече завършени задачи
-      for (const assignment of assignmentsData) {
-        const studentSubmission = submissions.find(sub => sub.assignmentId === assignment.id);
-        if (studentSubmission) {
-          let evaluation = undefined;
+      const updatedAssignments = assignmentsData.map(assignment => {
+        let gradeForAssignment = studentGrades.find(
+          grade => grade.assignmentId === assignment.id
+        );
+        
+        if (!gradeForAssignment) {
+          const assignmentSubmissions = submissions.filter(
+            sub => sub.assignmentId === assignment.id
+          );
           
-          if (studentSubmission.evaluation) {
-            evaluation = {
-              score: studentSubmission.evaluation.score,
-              feedback: studentSubmission.evaluation.feedback,
-              gradedAt: studentSubmission.evaluation.gradedAt,
-              gradedBy: "Teacher"
-            };
+          for (const submission of assignmentSubmissions) {
+            gradeForAssignment = studentGrades.find(
+              grade => grade.fileId === submission.id
+            );
+            if (gradeForAssignment) break;
           }
-          
-          assignment.studentProgress = {
-            completed: true,
-            submissionId: studentSubmission.id,
-            submittedAt: new Date(),
-            code: studentSubmission.code,
-            requirementsMet: {
-              facts: Math.floor(Math.random() * 10) + 15,
-              rules: Math.floor(Math.random() * 3) + 4,
-              combinedRules: Math.floor(Math.random() * 2) + 1,
-              menuItems: Math.floor(Math.random() * 3) + 5
-            },
-            evaluation: evaluation
+        }
+        
+        if (!gradeForAssignment) {
+          gradeForAssignment = studentGrades.find(grade => 
+            grade.assignmentTitle?.includes(assignment.title) ||
+            grade.fileName?.includes(assignment.title)
+          );
+        }
+        
+        if (gradeForAssignment) {
+          return {
+            ...assignment,
+            studentProgress: {
+              completed: true,
+              submissionId: gradeForAssignment.fileId || `grade_${gradeForAssignment.id}`,
+              submittedAt: gradeForAssignment.gradedAt || new Date(),
+              code: "",
+              requirementsMet: {
+                facts: Math.floor(Math.random() * 10) + 15,
+                rules: Math.floor(Math.random() * 3) + 4,
+                combinedRules: Math.floor(Math.random() * 2) + 1,
+                menuItems: Math.floor(Math.random() * 3) + 5
+              },
+              grade: {
+                score: gradeForAssignment.points * 10,
+                feedback: gradeForAssignment.feedback || "",
+                gradedAt: gradeForAssignment.gradedAt,
+                gradedBy: gradeForAssignment.gradedBy || t?.('teacher') || "Teacher"
+              }
+            }
           };
         }
-      }
+        
+        const studentSubmission = submissions.find(sub => sub.assignmentId === assignment.id);
+        if (studentSubmission?.grade) {
+          return {
+            ...assignment,
+            studentProgress: {
+              completed: true,
+              submissionId: studentSubmission.id,
+              submittedAt: new Date(studentSubmission.date),
+              code: studentSubmission.code || "",
+              requirementsMet: {
+                facts: Math.floor(Math.random() * 10) + 15,
+                rules: Math.floor(Math.random() * 3) + 4,
+                combinedRules: Math.floor(Math.random() * 2) + 1,
+                menuItems: Math.floor(Math.random() * 3) + 5
+              },
+              grade: {
+                score: studentSubmission.grade.score,
+                feedback: studentSubmission.grade.feedback || "",
+                gradedAt: studentSubmission.grade.gradedAt,
+                gradedBy: studentSubmission.grade.gradedBy || t?.('teacher') || "Teacher"
+              }
+            }
+          };
+        }
+        
+        if (studentSubmission) {
+          return {
+            ...assignment,
+            studentProgress: {
+              completed: true,
+              submissionId: studentSubmission.id,
+              submittedAt: new Date(studentSubmission.date),
+              code: studentSubmission.code || "",
+              requirementsMet: {
+                facts: Math.floor(Math.random() * 10) + 15,
+                rules: Math.floor(Math.random() * 3) + 4,
+                combinedRules: Math.floor(Math.random() * 2) + 1,
+                menuItems: Math.floor(Math.random() * 3) + 5
+              }
+            }
+          };
+        }
+        
+        return assignment;
+      });
       
-      setAssignments(assignmentsData);
+      const uniqueAssignmentsMap = new Map();
+      updatedAssignments.forEach(assignment => {
+        if (!uniqueAssignmentsMap.has(assignment.id)) {
+          uniqueAssignmentsMap.set(assignment.id, assignment);
+        }
+      });
       
-      // Обновяване на статистиката
-      const completedAssignments = assignmentsData.filter(a => a.studentProgress?.completed).length;
-      const totalAssignments = assignmentsData.length;
+      const uniqueAssignments = Array.from(uniqueAssignmentsMap.values());
+      
+      const completedAssignments = uniqueAssignments.filter(a => 
+        a.studentProgress?.completed && a.studentProgress?.grade
+      ).length;
+      
+      const totalAssignments = uniqueAssignments.length;
       const pendingAssignments = totalAssignments - completedAssignments;
+      
+      const gradedAssignments = uniqueAssignments.filter(a => 
+        a.studentProgress?.grade?.score
+      );
+      
+      const avgScore = gradedAssignments.length > 0 
+        ? Math.round(gradedAssignments.reduce((sum, a) => 
+            sum + (a.studentProgress?.grade?.score || 0), 0) / gradedAssignments.length)
+        : 0;
+      
+      setAssignments(uniqueAssignments);
       
       setStats(prev => ({
         ...prev,
         totalAssignments,
         completedAssignments,
         pendingAssignments,
-        averageScore: completedAssignments > 0 ? 
-          Math.round((completedAssignments / totalAssignments) * 100) : 0
+        averageScore: avgScore
       }));
       
       setLoadingData(prev => ({ ...prev, assignments: false }));
-      console.log("Loaded assignments:", assignmentsData.length);
+      hasLoadedAssignments.current = true;
       
     } catch (error) {
       console.error("Error loading assignments:", error);
       setLoadingData(prev => ({ ...prev, assignments: false }));
     } finally {
       setLoadingAssignments(false);
+      isAssignmentsLoading.current = false;
     }
   };
 
-  // Зареждане на активностите
   const loadActivityLogs = async () => {
     try {
       const q = query(
@@ -765,8 +1112,8 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         logs.push({
           id: doc.id,
           studentId: data.userId || user?.uid || "",
-          studentName: data.userName || userData?.fullName || user?.email?.split('@')[0] || "Student",
-          action: data.action || "Unknown action",
+          studentName: data.userName || userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+          action: data.action || t?.('unknown_action') || "Unknown action",
           timestamp: data.timestamp || serverTimestamp(),
           details: data.details || "",
           file: data.target || "",
@@ -775,131 +1122,87 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       });
       
       setActivityLogs(logs);
-      
     } catch (error) {
       console.error("Error loading activity logs:", error);
-      
-      const sampleLogs: ActivityLog[] = [
-        {
-          id: "1",
-          studentId: user?.uid || "",
-          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-          action: "Uploaded Prolog code",
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          details: "Submitted assignment on insects expert system",
-          file: "insects.pl",
-          status: "submitted"
-        },
-        {
-          id: "2",
-          studentId: user?.uid || "",
-          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-          action: "Started new assignment",
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-          details: "Working on animals classification system",
-          file: "animals.pl",
-          status: "started"
-        },
-        {
-          id: "3",
-          studentId: user?.uid || "",
-          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-          action: "Completed course module",
-          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-          details: "Finished Prolog basics course",
-          file: "",
-          status: "completed"
-        }
-      ];
-      
-      setActivityLogs(sampleLogs);
     }
   };
 
-  // Функции за работа с предизвикателства
   const handleJoinChallenge = async (challengeId: string) => {
-  if (!user) {
-    setUploadStatus("❌ " + (t?.('please_login') || "Please login first!"));
-    return;
-  }
-  
-  try {
-    const challenge = challenges.find(c => c.id === challengeId);
-    if (!challenge) {
-      setUploadStatus("❌ " + (t?.('challenge_not_found') || "Challenge not found!"));
+    if (!user) {
+      setUploadStatus("❌ " + (t?.('please_login') || "Please login first!"));
       return;
     }
+    
+    try {
+      const challenge = challenges.find(c => c.id === challengeId);
+      if (!challenge) {
+        setUploadStatus("❌ " + (t?.('challenge_not_found') || "Challenge not found!"));
+        return;
+      }
 
-    // Проверяваме дали вече е присъединен
-    const hasJoined = challenge.submissions?.some(s => s.studentId === user.uid);
-    if (hasJoined) {
-      setUploadStatus("ℹ️ " + (t?.('already_joined_challenge') || "You have already joined this challenge!"));
+      const hasJoined = challenge.submissions?.some(s => s.studentId === user.uid);
+      if (hasJoined) {
+        setUploadStatus("ℹ️ " + (t?.('already_joined_challenge') || "You have already joined this challenge!"));
+        setIsChallengeMode(true);
+        setSelectedChallengeId(challengeId);
+        setSelectedTab("upload");
+        return;
+      }
+
+      const challengeRef = doc(db, 'challenges', challengeId);
+      const currentTime = new Date();
+      
+      const newSubmission: ChallengeSubmission = {
+        studentId: user.uid,
+        studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+        submittedAt: currentTime,
+        status: 'joined',
+        notes: t?.('joined_the_challenge') || "Joined the challenge"
+      };
+
+      await updateDoc(challengeRef, {
+        submissions: arrayUnion(newSubmission)
+      });
+
+      const solutionRef = doc(collection(db, 'challengeSolutions'));
+      
+      await setDoc(solutionRef, {
+        id: solutionRef.id,
+        challengeId: challengeId,
+        studentId: user.uid,
+        studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+        solutionCode: "",
+        submittedAt: serverTimestamp(),
+        status: 'joined',
+        challengeTitle: challenge.title,
+        challengeDescription: challenge.description,
+        createdAt: serverTimestamp()
+      });
+
       setIsChallengeMode(true);
       setSelectedChallengeId(challengeId);
       setSelectedTab("upload");
-      return;
+      
+      const challengeTemplate = generateChallengeTemplate(challenge);
+      setCode(challengeTemplate);
+      
+      setCodeMetadata({
+        domain: challenge.category,
+        type: t?.('challenge_solution') || "Challenge Solution",
+        studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+        dataArea: challenge.category,
+        assignmentId: challengeId,
+        assignmentTitle: `${t?.('challenge') || "Challenge"}: ${challenge.title}`
+      });
+      
+      setUploadStatus("✅ " + (t?.('challenge_joined_success') || "Challenge joined! You can now work on your solution."));
+      await loadChallenges();
+      
+    } catch (error) {
+      console.error("Error joining challenge:", error);
+      setUploadStatus("❌ " + (t?.('challenge_join_error') || "Error joining challenge!"));
     }
-
-    const challengeRef = doc(db, 'challenges', challengeId);
-    const currentTime = new Date(); // Използваме new Date() вместо serverTimestamp()
-    
-    // Добавяме submission към предизвикателството
-    const newSubmission: ChallengeSubmission = {
-      studentId: user.uid,
-      studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-      submittedAt: currentTime, // Тук е new Date()
-      status: 'joined',
-      notes: "Joined the challenge"
-    };
-
-    await updateDoc(challengeRef, {
-      submissions: arrayUnion(newSubmission)
-    });
-
-    // Създаваме отделен запис за решението
-    const solutionRef = doc(collection(db, 'challengeSolutions'));
-    
-    await setDoc(solutionRef, {
-      id: solutionRef.id,
-      challengeId: challengeId,
-      studentId: user.uid,
-      studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-      solutionCode: "",
-      submittedAt: serverTimestamp(), // Тук може да използваме serverTimestamp() защото е в setDoc()
-      status: 'joined',
-      challengeTitle: challenge.title,
-      challengeDescription: challenge.description,
-      createdAt: serverTimestamp()
-    });
-
-    // Задаваме режима на предизвикателство
-    setIsChallengeMode(true);
-    setSelectedChallengeId(challengeId);
-    setSelectedTab("upload");
-    
-    // Генерираме шаблон
-    const challengeTemplate = generateChallengeTemplate(challenge);
-    setCode(challengeTemplate);
-    
-    setCodeMetadata({
-      domain: challenge.category,
-      type: "Challenge Solution",
-      studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
-      dataArea: challenge.category,
-      assignmentId: challengeId,
-      assignmentTitle: `Challenge: ${challenge.title}`
-    });
-    
-    setUploadStatus("✅ " + (t?.('challenge_joined_success') || "Challenge joined! You can now work on your solution."));
-    
-    // Презареждаме предизвикателствата
-    await loadChallenges();
-    
-  } catch (error) {
-    console.error("Error joining challenge:", error);
-    setUploadStatus("❌ " + (t?.('challenge_join_error') || "Error joining challenge!"));
-  }
-};
+  };
 
   const handleJoinCommunity = async (communityId: string) => {
     if (!user) return;
@@ -913,16 +1216,15 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       
       await addDoc(collection(db, "activityLogs"), {
         userId: user.uid,
-        userName: userData?.fullName || user.email?.split('@')[0] || "Student",
-        action: "Requested to join community",
-        details: `Requested to join community`,
+        userName: userData?.fullName || user.email?.split('@')[0] || t?.('student') || "Student",
+        action: t?.('requested_to_join_community') || "Requested to join community",
+        details: t?.('requested_to_join_community') || "Requested to join community",
         actionType: "community",
         timestamp: serverTimestamp()
       });
       
       setUploadStatus("✅ " + (t?.('join_request_sent') || "Join request sent!"));
       loadCommunities();
-      
     } catch (error) {
       console.error("Error joining community:", error);
       setUploadStatus("❌ " + (t?.('join_request_error') || "Error sending join request!"));
@@ -950,56 +1252,13 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       
       await handleJoinCommunity(communityId);
       setCommunityInviteCode("");
-      
     } catch (error) {
       console.error("Error joining with code:", error);
       setUploadStatus("❌ " + (t?.('join_error') || "Error joining community!"));
     }
   };
 
-  const handleSendMessage = async (type: 'direct' | 'community' = 'direct') => {
-    if (!user || !newMessage.trim()) return;
-
-    try {
-      let receiverId = "";
-      let receiverName = "";
-      
-      if (type === 'direct' && selectedMessageUser) {
-        receiverId = selectedMessageUser.uid;
-        receiverName = selectedMessageUser.username;
-      } else if (type === 'community' && activeCommunity) {
-        receiverId = activeCommunity.id;
-        receiverName = activeCommunity.name;
-      }
-      
-      if (!receiverId) return;
-      
-      const messageRef = doc(collection(db, 'messages'));
-      
-      const newMessageData: Message = {
-        id: messageRef.id,
-        senderId: user.uid,
-        senderName: userData?.fullName || user.email?.split('@')[0] || "Student",
-        receiverId: receiverId,
-        receiverName: receiverName,
-        content: newMessage,
-        timestamp: serverTimestamp(),
-        read: false,
-        type: type
-      };
-      
-      await setDoc(messageRef, newMessageData);
-      
-      setNewMessage("");
-      setUploadStatus(`✅ ${t?.('message_sent') || "Message sent successfully!"}`);
-      loadMessages();
-      
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setUploadStatus("❌ " + (t?.('message_error') || "Error sending message!"));
-    }
-  };
-
+  
   const submitChallengeSolution = async () => {
     if (!selectedChallengeId || !user) {
       setUploadStatus("❌ " + (t?.('select_challenge_first') || "Please select a challenge first!"));
@@ -1012,21 +1271,18 @@ const [loadingGrades, setLoadingGrades] = useState(false);
     }
 
     try {
-      // Намираме предизвикателството
       const challenge = challenges.find(c => c.id === selectedChallengeId);
       if (!challenge) {
         setUploadStatus("❌ " + (t?.('challenge_not_found') || "Challenge not found!"));
         return;
       }
 
-      // Проверяваме дали потребителят е присъединен
       const hasJoined = challenge.submissions?.some(s => s.studentId === user.uid);
       if (!hasJoined) {
         setUploadStatus("❌ " + (t?.('challenge_not_joined') || "You must join the challenge first!"));
         return;
       }
 
-      // Търсим съществуващо решение
       const solutionsQuery = query(
         collection(db, "challengeSolutions"),
         where("challengeId", "==", selectedChallengeId),
@@ -1036,14 +1292,13 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       const solutionsSnapshot = await getDocs(solutionsQuery);
       
       if (solutionsSnapshot.empty) {
-        // Създаваме ново решение
         const solutionRef = doc(collection(db, 'challengeSolutions'));
         
         await setDoc(solutionRef, {
           id: solutionRef.id,
           challengeId: selectedChallengeId,
           studentId: user.uid,
-          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+          studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
           solutionCode: code,
           submittedAt: serverTimestamp(),
           status: 'submitted',
@@ -1052,7 +1307,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
           createdAt: serverTimestamp()
         });
       } else {
-        // Обновяваме съществуващо решение
         const solutionDoc = solutionsSnapshot.docs[0];
         await updateDoc(solutionDoc.ref, {
           solutionCode: code,
@@ -1061,7 +1315,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         });
       }
 
-      // Обновяваме submission в предизвикателството
       const challengeRef = doc(db, 'challenges', selectedChallengeId);
       const challengeDoc = await getDoc(challengeRef);
       
@@ -1069,7 +1322,6 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         const challengeData = challengeDoc.data();
         const submissions = challengeData.submissions || [];
         
-        // Намираме submission на потребителя и го обновяваме
         const updatedSubmissions = submissions.map((sub: any) => {
           if (sub.studentId === user.uid) {
             return {
@@ -1087,12 +1339,11 @@ const [loadingGrades, setLoadingGrades] = useState(false);
         });
       }
 
-      // Лог на активността
       await addDoc(collection(db, "activityLogs"), {
         userId: user.uid,
-        userName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-        action: "Submitted Challenge Solution",
-        details: `Challenge: ${challenge.title}`,
+        userName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+        action: t?.('submitted_challenge_solution') || "Submitted Challenge Solution",
+        details: `${t?.('challenge') || "Challenge"}: ${challenge.title}`,
         target: `Challenge_${selectedChallengeId}`,
         actionType: "challenge_submission",
         timestamp: serverTimestamp()
@@ -1101,10 +1352,8 @@ const [loadingGrades, setLoadingGrades] = useState(false);
       setUploadStatus("✅ " + (t?.('challenge_submitted') || "Challenge solution submitted successfully!"));
       setCode("");
       
-      // Презареждаме данните
       await loadChallenges();
       await loadActivityLogs();
-      
     } catch (error) {
       console.error("Error submitting challenge solution:", error);
       setUploadStatus("❌ " + (t?.('challenge_submission_error') || "Error submitting challenge solution!"));
@@ -1118,8 +1367,8 @@ const [loadingGrades, setLoadingGrades] = useState(false);
 %   =====================================           %
 %   Category: ${challenge.category.padEnd(40)}%
 %   Difficulty: ${challenge.difficulty.padEnd(38)}%
-%   Student: ${(userData?.fullName || user?.email?.split('@')[0] || "Student").padEnd(40)}%
-%   Due Date: ${challenge.dueDate || "Not specified".padEnd(37)}%
+%   Student: ${(userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student").padEnd(40)}%
+%   Due Date: ${challenge.dueDate || t?.('not_specified')?.padEnd(37) || "Not specified".padEnd(37)}%
 %   Points: ${challenge.points.toString().padEnd(43)}%
 %   Description: ${challenge.description.substring(0, 30).padEnd(34)}...%
 %                                                  %
@@ -1155,7 +1404,7 @@ Requirements:
       id: "messages", 
       label: t?.('messages') || "Съобщения", 
       icon: <MessageCircle className="w-5 h-5" />,
-      badge: messages.filter(m => !m.read).length
+      badge: messages.filter(m => !m.read && m.type === 'direct' && m.receiverId === user?.uid).length
     },
     { 
       id: "communities", 
@@ -1188,11 +1437,11 @@ Requirements:
       badge: stats.pendingAssignments
     },
     { 
-    id: "grades", 
-    label: t?.('my_grades') || "My Grades", 
-    icon: <Award className="w-5 h-5" />,
-    badge: null
-  },
+      id: "grades", 
+      label: t?.('my_grades') || "My Grades", 
+      icon: <Award className="w-5 h-5" />,
+      badge: null
+    },
     { 
       id: "progress", 
       label: t?.('progress') || "Progress", 
@@ -1212,93 +1461,273 @@ Requirements:
       badge: submissions.length
     },
   ];
-
-  // Зареждане на submissions
+  
   useEffect(() => {
-    if (!user) return;
-
-    const q = query(
-      collection(db, "prologCodes"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsub = onSnapshot(q, async (snapshot) => {
-      const submissionData: Submission[] = [];
-      
-      for (const docSnapshot of snapshot.docs) {
-        const data = docSnapshot.data();
-        const submission: Submission = {
-          id: docSnapshot.id,
-          name: data.title || `Submission ${new Date(data.createdAt?.toMillis()).toLocaleDateString()}`,
-          date: data.createdAt?.toDate ? 
-            new Date(data.createdAt.toDate()).toLocaleString() : 
-            new Date().toLocaleString(),
-          status: data.status ?? "pending",
-          code: data.code,
-          assignmentId: data.assignmentId,
-          assignmentTitle: data.assignmentTitle
-        };
+    if (studentGrades.length > 0 && assignments.length > 0 && !loadingData.assignments) {
+      const updatedAssignments = assignments.map(assignment => {
+        const gradeForAssignment = studentGrades.find(grade => grade.assignmentId === assignment.id);
         
-        if (data.assignmentId) {
-          try {
-            const evaluationDoc = await getDoc(doc(db, "evaluations", `${user.uid}_${data.assignmentId}`));
-            if (evaluationDoc.exists()) {
-              const evalData = evaluationDoc.data();
-              submission.evaluation = {
-                score: evalData.score,
-                feedback: evalData.feedback,
-                gradedAt: evalData.gradedAt?.toDate()
-              };
+        if (gradeForAssignment && (!assignment.studentProgress?.grade || 
+            assignment.studentProgress.grade.score !== gradeForAssignment.points * 10)) {
+          
+          return {
+            ...assignment,
+            studentProgress: {
+              ...assignment.studentProgress,
+              completed: true,
+              grade: {
+                score: gradeForAssignment.points * 10,
+                feedback: gradeForAssignment.feedback,
+                gradedAt: gradeForAssignment.gradedAt,
+                gradedBy: gradeForAssignment.gradedBy
+              }
             }
-          } catch (error) {
-            console.error("Error loading evaluation:", error);
-          }
+          };
         }
         
-        submissionData.push(submission);
-      }
+        return assignment;
+      });
+      
+      setAssignments(updatedAssignments);
+    }
+  }, [studentGrades]);
 
-      setSubmissions(submissionData);
+  useEffect(() => {
+  if (!user) return;
+  
+  const q = query(
+    collection(db, "messages"),
+    where("receiverId", "==", user.uid),
+    where("type", "in", ["grade_notification", "direct", "system"]),
+    orderBy("timestamp", "desc"),
+    limit(50)
+  );
+  
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const notificationsData: Notification[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
       
-      // Обновяване на статистиката
-      const totalSubmissions = submissionData.length;
-      const successfulSubmissions = submissionData.filter(s => s.status === "success").length;
-      const successRate = totalSubmissions > 0 ? Math.round((successfulSubmissions / totalSubmissions) * 100) : 0;
-      
-      setStats(prev => ({
-        ...prev,
-        totalSubmissions,
-        successRate
-      }));
-      
-      console.log("Loaded submissions:", submissionData.length);
+      notificationsData.push({
+        id: doc.id,
+        userId: user.uid,
+        title: data.type === 'grade_notification' 
+          ? t?.('grade_received') || "Grade Received"
+          : data.type === 'direct'
+          ? t?.('new_message') || "New Message"
+          : data.title || t?.('notification') || "Notification",
+        message: data.content || "",
+        type: data.type === 'grade_notification' ? 'grade' : 
+              data.type === 'direct' ? 'message' : 'system',
+        timestamp: data.timestamp,
+        read: data.read || false,
+        details: data.details || {
+          gradeId: data.gradeId,
+          assignmentTitle: data.assignmentTitle,
+          senderName: data.senderName
+        }
+      });
     });
+    
+    setNotifications(notificationsData);
+    setUnreadNotifications(notificationsData.filter(n => !n.read).length);
+  });
+  
+  return () => unsubscribe();
+}, [user, t]);
 
-    return () => unsub();
-  }, [user]);
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteDoc(doc(db, 'messages', messageId));
+      
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      
+      console.log("Message deleted:", messageId);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      alert(t?.('delete_message_error') || 'Грешка при изтриване на съобщението!');
+    }
+  };
 
-  // Инициализиране на данните
+  const handleDeleteAllMessages = async () => {
+    if (!user || messages.length === 0) return;
+    
+    try {
+      const batch = writeBatch(db);
+      const userMessages = messages.filter(m => m.receiverId === user.uid);
+      
+      userMessages.forEach(message => {
+        const messageRef = doc(db, 'messages', message.id);
+        batch.delete(messageRef);
+      });
+      
+      await batch.commit();
+      
+      setMessages([]);
+      
+      console.log("All messages deleted");
+    } catch (error) {
+      console.error("Error deleting all messages:", error);
+      alert(t?.('delete_all_messages_error') || 'Грешка при изтриване на съобщенията!');
+    }
+  };
+
+  
+
+  const markAllMessagesAsRead = async () => {
+    if (!user) return;
+    
+    try {
+      const unreadMessages = messages.filter(m => !m.read && m.receiverId === user.uid);
+      if (unreadMessages.length === 0) {
+        alert(t?.('no_unread_messages') || 'Нямате непрочетени съобщения');
+        return;
+      }
+      
+      const batch = writeBatch(db);
+      unreadMessages.forEach(message => {
+        const messageRef = doc(db, 'messages', message.id);
+        batch.update(messageRef, { read: true });
+      });
+      
+      await batch.commit();
+      
+      setMessages(prev => prev.map(m => 
+        !m.read && m.receiverId === user.uid ? { ...m, read: true } : m
+      ));
+      
+      alert(`${unreadMessages.length} ${t?.('messages_marked_as_read') || "съобщения са маркирани като прочетени"}`);
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      alert('❌ ' + (t?.('mark_messages_error') || "Грешка при маркиране на съобщенията!"));
+    }
+  };
+
+  
+
+  const loadStudentGrades = async () => {
+    if (!user?.uid) {
+      setLoadingGrades(false);
+      setLoadingData(prev => ({ ...prev, grades: false }));
+      return;
+    }
+    
+    setLoadingGrades(true);
+    setLoadingData(prev => ({ ...prev, grades: true }));
+    
+    try {
+      const gradesQuery = query(
+        collection(db, "grades"),
+        where("studentId", "==", user.uid),
+        orderBy("gradedAt", "desc")
+      );
+      
+      const unsubscribe = onSnapshot(gradesQuery, (snapshot) => {
+        const gradesData: any[] = [];
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          gradesData.push({
+            id: doc.id,
+            assignmentId: data.assignmentId || "",
+            assignmentTitle: data.assignmentTitle || t?.('unknown_assignment') || "Unknown Assignment",
+            fileId: data.fileId || "",
+            fileName: data.fileName || data.assignmentTitle || t?.('unknown_file') || "Unknown file",
+            points: data.points || 0,
+            maxPoints: data.maxPoints || 10,
+            feedback: data.feedback || "",
+            gradedAt: data.gradedAt,
+            gradedBy: data.gradedBy || data.teacherName || t?.('teacher') || "Teacher",
+            teacherId: data.teacherId || "",
+            teacherName: data.teacherName,
+            studentId: data.studentId || user.uid,
+            studentName: data.studentName || userData?.fullName || t?.('student') || "Student",
+            type: data.type || 'assignment',
+            gradePercentage: data.gradePercentage,
+            _searchable: `${data.assignmentTitle} ${data.fileName} ${data.studentName}`.toLowerCase()
+          });
+        });
+        
+        setStudentGrades(gradesData);
+        
+        const avgScore = gradesData.length > 0 
+          ? Math.round(gradesData.reduce((sum, g) => sum + (g.points || 0), 0) / gradesData.length) 
+          : 0;
+        
+        setStats(prev => ({
+          ...prev,
+          averageScore: avgScore
+        }));
+        
+        setLoadingGrades(false);
+        setLoadingData(prev => ({ ...prev, grades: false }));
+      });
+      
+      return unsubscribe;
+      
+    } catch (error: any) {
+      console.error("Error loading student grades:", error);
+      
+      if (studentGrades.length === 0) {
+        const mockGrades = [
+          {
+            id: "mock_grade_1",
+            assignmentId: "mock_assignment_1",
+            assignmentTitle: t?.('introduction_to_prolog') || "Introduction to Prolog",
+            points: 9,
+            maxPoints: 10,
+            feedback: t?.('excellent_work_prolog') || "Excellent work! Your understanding of Prolog basics is solid.",
+            gradedAt: new Date(),
+            gradedBy: "Prof. Smith",
+            studentId: user.uid,
+            studentName: userData?.fullName || t?.('student') || "Student",
+            type: "assignment"
+          },
+          {
+            id: "mock_grade_2",
+            assignmentId: "mock_assignment_2",
+            assignmentTitle: t?.('expert_systems_design') || "Expert Systems Design",
+            points: 8,
+            maxPoints: 10,
+            feedback: t?.('good_work_detailed_rules') || "Good work, but could use more detailed rules.",
+            gradedAt: new Date(Date.now() - 86400000),
+            gradedBy: "Prof. Johnson",
+            studentId: user.uid,
+            studentName: userData?.fullName || t?.('student') || "Student",
+            type: "assignment"
+          }
+        ];
+        setStudentGrades(mockGrades);
+      }
+      
+      setLoadingGrades(false);
+      setLoadingData(prev => ({ ...prev, grades: false }));
+    }
+  };
+
+  
+  
   useEffect(() => {
     if (user) {
-      console.log("Initializing data for user:", user.uid);
       loadAllUsers();
       loadCommunities();
-      loadMessages();
+      loadMessages(); 
+      loadNotifications(); 
       loadActivityLogs();
+      loadStudentGrades();
     }
   }, [user]);
 
-  // Когато общностите се заредят, зареждаме предизвикателства и задачи
   useEffect(() => {
     if (communities.length > 0 && !loadingData.communities) {
-      console.log("Communities loaded, loading challenges and assignments");
       loadChallenges();
       loadAssignments();
     }
   }, [communities, loadingData.communities]);
 
-  // Когато предизвикателствата се променят, обновяваме статистиката
   useEffect(() => {
     if (!loadingData.challenges) {
       const activeChallengesCount = challenges.filter(c => 
@@ -1312,7 +1741,6 @@ Requirements:
     }
   }, [challenges, loadingData.challenges]);
 
-  // Refresh данни при смяна на таб
   useEffect(() => {
     if (selectedTab === "assignments" || selectedTab === "dashboard") {
       if (!loadingData.assignments) {
@@ -1331,6 +1759,12 @@ Requirements:
         loadCommunities();
       }
     }
+    
+    if (selectedTab === "grades") {
+      if (!loadingData.grades) {
+        loadStudentGrades();
+      }
+    }
   }, [selectedTab]);
 
   const handleUpload = async () => {
@@ -1344,9 +1778,6 @@ Requirements:
       : generateHeader() + "\n\n" + code;
 
     if (isChallengeMode) {
-      // ====== РЕЖИМ ЗА ПРЕДИЗВИКАТЕЛСТВА ======
-      console.log("Processing CHALLENGE submission...");
-      
       if (!selectedChallengeId) {
         setUploadStatus("❌ " + (t?.('select_challenge_first') || "Please select a challenge first!"));
         return;
@@ -1361,9 +1792,6 @@ Requirements:
         setUploadStatus("❌ " + (t?.('challenge_submission_error') || "Error submitting challenge!"));
       }
     } else {
-      // ====== РЕЖИМ ЗА ОБИКНОВЕНИ ЗАДАНИЯ ======
-      console.log("Processing REGULAR ASSIGNMENT submission...");
-      
       if (!selectedAssignment && !codeMetadata.assignmentId) {
         setUploadStatus("❌ " + (t?.('select_assignment_first') || "Please select an assignment first!"));
         return;
@@ -1396,9 +1824,9 @@ Requirements:
 
         await addDoc(collection(db, "activityLogs"), {
           userId: user.uid,
-          userName: userData?.fullName || user?.email?.split('@')[0] || "Student",
-          action: "Submitted Prolog code",
-          details: `Submitted assignment: ${assignment.title}`,
+          userName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+          action: t?.('submitted_prolog_code') || "Submitted Prolog code",
+          details: `${t?.('submitted_assignment') || "Submitted assignment"}: ${assignment.title}`,
           target: `${assignment.title.replace(/\s+/g, '_')}.pl`,
           actionType: "submission",
           timestamp: serverTimestamp()
@@ -1407,7 +1835,7 @@ Requirements:
         setCode("");
         setCodeMetadata({
           domain: "",
-          type: "Symbolic AI / Expert System",
+          type: t?.('symbolic_ai_expert_system') || "Symbolic AI / Expert System",
           studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
           dataArea: "",
           assignmentId: "",
@@ -1419,7 +1847,6 @@ Requirements:
         
         await loadAssignments();
         await loadActivityLogs();
-        
       } catch (error) {
         console.error("Error uploading assignment:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1427,200 +1854,16 @@ Requirements:
       }
     }
   };
-  const loadStudentGrades = async () => {
-  if (!user?.uid) return;
+
   
-  setLoadingGrades(true);
-  try {
-    // Зареждаме оценки от grades колекцията
-    const gradesQuery = query(
-      collection(db, "grades"),
-      where("studentId", "==", user.uid),
-      orderBy("gradedAt", "desc")
-    );
-    
-    const snapshot = await getDocs(gradesQuery);
-    const gradesData: any[] = [];
-    
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      gradesData.push({
-        id: doc.id,
-        assignmentId: data.assignmentId,
-        assignmentTitle: data.assignmentTitle || "Unknown Assignment",
-        points: data.points,
-        maxPoints: 10, // Винаги е 10 за момента
-        feedback: data.feedback,
-        gradedAt: data.gradedAt,
-        gradedBy: data.teacherName || "Teacher",
-        fileId: data.fileId,
-        // Добавяме информация за файла
-        fileName: data.fileName || "Unknown file"
-      });
-    });
-    
-    // Зареждаме и оценки от prologCodes за стари записи
-    const codesQuery = query(
-      collection(db, "prologCodes"),
-      where("userId", "==", user.uid),
-      where("points", "!=", null), // Само тези с оценки
-      orderBy("points", "desc")
-    );
-    
-    const codesSnapshot = await getDocs(codesQuery);
-    
-    codesSnapshot.forEach((doc) => {
-      const data = doc.data();
-      // Проверяваме дали вече имаме тази оценка
-      const existingGrade = gradesData.find(g => g.fileId === doc.id);
-      
-      if (!existingGrade && data.points !== undefined) {
-        gradesData.push({
-          id: doc.id,
-          assignmentId: data.assignmentId || "general",
-          assignmentTitle: data.assignmentTitle || data.title || "Untitled Assignment",
-          points: data.points,
-          maxPoints: 10,
-          feedback: data.feedback || "No feedback provided",
-          gradedAt: data.gradedAt || data.createdAt,
-          gradedBy: data.gradedBy || "Teacher",
-          fileId: doc.id,
-          fileName: data.originalFileName || data.title || "Unknown file"
-        });
-      }
-    });
-    
-    // Сортираме по дата на оценяване (най-новите първи)
-    gradesData.sort((a, b) => {
-      const dateA = a.gradedAt?.toMillis?.() || 0;
-      const dateB = b.gradedAt?.toMillis?.() || 0;
-      return dateB - dateA;
-    });
-    
-    setStudentGrades(gradesData);
-    console.log("Loaded student grades:", gradesData.length);
-    
-  } catch (error) {
-    console.error("Error loading student grades:", error);
-  } finally {
-    setLoadingGrades(false);
-  }
-};
 
-  const loadMyTeachers = () => {
-    if (!user || communities.length === 0) return [];
-    
-    const myTeachers: Array<{
-      uid: string;
-      username: string;
-      email: string;
-      role: string;
-      communityId: string;
-      communityName: string;
-    }> = [];
-    
-    communities.forEach(community => {
-      const teacher = allUsers.find(u => u.uid === community.teacherId);
-      if (teacher && !myTeachers.some(t => t.uid === teacher.uid)) {
-        myTeachers.push({
-          uid: teacher.uid,
-          username: teacher.username,
-          email: teacher.email,
-          role: teacher.role,
-          communityId: community.id,
-          communityName: community.name
-        });
-      }
-    });
-    
-    return myTeachers;
-  };
-
-  const clearAllMessages = async () => {
-    if (!user) return;
-    
-    try {
-      const userMessages = messages.filter(m => m.receiverId === user.uid);
-      if (userMessages.length === 0) {
-        alert(t?.('no_messages') || "Нямате съобщения");
-        return;
-      }
-      
-      if (window.confirm(`${t?.('mark_all_as_read') || "Маркиране на всички"} ${userMessages.length} ${t?.('messages_as_read') || "съобщения като прочетени"}?`)) {
-        const batch = writeBatch(db);
-        userMessages.forEach(msg => {
-          batch.update(doc(db, 'messages', msg.id), { 
-            read: true 
-          });
-        });
-        
-        await batch.commit();
-        alert(`${t?.('all_messages_marked_as_read') || "Всички съобщения са маркирани като прочетени"} (${userMessages.length})`);
-        loadMessages();
-      }
-    } catch (error) {
-      console.error(t?.('error_updating_messages') || "Грешка при маркиране на съобщения:", error);
-      alert("❌ " + (t?.('error_updating_messages') || "Грешка при маркиране на съобщения!"));
-    }
-  };
-
-  const deleteReadMessages = async () => {
-    if (!user) return;
-    
-    try {
-      const readMessages = messages.filter(m => m.read && m.receiverId === user.uid);
-      if (readMessages.length === 0) {
-        alert(t?.('no_read_messages') || "Нямате прочетени съобщения");
-        return;
-      }
-      
-      if (window.confirm(`${t?.('delete_read_messages') || "Изтриване на"} ${readMessages.length} ${t?.('read_messages') || "прочетени съобщения"}?`)) {
-        const batch = writeBatch(db);
-        readMessages.forEach(msg => {
-          batch.delete(doc(db, 'messages', msg.id));
-        });
-        
-        await batch.commit();
-        alert(`${t?.('messages_deleted') || "Съобщенията са изтрити"} (${readMessages.length})`);
-        loadMessages();
-      }
-    } catch (error) {
-      console.error(t?.('error_deleting_messages') || "Грешка при изтриване на съобщения:", error);
-      alert("❌ " + (t?.('error_deleting_messages') || "Грешка при изтриване на съобщения!"));
-    }
-  };
-
-  const markAllAsRead = async () => {
-    if (!user) return;
-    
-    try {
-      const unreadMessages = messages.filter(m => !m.read && m.receiverId === user.uid);
-      if (unreadMessages.length === 0) {
-        alert(t?.('no_unread_messages') || "Нямате непрочетени съобщения");
-        return;
-      }
-      
-      const batch = writeBatch(db);
-      unreadMessages.forEach(msg => {
-        batch.update(doc(db, 'messages', msg.id), { read: true });
-      });
-      
-      await batch.commit();
-      alert(`${t?.('messages_marked_as_read') || "Съобщенията са маркирани като прочетени"} (${unreadMessages.length})`);
-      loadMessages();
-    } catch (error) {
-      console.error(t?.('error_marking_messages') || "Грешка при маркиране на съобщения:", error);
-      alert("❌ " + (t?.('error_marking_messages') || "Грешка при маркиране на съобщения!"));
-    }
-  };
-console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
   const statsCards = [
     {
       title: t?.('total_assignments') || "Total Assignments",
       value: stats.totalAssignments,
       icon: <FileText className="w-6 h-6" />,
       color: "from-blue-500 to-cyan-500",
-      change: `${stats.completedAssignments} completed`,
+      change: `${stats.completedAssignments} ${t?.('completed') || "completed"}`,
       description: t?.('active_assignments') || "Active assignments"
     },
     {
@@ -1636,7 +1879,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
       value: communities.length,
       icon: <GroupIcon className="w-6 h-6" />,
       color: "from-purple-500 to-pink-500",
-      change: `${stats.communityMembers} members`,
+      change: `${stats.communityMembers} ${t?.('members') || "members"}`,
       description: t?.('learning_communities') || "Learning communities"
     },
     {
@@ -1644,7 +1887,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
       value: stats.activeChallenges,
       icon: <Target className="w-6 h-6" />,
       color: "from-green-500 to-emerald-500",
-      change: `${challenges.filter(c => c.status === 'accepted').length} accepted`,
+      change: `${challenges.filter(c => c.status === 'accepted').length} ${t?.('accepted') || "accepted"}`,
       description: t?.('challenges_in_progress') || "Challenges in progress"
     }
   ];
@@ -1652,7 +1895,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
   const todaysTasks = assignments.map(assignment => {
     const isCompleted = assignment.studentProgress?.completed || false;
     const progress = isCompleted ? 100 : 0;
-    const evaluation = assignment.studentProgress?.evaluation;
+    const evaluation = assignment.studentProgress?.grade;
     
     const priority = assignment.difficulty === 'hard' ? 'high' : 
                     assignment.difficulty === 'medium' ? 'medium' : 'low';
@@ -1698,7 +1941,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
       
       setCodeMetadata({
         domain: assignment.topic,
-        type: "Symbolic AI / Expert System",
+        type: t?.('symbolic_ai_expert_system') || "Symbolic AI / Expert System",
         studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
         dataArea: assignment.subject,
         assignmentId: assignment.id,
@@ -1712,7 +1955,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
   const openTaskDetails = (taskId: string) => {
     const assignment = assignments.find(a => a.id === taskId);
     if (assignment) {
-      const requirements = `${t?.('requirements') || "Requirements"}:\n- ${t?.('facts') || "Facts"}: ${assignment.requirements.minFacts}\n- ${t?.('rules') || "Rules"}: ${assignment.requirements.minRules}\n- ${t?.('combined_rules') || "Combined rules"}: ${assignment.requirements.minCombinedRules}\n- ${t?.('menu_items') || "Menu items"}: ${assignment.requirements.minMenuItems}`;
+      const requirements = `${t?.('requirements') || "Requirements"}:\n- ${t?.('facts') || "Facts"}: ${assignment.requirements.minFacts}\n- ${t?.('rules') || "Rules"}: ${assignment.requirements.minRules}\n- ${t?.('combined_rules') || "Combined rules"}: ${assignment.requirements.combinedRules}\n- ${t?.('menu_items') || "Menu items"}: ${assignment.requirements.minMenuItems}`;
       
       alert(`${t?.('assignment') || "Assignment"}: ${assignment.title}\n\n${t?.('objective') || "Objective"}: ${assignment.objective}\n\n${requirements}`);
     }
@@ -1721,7 +1964,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
   const generateHeader = () => {
     const studentName = codeMetadata.studentName || user?.email?.split('@')[0] || t?.('student') || "Student";
     const domain = codeMetadata.domain || t?.('expert_system') || "Expert System";
-    const type = codeMetadata.type || "Symbolic AI / Expert System";
+    const type = codeMetadata.type || t?.('symbolic_ai_expert_system') || "Symbolic AI / Expert System";
     const dataArea = codeMetadata.dataArea || t?.('general_knowledge') || "General Knowledge";
     const assignmentTitle = codeMetadata.assignmentTitle || t?.('general_assignment') || "General Assignment";
     
@@ -1739,20 +1982,7 @@ console.log(clearAllMessages, markAllAsRead, deleteReadMessages, loadMyTeachers)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%`;
   };
 
-  const applyTemplate = (templateId: string) => {
-    const template = prologTemplates.find(t => t.id === templateId);
-    if (template) {
-      const header = generateHeader();
-      if (templateId === "basic") {
-        const templateBody = template.code.split('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n\n')[1] || template.code;
-        setCode(header + "\n\n" + templateBody);
-      } else {
-        setCode(header + "\n\n" + template.code);
-      }
-      setShowTemplates(false);
-    }
-  };
-console.log(applyTemplate)
+
   const getStatusText = (status: string) => {
     switch (status) {
       case "success": return t?.('status_success') || "Success";
@@ -1761,8 +1991,51 @@ console.log(applyTemplate)
     }
   };
 
-  const handleShowEvaluation = (submission: Submission) => {
-    setSelectedSubmission(submission);
+  const handleShowGrade = async (submission: Submission) => {
+    const assignment = assignments.find(a => a.id === submission.assignmentId);
+    
+    if (assignment?.studentProgress?.grade) {
+      setSelectedSubmission({
+        ...submission,
+        grade: assignment.studentProgress.grade
+      });
+      setShowEvaluationModal(true);
+      return;
+    }
+    
+    if (studentGrades.length === 0) {
+      await loadStudentGrades();
+    }
+    
+    const gradeFromGrades = studentGrades.find(g => 
+      g.assignmentId === submission.assignmentId || 
+      g.fileId === submission.id
+    );
+    
+    if (gradeFromGrades) {
+      setSelectedSubmission({
+        ...submission,
+        grade: {
+          score: gradeFromGrades.points * 10,
+          feedback: gradeFromGrades.feedback || "",
+          gradedAt: gradeFromGrades.gradedAt,
+          gradedBy: gradeFromGrades.gradedBy
+        }
+      });
+      setShowEvaluationModal(true);
+      return;
+    }
+    
+    if (submission.grade) {
+      setSelectedSubmission(submission);
+      setShowEvaluationModal(true);
+      return;
+    }
+    
+    setSelectedSubmission({
+      ...submission,
+      grade: undefined
+    });
     setShowEvaluationModal(true);
   };
 
@@ -1875,7 +2148,7 @@ console.log(applyTemplate)
                   <div className="flex items-center gap-2 text-sm">
                     <Hash className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
                     <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                      Code: {community.inviteCode}
+                      {t?.('code') || "Code"}: {community.inviteCode}
                     </span>
                   </div>
                 </div>
@@ -1910,7 +2183,7 @@ console.log(applyTemplate)
                     }`}
                   >
                     <MessageCircle className="w-4 h-4 inline mr-1" />
-                    Message
+                    {t?.('message') || "Message"}
                   </button>
                 </div>
               </motion.div>
@@ -2047,7 +2320,7 @@ console.log(applyTemplate)
                     <div className="flex items-center gap-2 text-sm">
                       <GroupIcon className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
                       <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {t?.('from') || "From"}: {creatorCommunity?.name || "Unknown"}
+                        {t?.('from') || "From"}: {creatorCommunity?.name || t?.('unknown') || "Unknown"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
@@ -2090,11 +2363,11 @@ console.log(applyTemplate)
                             setCode(challengeTemplate);
                             setCodeMetadata({
                               domain: challenge.category,
-                              type: "Challenge Solution",
+                              type: t?.('challenge_solution') || "Challenge Solution",
                               studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
                               dataArea: challenge.category,
                               assignmentId: challenge.id,
-                              assignmentTitle: `Challenge: ${challenge.title}`
+                              assignmentTitle: `${t?.('challenge') || "Challenge"}: ${challenge.title}`
                             });
                           }}
                           className="py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium text-sm"
@@ -2133,53 +2406,511 @@ console.log(applyTemplate)
               <span>{t?.('student_dashboard') || "Student Dashboard"}</span>
             </h1>
             <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t?.('welcome_back') || "Welcome back"}, {userData?.fullName || user?.email?.split('@')[0] || "Student"}!
+              {t?.('welcome_back') || "Welcome back"}, {userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student"}!
             </p>
           </div>
           
-          {/* Индикатори за зареждане */}
           <div className="flex items-center gap-2">
             {Object.values(loadingData).some(v => v) && (
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-sm">
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
-                Зареждане...
+                {t?.('loading') || "Зареждане"}...
               </div>
             )}
-            
-            <div className="relative group">
+
+            {/* Бутон за съобщения с dropdown */}
+            <div className="relative">
               <button
-                onClick={() => setShowMessaging(true)}
-                className={`relative p-2 rounded-lg ${
-                  theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+                onClick={() => setShowMessages(!showMessages)}
+                className={`relative p-2 rounded-lg transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-white/5 hover:bg-white/10 hover:shadow-lg hover:shadow-white/5' 
+                    : 'bg-gray-100 hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-200'
                 }`}
               >
-                <MessageCircle className="w-5 h-5" />
-                {messages.filter(m => !m.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {messages.filter(m => !m.read).length}
+                <MessageCircle className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} />
+                {messages.filter(m => !m.read && m.type === 'direct' && m.receiverId === user?.uid).length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                    {messages.filter(m => !m.read && m.type === 'direct' && m.receiverId === user?.uid).length}
                   </span>
                 )}
               </button>
+
+              {/* Dropdown за съобщения */}
+              {showMessages && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className={`absolute right-0 top-12 w-80 rounded-xl shadow-xl z-50 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-900 border border-gray-700 shadow-gray-900/50' 
+                      : 'bg-white border border-gray-200 shadow-gray-200/50'
+                  }`}
+                  style={{ maxHeight: '400px', overflowY: 'auto' }}
+                >
+                  {/* Header със заглавие и бутони за действие */}
+                  <div className={`p-4 border-b ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'}`} />
+                        <h3 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {t?.('messages') || "Съобщения"}
+                        </h3>
+                        {messages.filter(m => !m.read && m.type === 'direct' && m.receiverId === user?.uid).length > 0 && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            theme === 'dark' 
+                              ? 'bg-blue-500/20 text-blue-400' 
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {messages.filter(m => !m.read && m.type === 'direct' && m.receiverId === user?.uid).length} {t?.('new') || "нови"}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        {messages.filter(m => !m.read && m.type === 'direct' && m.receiverId === user?.uid).length > 0 && (
+                          <button
+                            onClick={markAllMessagesAsRead}
+                            className={`p-1.5 rounded-lg text-sm ${
+                              theme === 'dark' 
+                                ? 'hover:bg-white/10 text-blue-400' 
+                                : 'hover:bg-gray-100 text-blue-600'
+                            } transition-colors`}
+                            title={t?.('mark_all_as_read') || "Маркирай всички като прочетени"}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setShowMessages(false)}
+                          className={`p-1.5 rounded-lg ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 text-gray-400' 
+                              : 'hover:bg-gray-100 text-gray-600'
+                          } transition-colors`}
+                          title={t?.('close') || "Затвори"}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Списък със съобщения */}
+                  <div>
+                    {messages.length === 0 ? (
+                      <div className={`p-6 text-center ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p className="mb-2">{t?.('no_messages') || "Нямате съобщения"}</p>
+                        <p className="text-sm opacity-70">{t?.('new_messages_will_appear_here') || "Новите съобщения ще се появят тук"}</p>
+                      </div>
+                    ) : (
+                      <AnimatePresence>
+                        {messages.slice(0, 5).map((message) => (
+                          <motion.div
+                            key={message.id}
+                            initial={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -50, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className={`relative group p-4 cursor-pointer ${
+                              theme === 'dark' 
+                                ? 'hover:bg-gray-800/50' 
+                                : 'hover:bg-gray-50'
+                            } ${
+                              !message.read && message.receiverId === user?.uid
+                                ? theme === 'dark' 
+                                  ? 'bg-blue-900/10' 
+                                  : 'bg-blue-50/70'
+                                : ''
+                            }`}
+                            onClick={() => {
+                              if (!message.read && message.receiverId === user?.uid) {
+                                const messageRef = doc(db, 'messages', message.id);
+                                updateDoc(messageRef, { read: true });
+                                setMessages(prev => prev.map(m => 
+                                  m.id === message.id ? { ...m, read: true } : m
+                                ));
+                              }
+                              setSelectedTab("messages");
+                              setShowMessages(false);
+                            }}
+                          >
+                            <div className="flex gap-3">
+                              <div className="flex-shrink-0">
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                                    message.senderId === user?.uid
+                                      ? theme === 'dark' 
+                                        ? 'bg-green-500/20 text-green-400' 
+                                        : 'bg-green-100 text-green-600'
+                                      : theme === 'dark' 
+                                        ? 'bg-blue-500/20 text-blue-400' 
+                                        : 'bg-blue-100 text-blue-600'
+                                  }`}
+                                >
+                                  {message.senderName.charAt(0).toUpperCase()}
+                                </div>
+                              </div>
+                              
+                              <div className="flex-1 min-w-0 pr-6">
+                                <div className="flex justify-between items-start mb-1">
+                                  <div className={`font-medium truncate ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                  }`}>
+                                    {message.senderId === user?.uid 
+                                      ? t?.('you') || "Вие"
+                                      : message.senderName}
+                                    {!message.read && message.receiverId === user?.uid && (
+                                      <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                    )}
+                                  </div>
+                                  <div className={`text-xs ${
+                                    theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                  }`}>
+                                    {message.timestamp?.toDate
+                                      ? new Date(message.timestamp.toDate()).toLocaleTimeString([], { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        })
+                                      : t?.('recently') || "Сега"}
+                                  </div>
+                                </div>
+                                
+                                <p className={`text-sm mb-1 line-clamp-2 ${
+                                  theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                }`}>
+                                  {message.content}
+                                </p>
+                                
+                                {message.type === 'community' && (
+                                  <div className={`text-xs flex items-center gap-1 ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
+                                    <GroupIcon className="w-3 h-3" />
+                                    <span>{t?.('community') || "Общност"}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteMessage(message.id);
+                              }}
+                              className={`absolute top-3 right-3 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all ${
+                                theme === 'dark' 
+                                  ? 'hover:bg-red-500/30 bg-red-500/20 text-red-400' 
+                                  : 'hover:bg-red-100 bg-red-50 text-red-500'
+                              }`}
+                              title={t?.('delete_message') || "Изтрий съобщение"}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            
+                            <div className={`border-b ${
+                              theme === 'dark' ? 'border-gray-800' : 'border-gray-100'
+                            }`} />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    )}
+                  </div>
+                  
+                  {/* Footer с действия */}
+                  {messages.length > 0 && (
+                    <div className={`p-3 border-t ${
+                      theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
+                      <div className="flex justify-between items-center">
+                        <button
+                          onClick={() => {
+                            setSelectedTab("messages");
+                            setShowMessages(false);
+                          }}
+                          className={`text-sm flex items-center gap-1.5 ${
+                            theme === 'dark' 
+                              ? 'text-blue-400 hover:text-blue-300' 
+                              : 'text-blue-600 hover:text-blue-700'
+                          } transition-colors`}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          {t?.('view_all') || "Виж всички"}
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            if (window.confirm(t?.('delete_all_messages_confirm') || 'Сигурни ли сте, че искате да изтриете всички съобщения?')) {
+                              handleDeleteAllMessages();
+                            }
+                          }}
+                          className={`text-sm flex items-center gap-1.5 ${
+                            theme === 'dark' 
+                              ? 'text-red-400 hover:text-red-300' 
+                              : 'text-red-600 hover:text-red-700'
+                          } transition-colors`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {t?.('delete_all') || "Изтрий всички"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
             </div>
-            <button
-    onClick={async () => {
-      setShowGradesModal(true);
-      await loadStudentGrades();
-    }}
-    className={`relative p-2 rounded-lg ${
-      theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-    }`}
-    title={t?.('my_grades') || "My Grades"}
-  >
-    <Award className="w-5 h-5" />
-  </button>
-            <button 
-              className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              <Bell className="w-5 h-5" />
-            </button>
+
+            {/* Бутон за НОТИФИКАЦИИ */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`relative p-2 rounded-lg transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-white/5 hover:bg-white/10 hover:shadow-lg hover:shadow-white/5' 
+                    : 'bg-gray-100 hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-200'
+                }`}
+              >
+                <Bell className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown за нотификации */}
+              {showNotifications && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className={`absolute right-0 top-12 w-80 rounded-xl shadow-xl z-50 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-900 border border-gray-700 shadow-gray-900/50' 
+                      : 'bg-white border border-gray-200 shadow-gray-200/50'
+                  }`}
+                  style={{ maxHeight: '400px', overflowY: 'auto' }}
+                >
+                  <div className={`p-4 border-b ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Bell className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'}`} />
+                        <h3 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {t?.('notifications') || "Нотификации"}
+                        </h3>
+                        {unreadNotifications > 0 && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            theme === 'dark' 
+                              ? 'bg-blue-500/20 text-blue-400' 
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {unreadNotifications} {t?.('new') || "нови"}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        {unreadNotifications > 0 && (
+                          <button
+                            onClick={markAllNotificationsAsRead}
+                            className={`p-1.5 rounded-lg text-sm ${
+                              theme === 'dark' 
+                                ? 'hover:bg-white/10 text-blue-400' 
+                                : 'hover:bg-gray-100 text-blue-600'
+                            } transition-colors`}
+                            title={t?.('mark_all_as_read') || "Маркирай всички като прочетени"}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setShowNotifications(false)}
+                          className={`p-1.5 rounded-lg ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 text-gray-400' 
+                              : 'hover:bg-gray-100 text-gray-600'
+                          } transition-colors`}
+                          title={t?.('close') || "Затвори"}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    {notifications.length === 0 ? (
+                      <div className={`p-6 text-center ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p className="mb-2">{t?.('no_notifications') || "Нямате нотификации"}</p>
+                        <p className="text-sm opacity-70">{t?.('new_notifications_will_appear_here') || "Новите съобщения ще се появят тук"}</p>
+                      </div>
+                    ) : (
+                      <AnimatePresence>
+                        {notifications.map((notification) => (
+                          <motion.div
+                            key={notification.id}
+                            initial={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -50, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className={`relative group ${
+                              theme === 'dark' 
+                                ? 'hover:bg-gray-800/50' 
+                                : 'hover:bg-gray-50'
+                            } ${
+                              !notification.read
+                                ? theme === 'dark' 
+                                  ? 'bg-blue-900/10' 
+                                  : 'bg-blue-50/70'
+                                : ''
+                            }`}
+                          >
+                            <div
+                              className="p-4 cursor-pointer"
+                              onClick={() => handleNotificationClick(notification)}
+                            >
+                              <div className="flex gap-3">
+                                <div className="flex-shrink-0">
+                                  <div
+                                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                                      notification.type === 'grade'
+                                        ? theme === 'dark' 
+                                          ? 'bg-green-500/20 text-green-400' 
+                                          : 'bg-green-100 text-green-600'
+                                        : notification.type === 'assignment'
+                                        ? theme === 'dark' 
+                                          ? 'bg-blue-500/20 text-blue-400' 
+                                          : 'bg-blue-100 text-blue-600'
+                                        : notification.type === 'challenge'
+                                        ? theme === 'dark' 
+                                          ? 'bg-purple-500/20 text-purple-400' 
+                                          : 'bg-purple-100 text-purple-600'
+                                        : theme === 'dark' 
+                                          ? 'bg-gray-500/20 text-gray-400' 
+                                          : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                  >
+                                    {notification.type === 'grade' ? (
+                                      <Award className="w-4 h-4" />
+                                    ) : notification.type === 'assignment' ? (
+                                      <FileText className="w-4 h-4" />
+                                    ) : notification.type === 'challenge' ? (
+                                      <Target className="w-4 h-4" />
+                                    ) : (
+                                      <Bell className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="flex-1 min-w-0 pr-6">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <div className={`font-medium truncate ${
+                                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>
+                                      {notification.title}
+                                      {!notification.read && (
+                                        <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                      )}
+                                    </div>
+                                    <div className={`text-xs ${
+                                      theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                    }`}>
+                                      {notification.timestamp?.toDate
+                                        ? new Date(notification.timestamp.toDate()).toLocaleTimeString([], { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                          })
+                                        : t?.('recently') || "Сега"}
+                                    </div>
+                                  </div>
+                                  
+                                  <p className={`text-sm mb-1 line-clamp-2 ${
+                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                  }`}>
+                                    {notification.message}
+                                  </p>
+                                  
+                                  <div className={`text-xs flex items-center gap-2 ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
+                                    <span>
+                                      {notification.timestamp?.toDate
+                                        ? new Date(notification.timestamp.toDate()).toLocaleDateString()
+                                        : t?.('today') || "Днес"}
+                                    </span>
+                                    {notification.details?.points && (
+                                      <span className={`px-1.5 py-0.5 rounded ${
+                                        theme === 'dark' 
+                                          ? 'bg-green-500/20 text-green-400' 
+                                          : 'bg-green-100 text-green-600'
+                                      } text-xs`}>
+                                        {notification.details.points}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteNotification(notification.id);
+                              }}
+                              className={`absolute top-3 right-3 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all ${
+                                theme === 'dark' 
+                                  ? 'hover:bg-red-500/30 bg-red-500/20 text-red-400' 
+                                  : 'hover:bg-red-100 bg-red-50 text-red-500'
+                              }`}
+                              title={t?.('delete_notification') || "Изтрий нотификация"}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            
+                            <div className={`border-b ${
+                              theme === 'dark' ? 'border-gray-800' : 'border-gray-100'
+                            }`} />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    )}
+                  </div>
+                  
+                  {notifications.length > 0 && (
+                    <div className={`p-3 border-t ${
+                      theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
+                      <div className="flex justify-between items-center">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(t?.('delete_all_notifications_confirm') || 'Сигурни ли сте, че искате да изтриете всички нотификации?')) {
+                              handleDeleteAllNotifications();
+                            }
+                          }}
+                          className={`text-sm flex items-center gap-1.5 ${
+                            theme === 'dark' 
+                              ? 'text-red-400 hover:text-red-300' 
+                              : 'text-red-600 hover:text-red-700'
+                          } transition-colors`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {t?.('delete_all') || "Изтрий всички"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
         
@@ -2278,9 +3009,9 @@ console.log(applyTemplate)
                   </div>
 
                   <div className="space-y-4">
-                    {todaysTasks.slice(0, 3).map((task) => (
+                    {todaysTasks.slice(0, 3).map((task, taskIndex) => (
                       <div
-                        key={task.id}
+                        key={`todays-task-${task.id}-${taskIndex}`}
                         className={`flex items-center gap-4 p-4 rounded-xl border ${
                           theme === 'dark' 
                             ? 'bg-white/5 border-white/10 hover:bg-white/10' 
@@ -2695,13 +3426,13 @@ console.log(applyTemplate)
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {assignments.map((assignment) => {
+                {assignments.map((assignment, assignmentIndex) => {
                   const isCompleted = assignment.studentProgress?.completed || false;
-                  const evaluation = assignment.studentProgress?.evaluation;
+                  const evaluation = assignment.studentProgress?.grade;
                   
                   return (
                     <motion.div
-                      key={assignment.id}
+                      key={`assignment-${assignment.id}-${assignmentIndex}`}
                       whileHover={{ scale: 1.02, translateY: -5 }}
                       className={`rounded-2xl p-6 border ${
                         theme === 'dark'
@@ -2781,8 +3512,17 @@ console.log(applyTemplate)
                               onClick={() => {
                                 const submission = submissions.find(sub => sub.assignmentId === assignment.id);
                                 if (submission) {
-                                  setSelectedSubmission(submission);
-                                  setShowEvaluationModal(true);
+                                  handleShowGrade(submission);
+                                } else {
+                                  const fakeSubmission: Submission = {
+                                    id: `assignment_${assignment.id}`,
+                                    name: assignment.title,
+                                    date: new Date().toLocaleString(),
+                                    status: "completed",
+                                    assignmentId: assignment.id,
+                                    assignmentTitle: assignment.title
+                                  };
+                                  handleShowGrade(fakeSubmission);
                                 }
                               }}
                               className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
@@ -2792,18 +3532,10 @@ console.log(applyTemplate)
                               }`}
                             >
                               <CheckCircle className="w-4 h-4" /> 
-                              {evaluation?.score ? 
-                                `${t?.('view_grade') || "View Grade"} (${evaluation.score}%)` : 
+                              {assignment.studentProgress?.grade?.score ? 
+                                `View Grade (${assignment.studentProgress.grade.score}%)` : 
                                 t?.('completed') || "Completed"}
                             </button>
-                            {evaluation?.score && (
-                              <button
-                                onClick={() => startTask(assignment.id)}
-                                className="flex-1 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium text-sm flex items-center justify-center gap-2"
-                              >
-                                <RefreshCw className="w-4 h-4" /> {t?.('resubmit') || "Resubmit"}
-                              </button>
-                            )}
                           </>
                         ) : (
                           <>
@@ -3245,7 +3977,6 @@ console.log(applyTemplate)
               </div>
             )}
 
-            {/* Metadata Form */}
             <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <Database className="w-5 h-5" /> {t?.('file_information') || "File Information"}
@@ -3322,7 +4053,6 @@ console.log(applyTemplate)
               </div>
             </div>
 
-            {/* Code Editor */}
             <div className={`rounded-2xl border p-6 backdrop-blur-xl ${currentTheme.card}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <h3 className="text-lg font-bold flex items-center gap-2">
@@ -3411,55 +4141,153 @@ console.log(applyTemplate)
             )}
           </div>
         )}
-{/* ⬇⬇⬇ ДОБАВЕТЕ ТОВА СЛЕД ГОРНИЯ КОД ⬇⬇⬇ */}
-{selectedTab === "grades" && (
-  <div className="mb-8">
-    <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Award className="w-6 h-6" />
-            {t?.('my_grades') || "My Grades"}
-          </h2>
-          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-            {t?.('view_all_grades') || "View all your grades and feedback"}
-          </p>
-        </div>
-        <button
-          onClick={async () => {
-            setShowGradesModal(true);
-            await loadStudentGrades();
-          }}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          {t?.('refresh_grades') || "Refresh Grades"}
-        </button>
-      </div>
-      
-      <div className="text-center py-12">
-        <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-bold mb-2">
-          {t?.('click_to_view_grades') || "Click to View Your Grades"}
-        </h3>
-        <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          {t?.('see_detailed_grades_feedback') || "See all your grades and detailed feedback from teachers"}
-        </p>
-        <button
-          onClick={async () => {
-            setShowGradesModal(true);
-            await loadStudentGrades();
-          }}
-          className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2 mx-auto"
-        >
-          <Award className="w-5 h-5" />
-          {t?.('open_grades_view') || "Open Grades View"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-        {/* Submissions View */}
+
+        {selectedTab === "grades" && (
+          <div className="mb-8">
+            <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <Award className="w-6 h-6" />
+                    {t?.('my_grades') || "My Grades"}
+                  </h2>
+                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    {studentGrades.length} {t?.('grades_received') || "grades received"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      await loadStudentGrades();
+                    }}
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    {t?.('refresh_grades') || "Refresh Grades"}
+                  </button>
+                  <button
+                    onClick={() => setShowGradesModal(true)}
+                    className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${
+                      theme === 'dark' 
+                        ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
+                        : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+                    }`}
+                  >
+                    <Eye className="w-4 h-4" />
+                    {t?.('detailed_view') || "Detailed View"}
+                  </button>
+                </div>
+              </div>
+              
+              {loadingGrades ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                </div>
+              ) : studentGrades.length === 0 ? (
+                <div className="text-center py-12">
+                  <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold mb-2">
+                    {t?.('no_grades_yet') || "No grades yet"}
+                  </h3>
+                  <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {t?.('complete_assignments_to_get_grades') || "Complete assignments to receive grades"}
+                  </p>
+                  <button
+                    onClick={() => setSelectedTab("assignments")}
+                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+                  >
+                    {t?.('view_assignments') || "View Assignments"}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div className={`p-4 rounded-xl border ${
+                      theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="text-2xl font-bold mb-1">
+                        {studentGrades.length}
+                      </div>
+                      <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {t?.('total_grades') || "Total Grades"}
+                      </div>
+                    </div>
+                    <div className={`p-4 rounded-xl border ${
+                      theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="text-2xl font-bold mb-1">
+                        {(studentGrades.reduce((sum, grade) => sum + grade.points, 0) / studentGrades.length).toFixed(1)}
+                      </div>
+                      <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {t?.('average_grade') || "Average Grade"}
+                      </div>
+                    </div>
+                    <div className={`p-4 rounded-xl border ${
+                      theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="text-2xl font-bold mb-1">
+                        {studentGrades.filter(g => g.points >= 7).length}
+                      </div>
+                      <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {t?.('excellent_grades') || "Excellent Grades (≥7)"}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {studentGrades.map((grade) => (
+                      <div key={grade.id} className={`p-4 rounded-xl border ${
+                        theme === 'dark' 
+                          ? 'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700' 
+                          : 'bg-white border-gray-200'
+                      } hover:shadow-md transition-shadow`}>
+                        <div className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <h4 className="font-bold">{grade.assignmentTitle}</h4>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {grade.gradedBy} • {grade.gradedAt?.toDate 
+                                ? new Date(grade.gradedAt.toDate()).toLocaleDateString()
+                                : t?.('recently') || "Recently"}
+                            </p>
+                            {grade.feedback && (
+                              <p className={`text-sm mt-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                {grade.feedback.length > 80 
+                                  ? `${grade.feedback.substring(0, 80)}...` 
+                                  : grade.feedback}
+                              </p>
+                            )}
+                          </div>
+                          <div className="ml-4 text-center">
+                            <div className={`text-3xl font-bold ${
+                              grade.points >= 9 ? 'text-green-500' :
+                              grade.points >= 7 ? 'text-yellow-500' :
+                              grade.points >= 5 ? 'text-orange-500' :
+                              'text-red-500'
+                            }`}>
+                              {grade.points}/{grade.maxPoints}
+                            </div>
+                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
+                              grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
+                              grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
+                              'bg-red-500/20 text-red-500'
+                            }`}>
+                              {grade.points >= 9 ? t?.('excellent') || 'Excellent' :
+                               grade.points >= 7 ? t?.('good') || 'Good' :
+                               grade.points >= 5 ? t?.('average') || 'Average' :
+                               t?.('needs_improvement') || 'Needs Improvement'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {selectedTab === "submissions" && (
           <div className="mb-8">
             <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
@@ -3545,13 +4373,13 @@ console.log(applyTemplate)
                                 {getStatusText(sub.status)}
                               </span>
                               
-                              {sub.evaluation?.score && (
+                              {sub.grade?.score && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium text-center ${
-                                  sub.evaluation.score >= 80 ? 'bg-green-500/20 text-green-500' :
-                                  sub.evaluation.score >= 60 ? 'bg-yellow-500/20 text-yellow-500' :
+                                  sub.grade.score >= 80 ? 'bg-green-500/20 text-green-500' :
+                                  sub.grade.score >= 60 ? 'bg-yellow-500/20 text-yellow-500' :
                                   'bg-red-500/20 text-red-500'
                                 }`}>
-                                  Grade: {sub.evaluation.score}%
+                                  Grade: {sub.grade.score}%
                                 </span>
                               )}
                             </div>
@@ -3569,9 +4397,9 @@ console.log(applyTemplate)
                                 {t?.('download') || "Download"}
                               </button>
                               
-                              {sub.evaluation && (
+                              {sub.grade && (
                                 <button
-                                  onClick={() => handleShowEvaluation(sub)}
+                                  onClick={() => handleShowGrade(sub)}
                                   className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 ${
                                     theme === 'dark' 
                                       ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
@@ -3594,36 +4422,36 @@ console.log(applyTemplate)
           </div>
         )}
 
-        {/* Messaging Modal */}
         <AnimatePresence>
-          {showMessaging && (
+          {showGradesModal && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() => setShowMessaging(false)}
+              onClick={() => setShowGradesModal(false)}
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className={`rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto ${
+                className={`rounded-2xl p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col ${
                   theme === 'dark' ? 'bg-gray-800' : 'bg-white'
                 }`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5" />
-                    {selectedMessageUser?.type === 'community' 
-                      ? `${t?.('message_community') || "Message Community"}: ${selectedMessageUser?.username}`
-                      : selectedMessageUser
-                      ? `${t?.('message') || "Message"}: ${selectedMessageUser?.username}`
-                      : t?.('messages') || "Messages"}
-                  </h3>
+                <div className="flex items-center justify-between mb-6 flex-shrink-0">
+                  <div>
+                    <h3 className="text-2xl font-bold flex items-center gap-2">
+                      <Award className="w-6 h-6" />
+                      {t?.('my_grades') || "My Grades"}
+                    </h3>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {studentGrades.length} {t?.('grades_received') || "grades received"}
+                    </p>
+                  </div>
                   <button
-                    onClick={() => setShowMessaging(false)}
+                    onClick={() => setShowGradesModal(false)}
                     className={`p-2 rounded-lg ${
                       theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
                     }`}
@@ -3632,385 +4460,236 @@ console.log(applyTemplate)
                   </button>
                 </div>
                 
-                <div className="space-y-6">
-                  {/* Message Input */}
-                  <div>
-                    <textarea
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder={t?.('type_message_here') || "Type your message here..."}
-                      className={`w-full h-32 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none ${
-                        theme === 'dark' 
-                          ? 'bg-gray-700 border-gray-600 text-white' 
-                          : 'bg-white border-gray-300 text-gray-900'
-                      } border`}
-                    />
-                    
-                    <div className="flex justify-between mt-3">
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedMessageUser?.uid || ""}
-                          onChange={(e) => {
-                            const selected = allUsers.find(u => u.uid === e.target.value) || 
-                                          communities.find(c => c.id === e.target.value);
-                            setSelectedMessageUser(selected || null);
-                          }}
-                          className={`px-3 py-2 rounded-lg ${
-                            theme === 'dark' 
-                              ? 'bg-gray-700 border-gray-600 text-white' 
-                              : 'bg-white border-gray-300 text-gray-900'
-                          } border`}
-                        >
-                          <option value="">{t?.('select_recipient') || "Select recipient"}</option>
-                          <optgroup label={t?.('communities') || "Communities"}>
-                            {communities.map(community => (
-                              <option key={community.id} value={community.id}>
-                                👥 {community.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                          <optgroup label={t?.('teachers') || "Teachers"}>
-                            {allUsers.filter(u => u.role === 'teacher').map(teacher => (
-                              <option key={teacher.uid} value={teacher.uid}>
-                                👨‍🏫 {teacher.username}
-                              </option>
-                            ))}
-                          </optgroup>
-                        </select>
-                      </div>
-                      
-                      <button
-                        onClick={() => handleSendMessage(selectedMessageUser?.type === 'community' ? 'community' : 'direct')}
-                        disabled={!newMessage.trim() || !selectedMessageUser}
-                        className="px-6 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50"
-                      >
-                        <Send className="w-4 h-4 inline mr-2" />
-                        {t?.('send') || "Send"}
-                      </button>
-                    </div>
+                {loadingGrades ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
                   </div>
-                  
-                  {/* Message History */}
-                  <div>
-                    <h4 className="font-medium mb-4">{t?.('message_history') || "Message History"}</h4>
-                    <div className="space-y-4 max-h-64 overflow-y-auto">
-                      {messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`p-3 rounded-lg ${
-                            msg.senderId === user?.uid
-                              ? theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'
-                              : theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
-                          }`}
+                ) : studentGrades.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center py-12">
+                    <Award className="w-16 h-16 text-gray-400 mb-4" />
+                    <h4 className="text-lg font-medium mb-2">
+                      {t?.('no_grades_yet') || "No grades yet"}
+                    </h4>
+                    <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {t?.('complete_assignments_to_get_grades') || "Complete assignments to receive grades"}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setShowGradesModal(false);
+                        setSelectedTab("assignments");
+                      }}
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                    >
+                      {t?.('view_assignments') || "View Assignments"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                      <div className={`p-4 rounded-xl border ${
+                        theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <div className="text-2xl font-bold mb-1">
+                          {studentGrades.length}
+                        </div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {t?.('total_grades') || "Total Grades"}
+                        </div>
+                      </div>
+                      <div className={`p-4 rounded-xl border ${
+                        theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <div className="text-2xl font-bold mb-1">
+                          {studentGrades.reduce((sum, grade) => sum + grade.points, 0) / studentGrades.length}
+                        </div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {t?.('average_grade') || "Average Grade"}
+                        </div>
+                      </div>
+                      <div className={`p-4 rounded-xl border ${
+                        theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <div className="text-2xl font-bold mb-1">
+                          {studentGrades.filter(g => g.points >= 7).length}
+                        </div>
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {t?.('excellent_grades') || "Excellent Grades (≥7)"}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {studentGrades.map((grade, index) => (
+                        <motion.div
+                          key={grade.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`p-4 rounded-xl border ${
+                            theme === 'dark' 
+                              ? 'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700 hover:border-gray-600' 
+                              : 'bg-white border-gray-200 hover:border-gray-300'
+                          } transition-colors`}
                         >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="font-medium">
-                              {msg.senderName === (userData?.fullName || user?.email?.split('@')[0]) 
-                                ? t?.('you') || "You" 
-                                : msg.senderName}
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
+                                  grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
+                                  grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
+                                  'bg-red-500/20 text-red-500'
+                                }`}>
+                                  <Award className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <h4 className="font-bold">{grade.assignmentTitle}</h4>
+                                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {grade.fileName}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {grade.feedback && (
+                                <div className={`mt-3 p-3 rounded-lg ${
+                                  theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
+                                }`}>
+                                  <p className="text-sm whitespace-pre-wrap">
+                                    {grade.feedback.length > 150 
+                                      ? `${grade.feedback.substring(0, 150)}...` 
+                                      : grade.feedback}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center gap-4 mt-3 text-sm">
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                                  {t?.('graded_by') || "Graded by"}: {grade.gradedBy}
+                                </span>
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                                  {grade.gradedAt?.toDate 
+                                    ? new Date(grade.gradedAt.toDate()).toLocaleDateString()
+                                    : t?.('recently') || "Recently"}
+                                </span>
+                              </div>
                             </div>
-                            <div className="text-xs opacity-70">
-                              {msg.timestamp?.toDate ? 
-                                new Date(msg.timestamp.toDate()).toLocaleTimeString() : 
-                                'Recently'}
+                            
+                            <div className="flex flex-col items-end gap-2">
+                              <div className="text-center">
+                                <div className={`text-3xl font-bold ${
+                                  grade.points >= 9 ? 'text-green-500' :
+                                  grade.points >= 7 ? 'text-yellow-500' :
+                                  grade.points >= 5 ? 'text-orange-500' :
+                                  'text-red-500'
+                                }`}>
+                                  {grade.points}/{grade.maxPoints}
+                                </div>
+                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
+                                  grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
+                                  grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
+                                  'bg-red-500/20 text-red-500'
+                                }`}>
+                                  {grade.points >= 9 ? t?.('excellent') || 'Excellent' :
+                                   grade.points >= 7 ? t?.('good') || 'Good' :
+                                   grade.points >= 5 ? t?.('average') || 'Average' :
+                                   t?.('needs_improvement') || 'Needs Improvement'}
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    alert(`${t?.('viewing_grade_details') || "Viewing grade details for"}: ${grade.assignmentTitle}`);
+                                  }}
+                                  className={`px-3 py-1 rounded text-sm ${
+                                    theme === 'dark' 
+                                      ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
+                                      : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+                                  }`}
+                                >
+                                  {t?.('details') || "Details"}
+                                </button>
+                                {grade.feedback && grade.feedback.length > 150 && (
+                                  <button
+                                    onClick={() => {
+                                      alert(`${t?.('full_feedback') || "Full Feedback"}:\n\n${grade.feedback}`);
+                                    }}
+                                    className={`px-3 py-1 rounded text-sm ${
+                                      theme === 'dark' 
+                                        ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' 
+                                        : 'bg-green-100 hover:bg-green-200 text-green-600'
+                                    }`}
+                                  >
+                                    {t?.('full_feedback') || "Full Feedback"}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <p className="text-sm">{msg.content}</p>
-                          {!msg.read && msg.receiverId === user?.uid && (
-                            <div className="text-xs text-green-500 mt-1">New</div>
-                          )}
-                        </div>
+                          
+                          <div className="mt-4">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span>{t?.('score') || "Score"}</span>
+                              <span>{grade.points}/{grade.maxPoints}</span>
+                            </div>
+                            <div className={`h-2 rounded-full overflow-hidden ${
+                              theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'
+                            }`}>
+                              <div
+                                className={`h-full rounded-full ${
+                                  grade.points >= 9 ? 'bg-green-500' :
+                                  grade.points >= 7 ? 'bg-yellow-500' :
+                                  grade.points >= 5 ? 'bg-orange-500' :
+                                  'bg-red-500'
+                                }`}
+                                style={{ width: `${(grade.points / grade.maxPoints) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </motion.div>
                       ))}
-                      
-                      {messages.length === 0 && (
-                        <div className="text-center py-8">
-                          <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                            {t?.('no_messages_yet') || "No messages yet"}
-                          </p>
-                        </div>
-                      )}
                     </div>
+                    
+                    {studentGrades.length >= 3 && (
+                      <div className={`mt-8 p-6 rounded-xl border ${
+                        theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <h4 className="font-bold mb-4">{t?.('grade_distribution') || "Grade Distribution"}</h4>
+                        <div className="flex items-end h-32 gap-2">
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(point => {
+                            const count = studentGrades.filter(g => Math.round(g.points) === point).length;
+                            const maxCount = Math.max(...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(p => 
+                              studentGrades.filter(g => Math.round(g.points) === p).length
+                            ));
+                            const height = maxCount > 0 ? (count / maxCount) * 80 : 0;
+                            
+                            return (
+                              <div key={point} className="flex-1 flex flex-col items-center">
+                                <div
+                                  className={`w-full rounded-t ${
+                                    point >= 9 ? 'bg-green-500' :
+                                    point >= 7 ? 'bg-yellow-500' :
+                                    point >= 5 ? 'bg-orange-500' :
+                                    'bg-red-500'
+                                  }`}
+                                  style={{ height: `${height}px` }}
+                                />
+                                <div className="text-xs mt-1">{point}</div>
+                                <div className="text-xs font-medium">{count}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-{/* Grades Modal */}
-<AnimatePresence>
-  {showGradesModal && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={() => setShowGradesModal(false)}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className={`rounded-2xl p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col ${
-          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-6 flex-shrink-0">
-          <div>
-            <h3 className="text-2xl font-bold flex items-center gap-2">
-              <Award className="w-6 h-6" />
-              {t?.('my_grades') || "My Grades"}
-            </h3>
-            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {studentGrades.length} {t?.('grades_received') || "grades received"}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowGradesModal(false)}
-            className={`p-2 rounded-lg ${
-              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            }`}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        {loadingGrades ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-          </div>
-        ) : studentGrades.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-12">
-            <Award className="w-16 h-16 text-gray-400 mb-4" />
-            <h4 className="text-lg font-medium mb-2">
-              {t?.('no_grades_yet') || "No grades yet"}
-            </h4>
-            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t?.('complete_assignments_to_get_grades') || "Complete assignments to receive grades"}
-            </p>
-            <button
-              onClick={() => {
-                setShowGradesModal(false);
-                setSelectedTab("assignments");
-              }}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-            >
-              {t?.('view_assignments') || "View Assignments"}
-            </button>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto">
-            {/* Статистика за оценките */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">
-                  {studentGrades.length}
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('total_grades') || "Total Grades"}
-                </div>
-              </div>
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">
-                  {studentGrades.reduce((sum, grade) => sum + grade.points, 0) / studentGrades.length}
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('average_grade') || "Average Grade"}
-                </div>
-              </div>
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">
-                  {studentGrades.filter(g => g.points >= 7).length}
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('excellent_grades') || "Excellent Grades (≥7)"}
-                </div>
-              </div>
-            </div>
-            
-            {/* Списък с оценки */}
-            <div className="space-y-4">
-              {studentGrades.map((grade, index) => (
-                <motion.div
-                  key={grade.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`p-4 rounded-xl border ${
-                    theme === 'dark' 
-                      ? 'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700 hover:border-gray-600' 
-                      : 'bg-white border-gray-200 hover:border-gray-300'
-                  } transition-colors`}
-                >
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
-                          grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
-                          grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
-                          'bg-red-500/20 text-red-500'
-                        }`}>
-                          <Award className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold">{grade.assignmentTitle}</h4>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {grade.fileName}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {grade.feedback && (
-                        <div className={`mt-3 p-3 rounded-lg ${
-                          theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
-                        }`}>
-                          <p className="text-sm whitespace-pre-wrap">
-                            {grade.feedback.length > 150 
-                              ? `${grade.feedback.substring(0, 150)}...` 
-                              : grade.feedback}
-                          </p>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-4 mt-3 text-sm">
-                        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                          {t?.('graded_by') || "Graded by"}: {grade.gradedBy}
-                        </span>
-                        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                          {grade.gradedAt?.toDate 
-                            ? new Date(grade.gradedAt.toDate()).toLocaleDateString()
-                            : t?.('recently') || "Recently"}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="text-center">
-                        <div className={`text-3xl font-bold ${
-                          grade.points >= 9 ? 'text-green-500' :
-                          grade.points >= 7 ? 'text-yellow-500' :
-                          grade.points >= 5 ? 'text-orange-500' :
-                          'text-red-500'
-                        }`}>
-                          {grade.points}/{grade.maxPoints}
-                        </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          grade.points >= 9 ? 'bg-green-500/20 text-green-500' :
-                          grade.points >= 7 ? 'bg-yellow-500/20 text-yellow-500' :
-                          grade.points >= 5 ? 'bg-orange-500/20 text-orange-500' :
-                          'bg-red-500/20 text-red-500'
-                        }`}>
-                          {grade.points >= 9 ? t?.('excellent') || 'Excellent' :
-                           grade.points >= 7 ? t?.('good') || 'Good' :
-                           grade.points >= 5 ? t?.('average') || 'Average' :
-                           t?.('needs_improvement') || 'Needs Improvement'}
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            // TODO: View submission details
-                            alert(`${t?.('viewing_grade_details') || "Viewing grade details for"}: ${grade.assignmentTitle}`);
-                          }}
-                          className={`px-3 py-1 rounded text-sm ${
-                            theme === 'dark' 
-                              ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
-                              : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
-                          }`}
-                        >
-                          {t?.('details') || "Details"}
-                        </button>
-                        {grade.feedback && grade.feedback.length > 150 && (
-                          <button
-                            onClick={() => {
-                              alert(`${t?.('full_feedback') || "Full Feedback"}:\n\n${grade.feedback}`);
-                            }}
-                            className={`px-3 py-1 rounded text-sm ${
-                              theme === 'dark' 
-                                ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' 
-                                : 'bg-green-100 hover:bg-green-200 text-green-600'
-                            }`}
-                          >
-                            {t?.('full_feedback') || "Full Feedback"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Прогрес бар за оценката */}
-                  <div className="mt-4">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>{t?.('score') || "Score"}</span>
-                      <span>{grade.points}/{grade.maxPoints}</span>
-                    </div>
-                    <div className={`h-2 rounded-full overflow-hidden ${
-                      theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}>
-                      <div
-                        className={`h-full rounded-full ${
-                          grade.points >= 9 ? 'bg-green-500' :
-                          grade.points >= 7 ? 'bg-yellow-500' :
-                          grade.points >= 5 ? 'bg-orange-500' :
-                          'bg-red-500'
-                        }`}
-                        style={{ width: `${(grade.points / grade.maxPoints) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            
-            {/* Графика за разпределение на оценките */}
-            {studentGrades.length >= 3 && (
-              <div className={`mt-8 p-6 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <h4 className="font-bold mb-4">{t?.('grade_distribution') || "Grade Distribution"}</h4>
-                <div className="flex items-end h-32 gap-2">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(point => {
-                    const count = studentGrades.filter(g => Math.round(g.points) === point).length;
-                    const maxCount = Math.max(...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(p => 
-                      studentGrades.filter(g => Math.round(g.points) === p).length
-                    ));
-                    const height = maxCount > 0 ? (count / maxCount) * 80 : 0;
-                    
-                    return (
-                      <div key={point} className="flex-1 flex flex-col items-center">
-                        <div
-                          className={`w-full rounded-t ${
-                            point >= 9 ? 'bg-green-500' :
-                            point >= 7 ? 'bg-yellow-500' :
-                            point >= 5 ? 'bg-orange-500' :
-                            'bg-red-500'
-                          }`}
-                          style={{ height: `${height}px` }}
-                        />
-                        <div className="text-xs mt-1">{point}</div>
-                        <div className="text-xs font-medium">{count}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
-        {/* Evaluation Modal */}
+
         <AnimatePresence>
           {showEvaluationModal && selectedSubmission && (
             <motion.div
@@ -4052,43 +4731,50 @@ console.log(applyTemplate)
                     </p>
                   </div>
                   
-                  {selectedSubmission.evaluation ? (
+                  {selectedSubmission?.grade ? (
                     <>
                       <div className="text-center">
                         <div className={`text-5xl font-bold mb-2 ${
-                          selectedSubmission.evaluation.score! >= 80 ? 'text-green-500' :
-                          selectedSubmission.evaluation.score! >= 60 ? 'text-yellow-500' :
+                          selectedSubmission.grade.score! >= 80 ? 'text-green-500' :
+                          selectedSubmission.grade.score! >= 60 ? 'text-yellow-500' :
                           'text-red-500'
                         }`}>
-                          {selectedSubmission.evaluation.score}%
+                          {selectedSubmission.grade.score}%
                         </div>
                         <div className={`px-4 py-2 rounded-full inline-block text-sm font-medium ${
-                          selectedSubmission.evaluation.score! >= 80 ? 'bg-green-500/20 text-green-500' :
-                          selectedSubmission.evaluation.score! >= 60 ? 'bg-yellow-500/20 text-yellow-500' :
+                          selectedSubmission.grade.score! >= 80 ? 'bg-green-500/20 text-green-500' :
+                          selectedSubmission.grade.score! >= 60 ? 'bg-yellow-500/20 text-yellow-500' :
                           'bg-red-500/20 text-red-500'
                         }`}>
-                          {selectedSubmission.evaluation.score! >= 80 ? t?.('excellent') || 'Excellent' :
-                           selectedSubmission.evaluation.score! >= 60 ? t?.('good') || 'Good' :
+                          {selectedSubmission.grade.score! >= 80 ? t?.('excellent') || 'Excellent' :
+                           selectedSubmission.grade.score! >= 60 ? t?.('good') || 'Good' :
                            t?.('needs_improvement') || 'Needs Improvement'}
                         </div>
                       </div>
                       
-                      {selectedSubmission.evaluation.feedback && (
+                      {selectedSubmission.grade.feedback && (
                         <div>
                           <h5 className="font-medium mb-2">{t?.('feedback') || "Feedback"}:</h5>
                           <div className={`p-4 rounded-lg ${
                             theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
                           }`}>
-                            <p className="whitespace-pre-wrap">{selectedSubmission.evaluation.feedback}</p>
+                            <p className="whitespace-pre-wrap">{selectedSubmission.grade.feedback}</p>
                           </div>
                         </div>
                       )}
                       
-                      {selectedSubmission.evaluation.gradedAt && (
-                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {t?.('graded_on') || "Graded on"}: {new Date(selectedSubmission.evaluation.gradedAt).toLocaleDateString()}
-                        </div>
-                      )}
+                      <div className="space-y-2">
+                        {selectedSubmission.grade.gradedBy && (
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {t?.('graded_by') || "Graded by"}: {selectedSubmission.grade.gradedBy}
+                          </div>
+                        )}
+                        {selectedSubmission.grade.gradedAt && (
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {t?.('graded_on') || "Graded on"}: {new Date(selectedSubmission.grade.gradedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
                     </>
                   ) : (
                     <div className="text-center py-8">

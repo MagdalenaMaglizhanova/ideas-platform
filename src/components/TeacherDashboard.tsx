@@ -53,6 +53,8 @@ import {
 import { supabase } from "../services/supabase";
 import MessagesTab from "../components/MessagesTab";
 import AssignmentGradingModal from "./AssignmentGradingModal";
+import LessonViewModal from "../components/LessonViewModal";
+import LessonFormModal from "../components/LessonFormModal";
 
 // Интерфейс за решение на предизвикателство
 interface ChallengeSubmission {
@@ -98,8 +100,40 @@ interface Community {
     privacy: "public" | "private";
   };
 }
+export interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  teacherId: string;
+  teacherName: string;
+  teacherAvatar?: string;
+  createdAt: any;
+  updatedAt?: any;
+  category: string;
+  color: string;
+  icon: string;
+  status: 'draft' | 'published' | 'archived';
+  tags: string[];
+  attachments: Array<{
+    name: string;
+    url: string;
+    type: 'pdf' | 'video' | 'code' | 'link' | 'image';
+    size?: string;
+  }>;
+  estimatedTime: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  visibility: 'public' | 'private' | 'unlisted';
+  language?: string;
+  prerequisites?: string[];
+  learningObjectives?: string[];
+  views?: number;
+  likes?: string[]; // Променете на string[] за съгласуваност
+  students?: string[];
+  rating?: number;
+  totalRatings?: number;
+}
 
-// Обновен интерфейс за предизвикателства
 interface Challenge {
   id: string;
   title: string;
@@ -347,17 +381,147 @@ export default function TeacherDashboard() {
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [viewingStudentFiles, setViewingStudentFiles] = useState<string | null>(null);
-  const [showLessonForm, setShowLessonForm] = useState(false);
   const [newLesson, setNewLesson] = useState({ title: '', description: '' });
   const [_activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [viewingChallengeSubmissions, setViewingChallengeSubmissions] = useState<Challenge | null>(null);
+  // States for lessons
+const [lessons, setLessons] = useState<Lesson[]>([]);
+const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
+const [showLessonForm, setShowLessonForm] = useState(false);
+const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+const [lessonSearch, setLessonSearch] = useState('');
+const [lessonFilter, setLessonFilter] = useState('all'); // 'all', 'published', 'draft', 'archived'
   
   // Grading states
   const [selectedPoints, setSelectedPoints] = useState<{[key: string]: number}>({});
   const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
   const [editingStudent, setEditingStudent] = useState<string | null>(null);
 console.log(selectedPoints, feedbackText, editingStudent, setEditingStudent )
-  // В началото на компонента, след state променливите
+
+
+// Зареждане на уроците
+const loadLessons = async () => {
+  if (!user) return;
+  
+  try {
+    const q = query(
+      collection(db, "lessons"),
+      where("teacherId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+    
+    const snapshot = await getDocs(q);
+    const lessonsData: Lesson[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      lessonsData.push({
+        id: doc.id,
+        title: data.title,
+        description: data.description,
+        content: data.content || "",
+        teacherId: data.teacherId,
+        teacherName: data.teacherName,
+        teacherAvatar: data.teacherAvatar,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        category: data.category || "Programming",
+        color: data.color || "#3B82F6",
+        icon: data.icon || "📚",
+        status: data.status || 'draft',
+        tags: data.tags || [],
+        attachments: data.attachments || [],
+        estimatedTime: data.estimatedTime || '1 hour',
+        difficulty: data.difficulty || 'beginner',
+        visibility: data.visibility || 'private',
+        language: data.language || 'en',
+        prerequisites: data.prerequisites || [],
+        learningObjectives: data.learningObjectives || [],
+        views: data.views || 0,
+        likes: data.likes || [],
+        students: data.students || [],
+        rating: data.rating || 0,
+        totalRatings: data.totalRatings || 0
+      });
+    });
+    
+    setLessons(lessonsData);
+  } catch (error) {
+    console.error("Error loading lessons:", error);
+  }
+};
+
+// Запазване на урок
+const handleSaveLesson = async (lessonData: any) => {
+  if (!user) return;
+
+  try {
+    if (editingLesson) {
+      // Актуализиране на съществуващ урок
+      await updateDoc(doc(db, "lessons", editingLesson.id), {
+        ...lessonData,
+        updatedAt: serverTimestamp()
+      });
+      setUploadStatus("✅ Lesson updated successfully!");
+    } else {
+      // Създаване на нов урок
+      await addDoc(collection(db, "lessons"), {
+        ...lessonData,
+        teacherId: user.uid,
+        teacherName: userData?.fullName || user.email?.split('@')[0] || "Teacher",
+        teacherAvatar: userData?.avatar || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        views: 0,
+        likes: [],
+        students: [],
+        rating: 0,
+        totalRatings: 0
+      });
+      setUploadStatus("✅ Lesson created successfully!");
+    }
+    
+    loadLessons(); // Презареждане на списъка
+  } catch (error) {
+    console.error("Error saving lesson:", error);
+    setUploadStatus("❌ Error saving lesson!");
+  }
+};
+
+// Изтриване на урок
+const handleDeleteLesson = async (lessonId: string) => {
+  if (!window.confirm("Are you sure you want to delete this lesson?")) return;
+  
+  try {
+    await deleteDoc(doc(db, "lessons", lessonId));
+    setUploadStatus("✅ Lesson deleted successfully!");
+    loadLessons();
+    setViewingLesson(null); // Затваряне на модала ако е отворен
+  } catch (error) {
+    console.error("Error deleting lesson:", error);
+    setUploadStatus("❌ Error deleting lesson!");
+  }
+};
+
+// Филтриране на уроци
+const filteredLessons = lessons.filter(lesson => {
+  const matchesSearch = lessonSearch === '' || 
+    lesson.title.toLowerCase().includes(lessonSearch.toLowerCase()) ||
+    lesson.description.toLowerCase().includes(lessonSearch.toLowerCase()) ||
+    lesson.tags.some(tag => tag.toLowerCase().includes(lessonSearch.toLowerCase()));
+  
+  const matchesFilter = lessonFilter === 'all' || lesson.status === lessonFilter;
+  
+  return matchesSearch && matchesFilter;
+});
+
+useEffect(() => {
+  if (selectedTab === "courses" && user) {
+    loadLessons();
+  }
+}, [selectedTab, user]);
+
+
 const [gradingModal, setGradingModal] = useState<{
   isOpen: boolean;
   studentName: string;
@@ -3600,88 +3764,264 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
         {/* Challenges View */}
         {selectedTab === "challenges" && renderChallengesView()}
 
-        {/* Courses View */}
-        {selectedTab === "courses" && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">{t?.('my_lessons') || "My Lessons"}</h2>
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>{t?.('manage_organize_lessons') || "Manage and organize your lessons"}</p>
+        {/* Courses/Lessons View */}
+{selectedTab === "courses" && (
+  <div className="mb-8">
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h2 className="text-2xl font-bold">{t?.('my_lessons') || "My Lessons"}</h2>
+        <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+          {filteredLessons.length} lessons • {lessons.filter(l => l.status === 'published').length} published
+        </p>
+      </div>
+      
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="relative">
+          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`} />
+          <input
+            type="text"
+            placeholder="Search lessons..."
+            value={lessonSearch}
+            onChange={(e) => setLessonSearch(e.target.value)}
+            className={`pl-10 pr-4 py-2 rounded-lg border ${
+              theme === 'dark' 
+                ? 'bg-white/5 border-white/10 text-white' 
+                : 'bg-white border-gray-300 text-gray-900'
+            }`}
+          />
+        </div>
+        
+        {/* Filter Dropdown */}
+        <select
+          value={lessonFilter}
+          onChange={(e) => setLessonFilter(e.target.value)}
+          className={`px-4 py-2 rounded-lg border ${
+            theme === 'dark' 
+              ? 'bg-white/5 border-white/10 text-white' 
+              : 'bg-white border-gray-300 text-gray-900'
+          }`}
+        >
+          <option value="all">All Lessons</option>
+          <option value="published">Published</option>
+          <option value="draft">Drafts</option>
+          <option value="archived">Archived</option>
+        </select>
+        
+        {/* Create Lesson Button */}
+        <button 
+          onClick={() => {
+            setEditingLesson(null);
+            setShowLessonForm(true);
+          }}
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          {t?.('add_new_lesson') || "Add New Lesson"}
+        </button>
+      </div>
+    </div>
+
+    {/* Stats Cards for Lessons */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className={`p-4 rounded-xl border ${
+        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className="text-2xl font-bold mb-1">{lessons.length}</div>
+        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          Total Lessons
+        </div>
+      </div>
+      <div className={`p-4 rounded-xl border ${
+        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className="text-2xl font-bold mb-1">
+          {lessons.filter(l => l.status === 'published').length}
+        </div>
+        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          Published
+        </div>
+      </div>
+      <div className={`p-4 rounded-xl border ${
+        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className="text-2xl font-bold mb-1">
+          {lessons.filter(l => l.status === 'draft').length}
+        </div>
+        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          Drafts
+        </div>
+      </div>
+      <div className={`p-4 rounded-xl border ${
+        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className="text-2xl font-bold mb-1">
+          {[...new Set(lessons.map(l => l.category))].length}
+        </div>
+        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          Categories
+        </div>
+      </div>
+    </div>
+
+    {/* Lessons Grid */}
+    {filteredLessons.length === 0 ? (
+      <div className={`rounded-2xl p-12 border text-center ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+          : 'bg-white border-gray-200'
+      }`}>
+        <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-xl font-bold mb-2">
+          {lessonSearch || lessonFilter !== 'all' 
+            ? 'No matching lessons found' 
+            : t?.('no_lessons_yet') || "No lessons yet"}
+        </h3>
+        <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          {lessonSearch || lessonFilter !== 'all' 
+            ? 'Try changing your search or filter criteria'
+            : t?.('create_first_lesson') || "Create your first lesson to get started"}
+        </p>
+        <button
+          onClick={() => {
+            setEditingLesson(null);
+            setShowLessonForm(true);
+            setLessonSearch('');
+            setLessonFilter('all');
+          }}
+          className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+        >
+          <Plus className="w-4 h-4 inline mr-2" />
+          {t?.('create_first_lesson') || "Create First Lesson"}
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredLessons.map((lesson) => (
+          <motion.div
+            key={lesson.id}
+            whileHover={{ scale: 1.02, translateY: -5 }}
+            className={`rounded-2xl p-6 border cursor-pointer ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10 hover:border-white/20'
+                : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'
+            } backdrop-blur-xl transition-all`}
+            onClick={() => setViewingLesson(lesson)}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                  style={{ backgroundColor: `${lesson.color}20`, color: lesson.color }}
+                >
+                  {lesson.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold line-clamp-1">{lesson.title}</h3>
+                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {lesson.category}
+                  </span>
+                </div>
               </div>
-              <button 
-                onClick={() => setShowLessonForm(true)}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                {t?.('add_new_lesson') || "Add New Lesson"}
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`px-2 py-1 rounded text-xs ${
+                  lesson.status === 'published' ? 'bg-green-500/20 text-green-500' :
+                  lesson.status === 'draft' ? 'bg-yellow-500/20 text-yellow-500' :
+                  'bg-gray-500/20 text-gray-500'
+                }`}>
+                  {lesson.status}
+                </span>
+                <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                  {lesson.estimatedTime || 'N/A'}
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((course) => (
-                <motion.div
-                  key={course.id}
-                  whileHover={{ scale: 1.02, translateY: -5 }}
-                  className={`rounded-2xl p-6 border ${
-                    theme === 'dark'
-                      ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                      : 'bg-white border-gray-200'
-                  } backdrop-blur-xl`}
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: `${course.color}20`, color: course.color }}
+            <p className={`mb-4 line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              {lesson.description}
+            </p>
+
+            <div className="space-y-3 mb-6">
+              {lesson.tags && lesson.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {lesson.tags.slice(0, 3).map((tag, index) => (
+                    <span
+                      key={index}
+                      className={`px-2 py-1 rounded text-xs ${
+                        theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                      }`}
                     >
-                      {course.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-bold">{course.title}</h3>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {course.description}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>{t?.('progress') || "Progress"}</span>
-                      <span>{course.progress}%</span>
-                    </div>
-                    <div className={`h-2 rounded-full overflow-hidden ${
-                      theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
+                      {tag}
+                    </span>
+                  ))}
+                  {lesson.tags.length > 3 && (
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
                     }`}>
-                      <motion.div
-                        className="h-full rounded-full"
-                        style={{ backgroundColor: course.color }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${course.progress}%` }}
-                        transition={{ duration: 1.5, delay: 0.2 }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors`}>
-                      {t?.('preview') || "Preview"}
-                    </button>
-                    <button className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                      theme === 'dark' 
-                        ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
-                        : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
-                    } transition-colors`}>
-                      {t?.('edit') || "Edit"}
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                      +{lesson.tags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-4 text-sm">
+                <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  {new Date(lesson.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
+                </span>
+                {lesson.attachments && lesson.attachments.length > 0 && (
+                  <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                    <FileText className="w-4 h-4 inline mr-1" />
+                    {lesson.attachments.length}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+  <span className="text-blue-400 font-bold text-sm">U</span>
+</div>
+                <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {lesson.teacherName}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingLesson(lesson);
+                    setShowLessonForm(true);
+                  }}
+                  className={`p-2 rounded-lg ${
+                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                  }`}
+                  title="Edit"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewingLesson(lesson);
+                  }}
+                  className={`p-2 rounded-lg ${
+                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                  }`}
+                  title="View"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
         {/* Assignments View */}
         {selectedTab === "assignments" && (
@@ -6133,6 +6473,31 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
           />
         )}
       </div>
+      {/* Lesson View Modal */}
+{viewingLesson && (
+  <LessonViewModal
+    lesson={viewingLesson}
+    onClose={() => setViewingLesson(null)}
+    onEdit={(lesson) => {
+      setViewingLesson(null);
+      setEditingLesson(lesson);
+      setShowLessonForm(true);
+    }}
+    onDelete={handleDeleteLesson}
+  />
+)}
+
+{/* Lesson Form Modal */}
+{showLessonForm && (
+  <LessonFormModal
+    editingLesson={editingLesson}
+    onClose={() => {
+      setShowLessonForm(false);
+      setEditingLesson(null);
+    }}
+    onSave={handleSaveLesson}
+  />
+)}
     </div>
   );
 }
