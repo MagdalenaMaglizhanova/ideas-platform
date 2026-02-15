@@ -11,6 +11,14 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+unlisted:string;
+has_been_published: string;
+open_in_assignments: string;
+and_notified: string;
+assignment_created_action: string;
+created_new_assignment: string;
+students_notified:string;
+
   new_challenge: string;                          // "New Challenge"
   new_challenge_notification: string;             // "New Challenge"
   new_challenge_available: string;                // "New challenge available"
@@ -2322,6 +2330,13 @@ status_in_progress: 'In Progress',
 completed_assignments_count: 'Completed Assignments',
 in_progress_assignments_count: 'In Progress Assignments',
 total_assignments_count: 'Total Assignments',
+ unlisted: "Unlisted",
+  has_been_published: "Has been published",
+  open_in_assignments: "Open in Assignments",
+  and_notified: "and notified",
+  assignment_created_action: "Assignment Created",
+  created_new_assignment: "Created new assignment",
+  students_notified: "Students notified",
     // Home page преводи
     ideas_acronym: 'Intelligent Data Educational Analysis System',
     hero_title_part1: 'Transform Education',
@@ -2800,6 +2815,13 @@ code_editor: "Code Editor",
     message_to_all_desc: 'This message will be sent to all users on the platform',
   },
   bg: {
+    unlisted: "Непубликуван",
+  has_been_published: "Е публикуван",
+  open_in_assignments: "Отвори в Заданията",
+  and_notified: "и уведомени",
+  assignment_created_action: "Заданието е създадено",
+  created_new_assignment: "Създаде ново задание",
+  students_notified: "Учениците са уведомени",
      user: 'Потребител',
     message_to_all_desc: 'Това съобщение ще бъде изпратено до всички потребители в платформата',
     join_communities: 'Присъединете се към общности',
@@ -5026,7 +5048,16 @@ prolog_demo:"Demostración de Prolog",
   community_name: "Nombre de la Comunidad",
   enter_community_name: "Ingrese nombre de la comunidad",
   grade_level: "Nivel de Grado",
+  unlisted: "No listado",
+  has_been_published: "Ha sido publicado",
+  open_in_assignments: "Abrir en Tareas",
+  and_notified: "y notificado",
+  assignment_created_action: "Tarea Creada",
+  created_new_assignment: "Nueva tarea creada",
+  students_notified: "Estudiantes notificados",
   privacy_settings: "Configuración de Privacidad",
+  private: "Privado",
+  public: "Público",
   auto_approve_students: "Aprobar automáticamente solicitudes de unión de estudiantes",
   allow_student_messages: "Permitir a estudiantes enviarse mensajes",
   allow_student_challenges: "Permitir a estudiantes crear desafíos",
@@ -5060,8 +5091,6 @@ prolog_demo:"Demostración de Prolog",
   no_communities_yet: "Aún no hay comunidades",
   join_community_description: "Únete a comunidades existentes o crea la tuya propia",
   members: "miembros",
-  public: "Público",
-  private: "Privado",
   general: "General",
   view_challenges: "Ver Desafíos",
   active_challenges: "Desafíos Activos",
