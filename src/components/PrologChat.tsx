@@ -69,24 +69,34 @@ const usePrologSession = () => {
   const { user } = useAuth();
   
   const getSessionId = (): string => {
-    let sessionId = localStorage.getItem('prolog_session_id');
+    // За логнати потребители - използваме Firebase UID
+    if (user?.uid) {
+      return user.uid;
+    }
+    
+    // За анонимни потребители - отделен localStorage ключ
+    let sessionId = localStorage.getItem('prolog_main_session_id');
     if (!sessionId) {
       sessionId = generateId();
-      localStorage.setItem('prolog_session_id', sessionId);
+      localStorage.setItem('prolog_main_session_id', sessionId);
     }
     return sessionId;
   };
 
   const sessionId = getSessionId();
-  const userId = user?.uid || sessionId;
+  const userId = sessionId;
 
   const clearSession = async (): Promise<void> => {
-    localStorage.removeItem('prolog_session_id');
+    // Изчистваме само анонимната сесия
+    if (!user) {
+      localStorage.removeItem('prolog_main_session_id');
+    }
+    
     try {
       await fetch("https://prolog-api-server-1.onrender.com/prolog/end-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userId || 'anonymous' })
+        body: JSON.stringify({ userId })
       });
     } catch (error) {
       console.error("Error ending session:", error);
@@ -94,8 +104,8 @@ const usePrologSession = () => {
   };
 
   return {
-    userId: userId || 'anonymous',
-    sessionId: sessionId || 'unknown',
+    userId,
+    sessionId,
     clearSession
   };
 };
@@ -349,8 +359,7 @@ console.log(language)
     // Then try to load its code from the database
     loadFileCode(fileName);
     
-    // Switch to code tab to show the code
-    setActiveTab("code");
+    // Removed automatic tab switching - user stays on current tab
   };
 
   // Load file code from database
@@ -647,7 +656,7 @@ console.log(language)
     setCodeViewMode("view");
   };
 
-  // Theme classes
+  // Theme classes - премахнати scrollbar класове
   const themeClasses = {
     light: {
       background: "bg-gray-50",
@@ -661,7 +670,6 @@ console.log(language)
       textSecondary: "text-gray-600",
       textTertiary: "text-gray-500",
       border: "border-gray-200",
-      scrollbar: "scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100",
       fileItem: "bg-gray-50 hover:bg-gray-100",
       fileLink: "text-blue-600 hover:text-blue-800 hover:underline",
       success: "text-green-600",
@@ -681,7 +689,6 @@ console.log(language)
       textSecondary: "text-gray-300",
       textTertiary: "text-gray-400",
       border: "border-gray-700",
-      scrollbar: "scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800",
       fileItem: "bg-gray-700/50 hover:bg-gray-700",
       fileLink: "text-blue-400 hover:text-blue-300 hover:underline",
       success: "text-green-400",
@@ -705,7 +712,7 @@ console.log(language)
 
   return (
     <div ref={topRef} className={`min-h-screen ${currentTheme.background} ${currentTheme.text} pt-20 md:pt-24`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pt-4">
           <div>
@@ -893,20 +900,21 @@ console.log(language)
                     <FolderOpen className="w-4 h-4 text-green-500" />
                     <span className="font-medium text-sm">Loaded Files ({loadedFiles.length})</span>
                   </div>
-                  <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
+                  {/* FIXED: No scrollbars - just flex wrap */}
+                  <div className="flex flex-wrap gap-2">
                     {loadedFiles.map((file, idx) => (
                       <motion.div
                         key={idx}
-                        whileHover={{ x: 2 }}
-                        className="flex items-center gap-2"
+                        whileHover={{ scale: 1.02 }}
+                        className="flex-shrink-0"
                       >
-                        <File className={`w-3 h-3 ${currentTheme.textTertiary}`} />
                         <button
                           onClick={() => handleFileClick(file.name)}
-                          className={`text-left truncate ${currentTheme.fileLink} transition-colors`}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm ${currentTheme.fileItem} ${currentTheme.fileLink} transition-colors`}
                           title={`Click to consult ${file.name}`}
                         >
-                          {file.name}
+                          <File className="w-3 h-3 flex-shrink-0" />
+                          <span className="max-w-[150px] truncate">{file.name}</span>
                         </button>
                       </motion.div>
                     ))}
@@ -1019,7 +1027,7 @@ console.log(language)
                   </div>
                 </motion.div>
 
-                {/* Chat Messages */}
+                {/* Chat Messages - добавен max-height и overflow-y-auto само тук */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1048,9 +1056,10 @@ console.log(language)
                     </div>
                   </div>
 
+                  {/* Контейнер за съобщенията - само той има скрол */}
                   <div 
                     ref={messagesContainerRef}
-                    className={`h-[400px] overflow-y-auto p-6 ${currentTheme.scrollbar}`}
+                    className="h-[500px] overflow-y-auto p-6"
                   >
                     {messages.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-center py-12">
@@ -1324,7 +1333,7 @@ console.log(language)
                   )}
                 </motion.div>
 
-                {/* Code Display */}
+                {/* Code Display - без скрол */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1353,7 +1362,7 @@ console.log(language)
 
                   <div 
                     ref={codeViewerRef}
-                    className={`h-[500px] overflow-auto p-4 ${currentTheme.scrollbar}`}
+                    className="p-4"
                   >
                     {isLoadingCode ? (
                       <div className="h-full flex items-center justify-center">
@@ -1378,7 +1387,7 @@ console.log(language)
                         </button>
                       </div>
                     ) : codeViewMode === "view" ? (
-                      <pre className="font-mono text-sm leading-relaxed">
+                      <pre className="font-mono text-sm leading-relaxed overflow-visible">
                         <code dangerouslySetInnerHTML={{ 
                           __html: formatCode(currentFileCode)
                         }} />
