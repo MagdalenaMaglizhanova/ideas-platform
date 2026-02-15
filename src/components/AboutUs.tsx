@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, Heart, Sparkles,
-  Award,  Rocket,
+  Award,
   Linkedin, Github, Twitter, Mail
 } from 'lucide-react';
 import { useTheme } from "../context/ThemeContext";
@@ -70,7 +70,7 @@ export default function AboutUs({
       id: 1,
       name: "Veneta Tabakova-Komsalova",
       role: "Associate Professor & Team Leader",
-      description: "With over 15 years of experience in software development, Veneta Tabakova-Komsalova leads our technical vision. Passionate about creating elegant solutions to complex problems.",
+      description: "Veneta Tabakova-Komsalova is an Associate Professor at the Faculty of Mathematics and Informatics at Paisii Hilendarski University of Plovdiv. She defended her PhD dissertation in the field of Informatics at the same university. She collaborates with the Institute of Information and Communication Technologies at the Bulgarian Academy of Sciences. She has many years of pedagogical experience as a teacher and expert in secondary education. Her research interests include artificial intelligence, logic programming and Prolog programming, expert systems, and virtual-physical social spaces. She has authored more than 50 scientific articles and textbooks.",
       image: pic1,
       social: {
         linkedin: "https://linkedin.com/in/alexjohnson",
@@ -83,7 +83,7 @@ export default function AboutUs({
       id: 2,
       name: "Stanimir Stoqnov",
       role: "Professor & Symbolic AI systems",
-      description: "Stoyanov develops intelligent systems with a strong focus on user-centered design and logical programming principles. He works in the fields of artificial intelligence and knowledge-based systems.",
+      description: "Stanimir Stoyanov is a professor at the Faculty of Mathematics and Informatics at Paisii Hilendarski University of Plovdiv. He holds doctoral degrees from Humboldt University in Berlin, Germany, and De Montfort University in Leicester, United Kingdom. He collaborates with the Institute of Information and Communication Technologies at the Bulgarian Academy of Sciences. He has been a visiting professor at De Montfort University in Leicester, United Kingdom, and at Siberian Federal University in Krasnoyarsk, Russia. He has extensive practical experience in the development of information systems. His research interests include artificial intelligence, intelligent agents and multi-agent systems, virtual-physical social spaces, and logic programming. He has authored more than 300 scientific articles, books, and textbooks in Bulgarian, Russian, English, and German.",
       image: pic2,
       social: {
         linkedin: "https://linkedin.com/in/mariachen",
@@ -96,7 +96,7 @@ export default function AboutUs({
       id: 3,
       name: "Magdalena Maglizhanova",
       role: "Full-Stack Developer & Doctoral Student",
-      description: "Magdalena builds robust backend systems. Her expertise in database design and API development keeps the platform running smoothly.",
+      description: "Magdalena Maglizhanova is a PhD student at Paisii Hilendarski University of Plovdiv. She has 15 years of experience in software development and computer graphics design. Throughout her professional career, she has held various positions, including software tester, web designer, and print media designer. She worked for the American company Digital River, where she further developed her expertise in software testing. Prior to her current teaching position, she was employed as a print media designer in the PR department of the prestigious German company ATLAS. She is currently teaching Object-Oriented Programming at the Vocational High School of Electronics and Electrical Engineering in Plovdiv. Over the past year, she has actively participated in the development of the first STEM guide at her educational institution, in close collaboration with her colleagues.",
       image: pic3,
       social: {
         linkedin: "https://linkedin.com/in/davidsmith",
@@ -146,15 +146,7 @@ export default function AboutUs({
           className="text-center mb-16"
         >
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20' 
-                : 'bg-gradient-to-br from-blue-100 to-cyan-100'
-            }`}>
-              <Users className={`w-8 h-8 ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-blue-600'
-              }`} />
-            </div>
+            
             <div>
               <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
                 About Us
@@ -166,8 +158,7 @@ export default function AboutUs({
           </div>
           
           <p className={`text-xl max-w-3xl mx-auto ${currentTheme.subtitle}`}>
-            We are a passionate team of developers, designers, and innovators dedicated to creating exceptional digital experiences. 
-            Our mission is to build technology that empowers people and businesses to achieve more.
+            We are a team from Plovdiv University that aims to support the smooth transition of education to modern technologies and digital solutions.
           </p>
         </motion.div>
         {/* Нашата мисия */}
@@ -178,37 +169,33 @@ export default function AboutUs({
           className={`mb-16 p-8 rounded-2xl border ${currentTheme.card}`}
         >
           <div className="flex items-center gap-4 mb-6">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20' 
-                : 'bg-gradient-to-r from-purple-100 to-pink-100'
-            }`}>
-              <Rocket className={`w-6 h-6 ${
-                theme === 'dark' ? 'text-pink-400' : 'text-purple-600'
-              }`} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">Our Mission</h2>
-              <p className={currentTheme.subtitle}>
-                To revolutionize the way people interact with technology and education through innovative, human-centered, and AI-driven solutions.
-              </p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">What We Do</h3>
-              <p className={`mb-4 ${currentTheme.subtitle}`}>
-                We specialize in creating custom software solutions — from web and mobile applications to complex enterprise and AI-powered systems. Our approach combines cutting-edge technology, logical and knowledge-based artificial intelligence, and user-centered design.
-              </p>
-            </div>
             
             <div>
-              <h3 className="text-xl font-bold mb-4">Our Story</h3>
-              <p className={currentTheme.subtitle}>
-                Founded in 2024, we began as a small team. Today, we are a growing and diverse team of professionals working at the intersection of software engineering, artificial intelligence, and education.
-Our core mission is to transform Bulgarian education by integrating modern technologies and AI-driven methodologies, helping learners, educators, and institutions adapt to the rapidly evolving digital world.
-              </p>
+             
+</div>
+</div>
+
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  <div>
+    <h3 className="text-xl font-bold mb-4">What We Do</h3>
+  <p className={`mb-4 ${currentTheme.subtitle}`}>
+    We are an academic-driven team with strong expertise in artificial intelligence, logical programming, intelligent agents, and educational technologies. Our mission is to support the modernization of education through the meaningful integration of AI, software engineering, and STEM-oriented methodologies.
+    <br /><br />
+    We design and develop specialized software solutions for educational and research environments, including web and mobile applications, AI-powered systems, and knowledge-based platforms. Our work combines contemporary software engineering practices, logic-based artificial intelligence (including Prolog and expert systems), and user-centered design principles.
+    <br /><br />
+    By bridging research, practical software development, and classroom experience, we create solutions that enhance accessibility, adaptability, and effectiveness in both secondary and higher education.
+  </p>
+  </div>
+  
+  <div>
+    <h3 className="text-xl font-bold mb-4">Our Story</h3>
+  <p className={currentTheme.subtitle}>
+    Our initiative brings together university researchers, experienced educators, and software development professionals. The team combines extensive academic research in artificial intelligence and multi-agent systems with long-standing pedagogical practice and industry experience in software development, testing, and digital design.
+    <br /><br />
+    Rooted in the academic environment of Paisii Hilendarski University of Plovdiv and enriched by collaboration with national and international institutions, our work integrates research excellence with real-world educational needs.
+    <br /><br />
+    Our long-term vision is to contribute to the transformation of Bulgarian education through AI-driven methodologies, STEM innovation, and the development of intelligent educational systems that support students, teachers, and institutions in the contemporary digital ecosystem.
+  </p>
             </div>
           </div>
         </motion.div>
@@ -353,26 +340,6 @@ Our core mission is to transform Bulgarian education by integrating modern techn
             ))}
           </div>
         </div>
-
-        {/* Присъединете се към нас */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className={`text-center p-8 rounded-2xl border ${currentTheme.card} bg-gradient-to-r ${currentTheme.gradient}/5`}
-        >
-          <h2 className="text-3xl font-bold mb-4">Want to Join Our Team?</h2>
-          <p className={`text-xl mb-8 max-w-2xl mx-auto ${currentTheme.subtitle}`}>
-            We're always looking for talented individuals who share our passion for innovation and excellence.
-          </p>
-          <button className={`px-8 py-3 rounded-xl font-medium transition-all ${
-            theme === 'dark'
-              ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-cyan-500/25'
-              : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg'
-          }`}>
-            View Open Positions
-          </button>
-        </motion.div>
       </div>
     </div>
   );

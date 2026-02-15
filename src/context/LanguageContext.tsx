@@ -11,6 +11,152 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  new_challenge: string;                          // "New Challenge"
+  new_challenge_notification: string;             // "New Challenge"
+  new_challenge_available: string;                // "New challenge available"
+  new_assignment_notification: string;             // "New Assignment"
+  
+  // ============ ПРЕДИЗВИКАТЕЛСТВА ============
+  loading_solutions: string;                          // "Loading your solutions..."
+  challenge_id: string;                                 // "Challenge ID"
+  challenge_not_loaded: string;                         // "Challenge not loaded"
+  solution_status: string;                               // "Solution Status"
+  your_grade: string;                                    // "Your Grade"
+  view_feedback: string;                                 // "View Feedback"
+  evaluated_by: string;                                  // "Evaluated by"
+  code_copied: string;                                    // "Code copied to clipboard!"
+  no_code_to_copy: string;                                // "No code to copy"
+  your_name: string;                                      // "Your name"
+ new_assignment: string;
+  show_less:string;
+active_challenge:string;
+
+  challenge_created_notification: string;    // "📢 New challenge {title} has been created!"
+  challenge_accepted_notification: string;   // "✅ Challenge {title} has been accepted!"
+  challenge_responded_notification: string;  // "💬 Teacher responded to challenge {title}"
+  challenge_completed_notification: string;  // "🎉 Challenge {title} has been completed!"
+  challenge_created: string;                  // "✅ Challenge created for"
+  challenge_deleted: string;                    // "✅ Challenge deleted!"
+  
+  responded: string;                            // "responded"
+  rejected: string;                             // "rejected"
+  submitted: string;                             // "submitted"
+  evaluated: string;                             // "evaluated"
+  waiting: string;                               // "Waiting"
+  action_needed: string;                         // "Action needed"
+  done: string;                                  // "Done"
+  more: string;                                  // "more"
+  
+  // ============ ГРЕШКИ ============
+  error_loading_challenges: string;              // "❌ Error loading challenges! Firebase index may be missing."
+  error_accepting_challenge: string;             // "❌ Error accepting challenge!"
+  error_rejecting_challenge: string;              // "❌ Error rejecting challenge!"
+  error_creating_challenge: string;               // "❌ Error creating challenge!"
+  error_sending_response: string;                 // "❌ Error sending response!"
+  error_deleting_challenge: string;               // "❌ Error deleting challenge!"
+  error_grading_submission: string;               // "❌ Error grading submission!"
+  
+  // ============ УСПЕШНИ СЪОБЩЕНИЯ ============
+  submission_graded: string;                      // "✅ Submission graded! Challenge completed!"
+  response_sent: string;                           // "✅ Response sent successfully!"
+  
+  // ============ НОТИФИКАЦИИ ============
+  your_submission_received: string;                // "Your submission for"
+  received: string;                                 // "received"
+  
+  // ============ ФОРМИ ЗА ПРЕДИЗВИКАТЕЛСТВА ============
+  challenge_will_be_created_for: string;           // "Challenge will be created for"
+  max_points: string;                               // "Max points"
+  students_accepted: string;                        // "students accepted"
+  students_who_accepted: string;                    // "Students who accepted this challenge"
+
+  no_submissions_desc: string;                       // "No students have submitted solutions for this challenge yet."
+  view_submissions: string;                          // "View submissions"
+  grade_submission: string;                          // "Grade Submission"
+  update_grade: string;                              // "Update Grade"
+
+  solution_code: string;                             // "Solution Code"
+
+  enter_score: string;                               // "Enter score"
+  provide_feedback: string;                          // "Provide feedback to the student..."
+  
+  
+  // ============ ОБЩНОСТИ ============
+  your_communities: string;                          // "Your Communities"
+  no_community_selected_title: string;               // "No Community Selected"
+  no_community_selected_desc: string;                // "Please select a community from the dropdown above to view and manage challenges."
+  
+  // ============ ПРЕДИЗВИКАТЕЛСТВА - СЪЗДАВАНЕ ============
+  create_first_challenge_for: string;                 // "Create your first challenge for"
+  no_date: string;                                     // "No date"
+  deleting: string;                                    // "Deleting..."
+  
+  // ============ ОЦЕНЯВАНЕ ============
+  needs_grading: string;                               // "⚠️ Needs grading!"
+
+  
+  // ============ ВАЛИДАЦИЯ ============
+  must_be_logged_in: string;                          // "❌ You must be logged in!"
+  only_creator_can_delete: string;                     // "❌ Only the creator can delete this challenge!"
+  confirm_delete_challenge: string;                    // "Are you sure you want to delete this challenge?"
+challenge_completed: string;     // "Challenge Completed!" или "Предизвикателството е завършено!"
+  student_accepted: string;       
+
+  published: string;           
+all_lessons: string;         
+search_lessons: string;    
+total_lessons: string;      
+no_matching_lessons: string; 
+try_changing_criteria: string; 
+  continue_work:string;
+  start_assignment:string;
+  creating:string;
+  accept:string;
+example_code_hint:string;
+message_thread: string;          
+start_conversation: string;       
+type_message: string;            
+just_now: string;                
+all_messages_read: string;     
+messages_sent: string;           
+message_all: string;             
+student_wants_to_join: string;   
+join_request: string;    
+lesson_updated: string;          
+lesson_created: string;          
+error_saving_lesson: string;     
+confirm_delete_lesson: string;   
+lesson_deleted: string;           
+error_deleting_lesson: string;   
+programming: string;            
+new_lesson_created: string;          
+need_community_for_challenges: string;    
+no_community_selected: string;             
+select_community_for_challenges: string;   
+go_to_communities: string;                 
+challenge_sent: string;                   
+sent_successfully: string;          
+grade_notification: string;        // 'Your work "{file}" has been graded. Points: {points}/10. Feedback: {feedback}'
+grade_assigned: string;             // "Grade Assigned"
+grade_assigned_details: string;     // 'Assigned {points}/10 points for "{file}"'
+error_saving_grade: string;         // "Error saving grade! Check console for details."
+graded: string;                      // "graded" (за филтри)
+unknown_student: string;   
+community_created: string;           // "Community created successfully!"
+error_creating_community: string;    // "Error creating community!"
+student_approved: string;            // "Student approved successfully!"
+error_approving_student: string;     // "Error approving student!"
+request_rejected: string;             // "Request rejected!"
+error_rejecting_request: string;      // "Error rejecting request!"
+id: string;              
+created_expert_system: string;      // "Created expert system for biology project"
+uploaded_assignment: string;         // "Uploaded assignment file"
+completed_logical_rules: string;   
+
+
+
+
+
   untitled_assignment:string;
 learn_and_practice:string;
 unknown_action:string;
@@ -1298,6 +1444,87 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 // Преводите с правилната типизация
 const translations: Translations = {
   en: {
+    new_challenge: "New Challenge",
+  new_challenge_notification: "New Challenge",
+  new_challenge_available: "New challenge available",
+  new_assignment_notification: "New Assignment",
+  loading_solutions: "Loading your solutions...",
+  challenge_id: "Challenge ID",
+  challenge_not_loaded: "Challenge not loaded",
+  solution_status: "Solution Status",
+  your_grade: "Your Grade",
+  view_feedback: "View Feedback",
+  evaluated_by: "Evaluated by",
+  code_copied: "Code copied to clipboard!",
+  no_code_to_copy: "No code to copy",
+  your_name: "Your name",
+  new_assignment: "New Assignment",
+  show_less: "Show less",
+  active_challenge: "Active Challenge",
+     published: "Published",
+  all_lessons: "All Lessons",
+  search_lessons: "Search lessons...",
+  total_lessons: "Total Lessons",
+  no_matching_lessons: "No matching lessons found",
+  try_changing_criteria: "Try changing your search or filter criteria",
+  
+  // Задания и работа
+  continue_work: "Continue work",
+  start_assignment: "Start assignment",
+  creating: "Creating",
+  accept: "Accept",
+  example_code_hint: "Example code hint",
+  
+  // Съобщения и дискусии
+  message_thread: "Message Thread",
+  start_conversation: "Start the conversation by sending a message below",
+  type_message: "Type your message...",
+  just_now: "Just now",
+  all_messages_read: "All messages marked as read!",
+  messages_sent: "message(s) sent successfully",
+  message_all: "Message All",
+  student_wants_to_join: "{student} wants to join '{community}'",
+  join_request: "Join Request",
+  
+  // Управление на уроци
+  lesson_updated: "Lesson updated successfully!",
+  lesson_created: "Lesson created successfully!",
+  error_saving_lesson: "Error saving lesson!",
+  confirm_delete_lesson: "Are you sure you want to delete this lesson?",
+  lesson_deleted: "Lesson deleted successfully!",
+  error_deleting_lesson: "Error deleting lesson!",
+  programming: "Programming",
+  new_lesson_created: "New lesson created",
+  
+  // Предизвикателства и общности
+  need_community_for_challenges: "You need to create a community before you can create challenges.",
+  no_community_selected: "No Community Selected",
+  select_community_for_challenges: "Please select a community from the Communities tab to view and manage challenges.",
+  go_to_communities: "Go to Communities",
+  challenge_sent: "Challenge",
+  sent_successfully: "sent successfully",
+  
+  // Оценяване и обратна връзка
+  grade_notification: 'Your work "{file}" has been graded. Points: {points}/10. Feedback: {feedback}',
+  grade_assigned: "Grade Assigned",
+  grade_assigned_details: 'Assigned {points}/10 points for "{file}"',
+  error_saving_grade: "Error saving grade! Check console for details.",
+  graded: "graded",
+  unknown_student: "Unknown Student",
+  
+  // Управление на общности
+  community_created: "Community created successfully!",
+  error_creating_community: "Error creating community!",
+  student_approved: "Student approved successfully!",
+  error_approving_student: "Error approving student!",
+  request_rejected: "Request rejected!",
+  error_rejecting_request: "Error rejecting request!",
+  id: "ID",
+  
+  // Активности и действия
+  created_expert_system: "Created expert system for biology project",
+  uploaded_assignment: "Uploaded assignment file",
+  completed_logical_rules: "Completed assignment on logical rules",
     communities: "Communities",
     from: "from",
   my_challenge_solutions: "My Challenge Solutions",
@@ -1787,6 +2014,75 @@ assignment: "Assignment",
 course: "Course",
 file: "File",
 grading: "Grading",
+  // Основни нотификации
+  challenge_created_notification: "📢 New challenge \"{title}\" has been created!",
+  challenge_accepted_notification: "✅ Challenge \"{title}\" has been accepted!",
+  challenge_responded_notification: "💬 Teacher responded to challenge \"{title}\"",
+  challenge_completed_notification: "🎉 Challenge \"{title}\" has been completed!",
+  challenge_created: "✅ Challenge created for",
+  challenge_deleted: "✅ Challenge deleted!",
+  
+  // Статуси
+  responded: "responded",
+  rejected: "rejected",
+  submitted: "submitted",
+  evaluated: "evaluated",
+  waiting: "Waiting",
+  action_needed: "Action needed",
+  done: "Done",
+  more: "more",
+  
+  // Грешки
+  error_loading_challenges: "❌ Error loading challenges! Firebase index may be missing.",
+  error_accepting_challenge: "❌ Error accepting challenge!",
+  error_rejecting_challenge: "❌ Error rejecting challenge!",
+  error_creating_challenge: "❌ Error creating challenge!",
+  error_sending_response: "❌ Error sending response!",
+  error_deleting_challenge: "❌ Error deleting challenge!",
+  error_grading_submission: "❌ Error grading submission!",
+  
+  // Успешни съобщения
+  submission_graded: "✅ Submission graded! Challenge completed!",
+  response_sent: "✅ Response sent successfully!",
+  
+  // Нотификации
+  your_submission_received: "Your submission for",
+  received: "received",
+  
+  // Форми за предизвикателства
+  challenge_will_be_created_for: "Challenge will be created for",
+  max_points: "Max points",
+  students_accepted: "students accepted",
+  students_who_accepted: "Students who accepted this challenge",
+  no_submissions_desc: "No students have submitted solutions for this challenge yet.",
+  view_submissions: "View submissions",
+  grade_submission: "Grade Submission",
+  update_grade: "Update Grade",
+  solution_code: "Solution Code",
+  enter_score: "Enter score",
+  provide_feedback: "Provide feedback to the student...",
+  
+  // Общности
+  your_communities: "Your Communities",
+  no_community_selected_title: "No Community Selected",
+  no_community_selected_desc: "Please select a community from the dropdown above to view and manage challenges.",
+  
+  // Създаване
+  create_first_challenge_for: "Create your first challenge for",
+  no_date: "No date",
+  deleting: "Deleting...",
+  
+  // Оценяване
+  needs_grading: "⚠️ Needs grading!",
+  
+  // Валидация
+  must_be_logged_in: "❌ You must be logged in!",
+  only_creator_can_delete: "❌ Only the creator can delete this challenge!",
+  confirm_delete_challenge: "Are you sure you want to delete this challenge?",
+  
+  // Допълнителни
+  challenge_completed: "Challenge Completed!",
+  student_accepted: "Student",
 ago: "ago",
 add_new_assignment: "Add New Assignment",
 top_students: "Top Students",
@@ -1944,7 +2240,6 @@ untitled_assignment: "Untitled Assignment",
   // Grades
   detailed_view: "Detailed View",
   view_grade_details: "View Grade Details",
-  
   // Common buttons and actions
   delete_all: "Delete All",
   delete_all_messages_confirm: "Delete all messages?",
@@ -2834,6 +3129,11 @@ total_assignments_count: 'Общо задания',
     tab_examples: "Примери",
     tab_tutorials: "Уроци",
     tab_resources: "Ресурси",
+    continue_work: "Продължи работа",
+start_assignment: "Започни задание",
+creating: "Създаване",
+accept: "Приеми",
+example_code_hint: "Подсказка за примерен код",
     
     // Основи на Prolog - заглавия
     basics_facts_title: "Факти",
@@ -2848,6 +3148,91 @@ total_assignments_count: 'Общо задания',
     basics_rules_desc: "Правилата дефинират логически връзки между факти. Те се състоят от глава и тяло.",
     basics_queries_desc: "Заявките задават въпроси за вашата база знания. Prolog се опитва да ги докаже като истинни.",
       challenge_accept: "Приемам предизвикателството",
+      challenge_created_notification: "📢 Ново предизвикателство \"{title}\" беше създадено!",
+  challenge_accepted_notification: "✅ Предизвикателство \"{title}\" беше прието!",
+  challenge_responded_notification: "💬 Учителят отговори на предизвикателство \"{title}\"",
+  challenge_completed_notification: "🎉 Предизвикателство \"{title}\" беше завършено!",
+  challenge_created: "✅ Предизвикателството е създадено за",
+  challenge_deleted: "✅ Предизвикателството е изтрито!",
+  
+  // Статуси
+  responded: "отговорено",
+  rejected: "отхвърлено",
+  submitted: "предадено",
+  evaluated: "оценено",
+  waiting: "Чака",
+  action_needed: "Нужно действие",
+  done: "Готово",
+  more: "още",
+   new_challenge: "Ново предизвикателство",
+  new_challenge_notification: "Ново предизвикателство",
+  new_challenge_available: "Налично е ново предизвикателство",
+  new_assignment_notification: "Нова задача",
+  loading_solutions: "Зареждане на вашите решения...",
+  challenge_id: "ID на предизвикателството",
+  challenge_not_loaded: "Предизвикателството не е заредено",
+  solution_status: "Статус на решението",
+  your_grade: "Вашата оценка",
+  view_feedback: "Вижте обратната връзка",
+  evaluated_by: "Оценено от",
+  code_copied: "Кодът е копиран в клипборда!",
+  no_code_to_copy: "Няма код за копиране",
+  your_name: "Вашето име",
+  new_assignment: "Нова задача",
+  show_less: "Покажи по-малко",
+  active_challenge: "Активно предизвикателство",
+  
+  // Грешки
+  error_loading_challenges: "❌ Грешка при зареждане на предизвикателства! Вероятно липсва Firebase индекс.",
+  error_accepting_challenge: "❌ Грешка при приемане на предизвикателство!",
+  error_rejecting_challenge: "❌ Грешка при отхвърляне на предизвикателство!",
+  error_creating_challenge: "❌ Грешка при създаване на предизвикателство!",
+  error_sending_response: "❌ Грешка при изпращане на отговор!",
+  error_deleting_challenge: "❌ Грешка при изтриване на предизвикателство!",
+  error_grading_submission: "❌ Грешка при оценяване на решение!",
+  
+  // Успешни съобщения
+  submission_graded: "✅ Решението е оценено! Предизвикателството е завършено!",
+  response_sent: "✅ Отговорът е изпратен успешно!",
+  
+  // Нотификации
+  your_submission_received: "Вашето решение за",
+  received: "получи",
+  
+  // Форми за предизвикателства
+  challenge_will_be_created_for: "Предизвикателството ще бъде създадено за",
+  max_points: "Макс. точки",
+  students_accepted: "приели ученици",
+  students_who_accepted: "Ученици, които приеха предизвикателството",
+  no_submissions_desc: "Все още никой ученик не е предал решение за това предизвикателство.",
+  view_submissions: "Преглед на решения",
+  grade_submission: "Оцени решение",
+  update_grade: "Актуализирай оценка",
+  solution_code: "Код на решението",
+  enter_score: "Въведете резултат",
+  provide_feedback: "Предоставете обратна връзка на ученика...",
+  
+  // Общности
+  your_communities: "Вашите общности",
+  no_community_selected_title: "Няма избрана общност",
+  no_community_selected_desc: "Моля, изберете общност от падащото меню, за да видите и управлявате предизвикателства.",
+  
+  // Създаване
+  create_first_challenge_for: "Създайте първото си предизвикателство за",
+  no_date: "Без дата",
+  deleting: "Изтриване...",
+  
+  // Оценяване
+  needs_grading: "⚠️ Нуждае се от оценяване!",
+  
+  // Валидация
+  must_be_logged_in: "❌ Трябва да сте влезли в профила си!",
+  only_creator_can_delete: "❌ Само създателят може да изтрие това предизвикателство!",
+  confirm_delete_challenge: "Сигурни ли сте, че искате да изтриете това предизвикателство?",
+  
+  // Допълнителни
+  challenge_completed: "Предизвикателството е завършено!",
+  student_accepted: "Ученик",
     // Основи на Prolog - точки
     basics_facts_p1: "Завършват с точка (.)",
     basics_facts_p2: "Използвайте малки букви за предикати",
@@ -3426,6 +3811,64 @@ about_us:"За нас",
     // Нови преводи за липсващите ключове
     what_to_learn: "Какво да научите",
     explore_courses: "Разгледайте курсове",
+    published: "Публикувани",
+  all_lessons: "Всички уроци",
+  search_lessons: "Търсене на уроци...",
+  total_lessons: "Общо уроци",
+  no_matching_lessons: "Няма намерени съвпадащи уроци",
+  try_changing_criteria: "Опитайте да промените критериите за търсене или филтър",
+  
+  
+  // Съобщения и дискусии
+  message_thread: "Нишка на съобщението",
+  start_conversation: "Започнете разговора, като изпратите съобщение по-долу",
+  type_message: "Напишете съобщението си...",
+  just_now: "Току-що",
+  all_messages_read: "Всички съобщения са маркирани като прочетени!",
+  messages_sent: "съобщения са изпратени успешно",
+  message_all: "Съобщение до всички",
+  student_wants_to_join: "{student} иска да се присъедини към '{community}'",
+  join_request: "Заявка за присъединяване",
+  
+  // Управление на уроци
+  lesson_updated: "Урокът е обновен успешно!",
+  lesson_created: "Урокът е създаден успешно!",
+  error_saving_lesson: "Грешка при запазване на урока!",
+  confirm_delete_lesson: "Сигурни ли сте, че искате да изтриете този урок?",
+  lesson_deleted: "Урокът е изтрит успешно!",
+  error_deleting_lesson: "Грешка при изтриване на урока!",
+  programming: "Програмиране",
+  new_lesson_created: "Създаден е нов урок",
+  
+  // Предизвикателства и общности
+  need_community_for_challenges: "Трябва да създадете общност, преди да можете да създавате предизвикателства.",
+  no_community_selected: "Няма избрана общност",
+  select_community_for_challenges: "Моля, изберете общност от раздела Общности, за да видите и управлявате предизвикателства.",
+  go_to_communities: "Към Общностите",
+  challenge_sent: "Предизвикателство",
+  sent_successfully: "е изпратено успешно",
+  
+  // Оценяване и обратна връзка
+  grade_notification: 'Вашата работа "{file}" беше оценена. Точки: {points}/10. Обратна връзка: {feedback}',
+  grade_assigned: "Оценката е присъдена",
+  grade_assigned_details: 'Присъдени {points}/10 точки за "{file}"',
+  error_saving_grade: "Грешка при запазване на оценката! Проверете конзолата за детайли.",
+  graded: "оценени",
+  unknown_student: "Непознат ученик",
+  
+  // Управление на общности
+  community_created: "Общността е създадена успешно!",
+  error_creating_community: "Грешка при създаване на общност!",
+  student_approved: "Ученикът е одобрен успешно!",
+  error_approving_student: "Грешка при одобряване на ученик!",
+  request_rejected: "Заявката е отхвърлена!",
+  error_rejecting_request: "Грешка при отхвърляне на заявка!",
+  id: "Идентификатор",
+  
+  // Активности и действия
+  created_expert_system: "Създадена експертна система за проект по биология",
+  uploaded_assignment: "Качен файл със задание",
+  completed_logical_rules: "Завършено задание за логически правила",
     
     // Нови преводи за PrologChat
     prolog_assistant: 'Prolog AI Помощник',
@@ -4060,6 +4503,23 @@ create_first_lesson: "Crear la primera lección",
   delete_message: "Eliminar mensaje",
   message: "Mensaje",
   to: "a",
+  new_challenge: "Nuevo desafío",
+  new_challenge_notification: "Nuevo desafío",
+  new_challenge_available: "Nuevo desafío disponible",
+  new_assignment_notification: "Nueva tarea",
+  loading_solutions: "Cargando tus soluciones...",
+  challenge_id: "ID del desafío",
+  challenge_not_loaded: "Desafío no cargado",
+  solution_status: "Estado de la solución",
+  your_grade: "Tu calificación",
+  view_feedback: "Ver comentarios",
+  evaluated_by: "Evaluado por",
+  code_copied: "¡Código copiado al portapapeles!",
+  no_code_to_copy: "No hay código para copiar",
+  your_name: "Tu nombre",
+  new_assignment: "Nueva tarea",
+  show_less: "Mostrar menos",
+  active_challenge: "Desafío activo",
     unexpected_error: 'Ocurrió un error inesperado',
     status_success: 'Éxito',
     status_error: 'Error',
@@ -4346,6 +4806,70 @@ prolog_demo:"Demostración de Prolog",
     create_password: "Crea una contraseña (mín. 6 caracteres)",
     challenge_response_on: "Respuesta en",
   challenge_reject: "Rechazar Desafío",
+  published: "Publicado",
+  all_lessons: "Todas las lecciones",
+  search_lessons: "Buscar lecciones...",
+  total_lessons: "Total de lecciones",
+  no_matching_lessons: "No se encontraron lecciones que coincidan",
+  try_changing_criteria: "Intente cambiar los criterios de búsqueda o filtro",
+  
+  // Задания и работа
+  continue_work: "Continuar trabajo",
+  start_assignment: "Comenzar tarea",
+  creating: "Creando",
+  accept: "Aceptar",
+  example_code_hint: "Sugerencia de código de ejemplo",
+  
+  // Съобщения и дискусии
+  message_thread: "Hilo de mensaje",
+  start_conversation: "Comience la conversación enviando un mensaje a continuación",
+  type_message: "Escriba su mensaje...",
+  just_now: "Justo ahora",
+  all_messages_read: "¡Todos los mensajes marcados como leídos!",
+  messages_sent: "mensaje(s) enviado(s) exitosamente",
+  message_all: "Mensaje a todos",
+  student_wants_to_join: "{student} quiere unirse a '{community}'",
+  join_request: "Solicitud de unión",
+  
+  // Управление на уроци
+  lesson_updated: "¡Lección actualizada exitosamente!",
+  lesson_created: "¡Lección creada exitosamente!",
+  error_saving_lesson: "¡Error al guardar la lección!",
+  confirm_delete_lesson: "¿Está seguro de que desea eliminar esta lección?",
+  lesson_deleted: "¡Lección eliminada exitosamente!",
+  error_deleting_lesson: "¡Error al eliminar la lección!",
+  programming: "Programación",
+  new_lesson_created: "Nueva lección creada",
+  
+  // Предизвикателства и общности
+  need_community_for_challenges: "Necesita crear una comunidad antes de poder crear desafíos.",
+  no_community_selected: "Ninguna comunidad seleccionada",
+  select_community_for_challenges: "Por favor, seleccione una comunidad de la pestaña Comunidades para ver y gestionar desafíos.",
+  go_to_communities: "Ir a Comunidades",
+  challenge_sent: "Desafío",
+  sent_successfully: "enviado exitosamente",
+  
+  // Оценяване и обратна връзка
+  grade_notification: 'Su trabajo "{file}" ha sido calificado. Puntos: {points}/10. Comentarios: {feedback}',
+  grade_assigned: "Calificación asignada",
+  grade_assigned_details: 'Asignados {points}/10 puntos por "{file}"',
+  error_saving_grade: "¡Error al guardar la calificación! Verifique la consola para más detalles.",
+  graded: "calificados",
+  unknown_student: "Estudiante desconocido",
+  
+  // Управление на общности
+  community_created: "¡Comunidad creada exitosamente!",
+  error_creating_community: "¡Error al crear la comunidad!",
+  student_approved: "¡Estudiante aprobado exitosamente!",
+  error_approving_student: "¡Error al aprobar estudiante!",
+  request_rejected: "¡Solicitud rechazada!",
+  error_rejecting_request: "¡Error al rechazar la solicitud!",
+  id: "ID",
+  
+  // Активности и действия
+  created_expert_system: "Sistema experto creado para proyecto de biología",
+  uploaded_assignment: "Archivo de tarea subido",
+  completed_logical_rules: "Tarea de reglas lógicas completada",
     
     // Текстове от интерфейса
     join_community: "Únete a la",
@@ -4792,6 +5316,7 @@ made_with_love: 'Hecho con ❤️ para la educación',
     student_account: "Cuenta de Estudiante",
     successful_executions: "Ejecuciones exitosas",
 assignments_completed: "Tareas completadas",
+
 current_activity_streak: "Racha de actividad actual",
 review: "Revisar",
 lines: "líneas",
@@ -4875,6 +5400,74 @@ success: "Éxito",
   delete_messages_from_user_confirm: "Eliminar todos los mensajes de",
   messages_from: "mensajes de",
   deleted: "eliminados",
+  challenge_created_notification: "📢 ¡Nuevo desafío \"{title}\" ha sido creado!",
+  challenge_accepted_notification: "✅ ¡Desafío \"{title}\" ha sido aceptado!",
+  challenge_responded_notification: "💬 El profesor respondió al desafío \"{title}\"",
+  challenge_completed_notification: "🎉 ¡Desafío \"{title}\" ha sido completado!",
+  challenge_created: "✅ Desafío creado para",
+  challenge_deleted: "✅ ¡Desafío eliminado!",
+  
+  // Статуси
+  responded: "respondido",
+  rejected: "rechazado",
+  submitted: "enviado",
+  evaluated: "evaluado",
+  waiting: "Esperando",
+  action_needed: "Acción necesaria",
+  done: "Hecho",
+  more: "más",
+  
+  // Грешки
+  error_loading_challenges: "❌ Error al cargar desafíos! Puede faltar un índice de Firebase.",
+  error_accepting_challenge: "❌ ¡Error al aceptar desafío!",
+  error_rejecting_challenge: "❌ ¡Error al rechazar desafío!",
+  error_creating_challenge: "❌ ¡Error al crear desafío!",
+  error_sending_response: "❌ ¡Error al enviar respuesta!",
+  error_deleting_challenge: "❌ ¡Error al eliminar desafío!",
+  error_grading_submission: "❌ ¡Error al calificar envío!",
+  
+  // Успешни съобщения
+  submission_graded: "✅ ¡Envío calificado! ¡Desafío completado!",
+  response_sent: "✅ ¡Respuesta enviada con éxito!",
+  
+  // Нотификации
+  your_submission_received: "Tu envío para",
+  received: "recibió",
+  
+  // Форми за предизвикателства
+  challenge_will_be_created_for: "El desafío será creado para",
+  max_points: "Puntos máximos",
+  students_accepted: "estudiantes aceptaron",
+  students_who_accepted: "Estudiantes que aceptaron este desafío",
+  no_submissions_desc: "Ningún estudiante ha enviado soluciones para este desafío todavía.",
+  view_submissions: "Ver envíos",
+  grade_submission: "Calificar envío",
+  update_grade: "Actualizar calificación",
+  solution_code: "Código de solución",
+  enter_score: "Ingresar puntuación",
+  provide_feedback: "Proporcione comentarios al estudiante...",
+  
+  // Общности
+  your_communities: "Tus comunidades",
+  no_community_selected_title: "Ninguna comunidad seleccionada",
+  no_community_selected_desc: "Por favor, seleccione una comunidad del menú desplegable para ver y gestionar desafíos.",
+  
+  // Създаване
+  create_first_challenge_for: "Crea tu primer desafío para",
+  no_date: "Sin fecha",
+  deleting: "Eliminando...",
+  
+  // Оценяване
+  needs_grading: "⚠️ ¡Necesita calificación!",
+  
+  // Валидация
+  must_be_logged_in: "❌ ¡Debe iniciar sesión!",
+  only_creator_can_delete: "❌ ¡Solo el creador puede eliminar este desafío!",
+  confirm_delete_challenge: "¿Está seguro de que desea eliminar este desafío?",
+  
+  // Допълнителни
+  challenge_completed: "¡Desafío completado!",
+  student_accepted: "Estudiante",
   
   // Assignments and files
   unknown_assignment: "Tarea desconocida",

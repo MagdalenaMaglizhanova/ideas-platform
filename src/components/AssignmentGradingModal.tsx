@@ -127,14 +127,20 @@ export default function AssignmentGradingModal({
 };
 
   const downloadFile = (file: StudentFile) => {
-    const element = document.createElement('a');
-    const fileBlob = new Blob([file.code], { type: 'text/plain' });
-    element.href = URL.createObjectURL(fileBlob);
-    element.download = file.originalFileName;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
+  const element = document.createElement('a');
+  const fileBlob = new Blob([file.code], { type: 'text/plain' });
+  
+  const fileName = file.originalFileName.endsWith('.pl') 
+    ? file.originalFileName 
+    : `${file.originalFileName}.pl`;
+  
+  element.href = URL.createObjectURL(fileBlob);
+  element.download = fileName;
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+  URL.revokeObjectURL(element.href);
+};
 
   const openFileInNewTab = (file: StudentFile) => {
     const newWindow = window.open('', '_blank');

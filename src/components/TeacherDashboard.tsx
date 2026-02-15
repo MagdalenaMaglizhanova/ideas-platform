@@ -6,21 +6,11 @@ import {
   Sparkles, ChevronRight,
   BarChart3, X,
   BookOpen, Calendar,
-  CheckCircle, Upload, FileCode, FileText,
+  Upload, FileCode, FileText,
   Folder, Search, Download, Eye,
-  Edit, Trash2, Star, 
+  Edit, Trash2,
   GraduationCap, FolderOpen,
   Plus, RefreshCw, FileUp,
-  FileTextIcon,
-  TargetIcon,
-  FileCheck,
-  ListChecks,
-  ImageIcon,
-  Tag,
-  Database,
-  Link,
-  Trophy,
-  List,
   Activity,
   Bell,
   MessageCircle,
@@ -55,28 +45,11 @@ import MessagesTab from "../components/MessagesTab";
 import AssignmentGradingModal from "./AssignmentGradingModal";
 import LessonViewModal from "../components/LessonViewModal";
 import LessonFormModal from "../components/LessonFormModal";
+import TeacherChallenges from './TeacherChallenges';
+import type { ChallengeNotification } from './TeacherChallenges';
+import TeacherAssignments from './TeacherAssignments';
 
-// Интерфейс за решение на предизвикателство
-interface ChallengeSubmission {
-  id?: string;
-  studentId: string;
-  studentName?: string;
-  submittedAt: any;
-  files?: string[];
-  notes?: string;
-  score?: number;
-  status?: 'joined' | 'submitted' | 'evaluated' | 'completed';
-  solutionCode?: string;
-  evaluation?: {
-    score?: number;
-    feedback?: string;
-    evaluatedAt?: any;
-    evaluatedBy?: string;
-  };
-  communityId?: string;
-}
-
-// Нов интерфейс за общност
+// Общност
 interface Community {
   id: string;
   name: string;
@@ -100,6 +73,8 @@ interface Community {
     privacy: "public" | "private";
   };
 }
+
+//Уроци
 export interface Lesson {
   id: string;
   title: string;
@@ -111,11 +86,11 @@ export interface Lesson {
   createdAt: any;
   updatedAt?: any;
   category: string;
-  color: string;
-  icon: string;
+  color?: string;
+  icon?: string;
   status: 'draft' | 'published' | 'archived';
   tags: string[];
-  attachments: Array<{
+  attachments?: Array<{
     name: string;
     url: string;
     type: 'pdf' | 'video' | 'code' | 'link' | 'image';
@@ -128,49 +103,13 @@ export interface Lesson {
   prerequisites?: string[];
   learningObjectives?: string[];
   views?: number;
-  likes?: string[]; // Променете на string[] за съгласуваност
+  likes?: string[];
   students?: string[];
   rating?: number;
   totalRatings?: number;
 }
 
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  creatorCommunityId: string;
-  targetCommunityId: string;
-  createdBy: string;
-  status: 'pending' | 'accepted' | 'completed' | 'rejected' | 'responded';
-  dueDate?: string;
-  category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  points: number;
-  submissions: {
-    id?: string;
-    studentId: string;
-    studentName?: string;
-    submittedAt: any;
-    files?: string[];
-    notes?: string;
-    score?: number;
-    status?: string;
-    solutionCode?: string;
-    evaluation?: any;
-    submittedBy?: string;
-  }[];
-  response?: {
-    respondedAt: any;
-    responderId: string;
-    responderName: string;
-    content: string;
-    files?: string[];
-    solutionCode?: string;
-  };
-  createdAt: any;
-}
-
-// Нов интерфейс за съобщения
+// интерфейс за съобщения
 interface Message {
   id: string;
   senderId: string;
@@ -181,10 +120,9 @@ interface Message {
   content: string;
   timestamp: any;
   read: boolean;
-  type: 'direct' | 'community' | 'broadcast';
+  type: 'direct' | 'community' | 'broadcast' | string; // Добавете | string
 }
 
-// Съществуващи интерфейси
 interface StudentFile {
   id: string;
   username: string;
@@ -202,6 +140,7 @@ interface StudentFile {
   feedback?: string;
 }
 
+//Ученици
 interface Student {
   username: string;
   files: StudentFile[];
@@ -219,53 +158,6 @@ interface Student {
   communityStatus?: string;
 }
 
-interface Assignment {
-  id: string;
-  title: string;
-  description: string;
-  objective: string;
-  topic: string;
-  subject: string;
-  requirements: {
-    minFacts: number;
-    minRules: number;
-    minCombinedRules: number;
-    minMenuItems: number;
-  };
-  instructions: string[];
-  teacherId: string;
-  teacherName: string;
-  createdAt: any;
-  dueDate: string;
-  status: 'active' | 'draft' | 'archived';
-  difficulty: 'easy' | 'medium' | 'hard';
-  points: number;
-  exampleCode?: string;
-  backgroundImage?: string;
-  category?: string;
-  progress?: number;
-  actionText?: string;
-}
-
-interface AssignmentFormData {
-  title: string;
-  description: string;
-  objective: string;
-  topic: string;
-  subject: string;
-  minFacts: number;
-  minRules: number;
-  minCombinedRules: number;
-  minMenuItems: number;
-  instructions: string[];
-  dueDate: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  points: number;
-  exampleCode: string;
-  backgroundImage: string;
-  category: string;
-}
-
 interface ActivityLog {
   id: string;
   studentId: string;
@@ -277,16 +169,6 @@ interface ActivityLog {
   status?: string;
 }
 
-const assignmentBackgrounds = [
-  "https://images.unsplash.com/photo-1561070791-2526d30994b5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1677442136019-21780ecad995?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
-];
-
-const categories = ["Design", "Programming", "Algorithms", "Data Science", "Database", "AI"];
 const folders = ["animals", "geography", "history", "mineralwater", "balkan"];
 const courses = [
   { id: 1, title: "Prolog Basics", description: "Introduction to Prolog programming", progress: 70, color: "#FF6B8B", icon: "💻" },
@@ -311,14 +193,13 @@ export default function TeacherDashboard() {
     role: string;
   }>>([]);
 
+  const [assignmentStats, setAssignmentStats] = useState({ total: 0, active: 0 });
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState("dashboard");
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showCommunityForm, setShowCommunityForm] = useState(false);
-  const [showChallengeForm, setShowChallengeForm] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -334,14 +215,6 @@ export default function TeacherDashboard() {
     communityStatus?: string;
   }>>([]);
   
-  // Нови state променливи, които липсваха
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
-  const [showResponseForm, setShowResponseForm] = useState(false);
-  const [challengeResponseForm, setChallengeResponseForm] = useState({ 
-    content: "", 
-    solutionCode: "" 
-  });
-  
   // Community form state
   const [communityForm, setCommunityForm] = useState({
     name: "",
@@ -355,18 +228,7 @@ export default function TeacherDashboard() {
     allowInterCommunityChallenges: true
   });
   
-  // Challenge form state
-  const [challengeForm, setChallengeForm] = useState({
-    title: "",
-    description: "",
-    targetCommunityId: "",
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    category: "Programming",
-    difficulty: "medium" as "easy" | "medium" | "hard",
-    points: 50
-  });
-  
-  // Съществуващи state променливи
+  // state променливи
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState("general");
   const [uploadStatus, setUploadStatus] = useState("");
@@ -376,28 +238,17 @@ export default function TeacherDashboard() {
   >([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(false);
-  const [showAssignmentForm, setShowAssignmentForm] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [viewingStudentFiles, setViewingStudentFiles] = useState<string | null>(null);
   const [newLesson, setNewLesson] = useState({ title: '', description: '' });
   const [_activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [viewingChallengeSubmissions, setViewingChallengeSubmissions] = useState<Challenge | null>(null);
+  const [challengeNotifications, setChallengeNotifications] = useState<ChallengeNotification[]>([]);
   // States for lessons
 const [lessons, setLessons] = useState<Lesson[]>([]);
 const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
 const [showLessonForm, setShowLessonForm] = useState(false);
 const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
 const [lessonSearch, setLessonSearch] = useState('');
-const [lessonFilter, setLessonFilter] = useState('all'); // 'all', 'published', 'draft', 'archived'
-  
-  // Grading states
-  const [selectedPoints, setSelectedPoints] = useState<{[key: string]: number}>({});
-  const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
-  const [editingStudent, setEditingStudent] = useState<string | null>(null);
-console.log(selectedPoints, feedbackText, editingStudent, setEditingStudent )
-
+const [lessonFilter, setLessonFilter] = useState('all'); 
 
 // Зареждане на уроците
 const loadLessons = async () => {
@@ -425,7 +276,7 @@ const loadLessons = async () => {
         teacherAvatar: data.teacherAvatar,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
-        category: data.category || "Programming",
+        category: data.category || t?.('programming') || "Programming",
         color: data.color || "#3B82F6",
         icon: data.icon || "📚",
         status: data.status || 'draft',
@@ -457,18 +308,16 @@ const handleSaveLesson = async (lessonData: any) => {
 
   try {
     if (editingLesson) {
-      // Актуализиране на съществуващ урок
       await updateDoc(doc(db, "lessons", editingLesson.id), {
         ...lessonData,
         updatedAt: serverTimestamp()
       });
-      setUploadStatus("✅ Lesson updated successfully!");
+      setUploadStatus("✅ " + (t?.('lesson_updated') || "Lesson updated successfully!"));
     } else {
-      // Създаване на нов урок
       await addDoc(collection(db, "lessons"), {
         ...lessonData,
         teacherId: user.uid,
-        teacherName: userData?.fullName || user.email?.split('@')[0] || "Teacher",
+        teacherName: userData?.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
         teacherAvatar: userData?.avatar || "",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -478,28 +327,28 @@ const handleSaveLesson = async (lessonData: any) => {
         rating: 0,
         totalRatings: 0
       });
-      setUploadStatus("✅ Lesson created successfully!");
+      setUploadStatus("✅ " + (t?.('lesson_created') || "Lesson created successfully!"));
     }
     
-    loadLessons(); // Презареждане на списъка
+    loadLessons();
   } catch (error) {
     console.error("Error saving lesson:", error);
-    setUploadStatus("❌ Error saving lesson!");
+    setUploadStatus("❌ " + (t?.('error_saving_lesson') || "Error saving lesson!"));
   }
 };
 
 // Изтриване на урок
 const handleDeleteLesson = async (lessonId: string) => {
-  if (!window.confirm("Are you sure you want to delete this lesson?")) return;
+  if (!window.confirm(t?.('confirm_delete_lesson') || "Are you sure you want to delete this lesson?")) return;
   
   try {
     await deleteDoc(doc(db, "lessons", lessonId));
-    setUploadStatus("✅ Lesson deleted successfully!");
+    setUploadStatus("✅ " + (t?.('lesson_deleted') || "Lesson deleted successfully!"));
     loadLessons();
-    setViewingLesson(null); // Затваряне на модала ако е отворен
+    setViewingLesson(null);
   } catch (error) {
     console.error("Error deleting lesson:", error);
-    setUploadStatus("❌ Error deleting lesson!");
+    setUploadStatus("❌ " + (t?.('error_deleting_lesson') || "Error deleting lesson!"));
   }
 };
 
@@ -520,6 +369,10 @@ useEffect(() => {
     loadLessons();
   }
 }, [selectedTab, user]);
+
+  // Grading states
+  const [_selectedPoints, setSelectedPoints] = useState<{[key: string]: number}>({});
+  const [_feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
 
 
 const [gradingModal, setGradingModal] = useState<{
@@ -543,14 +396,12 @@ const handleSaveGrade = async (gradingData: {
   assignmentId: string;
   fileId: string;
   studentId: string;
-}): Promise<void> => {  // Промяна тук: добави : Promise<void>
+}): Promise<void> => {
   try {
     console.log("Saving grade...", gradingData);
 
-    // 🔥 1. ВИНАГИ използвай serverTimestamp()
     const serverTime = serverTimestamp();
 
-    // Намираме информация за файла и студента
     const fileDoc = await getDoc(doc(db, "prologCodes", gradingData.fileId));
     const fileData = fileDoc.exists() ? fileDoc.data() : null;
     
@@ -560,7 +411,6 @@ const handleSaveGrade = async (gradingData: {
     const assignmentDoc = await getDoc(doc(db, "assignments", gradingData.assignmentId));
     const assignmentData = assignmentDoc.exists() ? assignmentDoc.data() : null;
 
-    // 1. Актуализирай файла в prologCodes
     const fileRef = doc(db, "prologCodes", gradingData.fileId);
     await updateDoc(fileRef, {
       points: gradingData.points,
@@ -568,57 +418,39 @@ const handleSaveGrade = async (gradingData: {
       gradedAt: serverTime,
       gradedBy: user?.uid,
       status: 'graded',
-      teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher"
+      teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"
     });
 
-    // 2. Запиши в grades колекцията с ПЪЛНА ИНФОРМАЦИЯ
     const gradeRef = doc(collection(db, "grades"));
     
-    // Подготовка на данните
     const gradeData = {
-      // Основни данни от gradingData
       ...gradingData,
-      
-      // Информация за файла
-      fileName: fileData?.originalFileName || fileData?.title || "Unknown file",
+      fileName: fileData?.originalFileName || fileData?.title || t?.('unknown_file') || "Unknown file",
       fileCreatedAt: fileData?.createdAt,
       fileFolder: fileData?.folder || "general",
-      
-      // Информация за студента
       studentName: studentData?.fullName || 
                   studentData?.email?.split('@')[0] || 
-                  "Unknown Student",
+                  t?.('unknown_student') || "Unknown Student",
       studentEmail: studentData?.email || "",
       studentClass: studentData?.class || "N/A",
-      
-      // Информация за заданието
-      assignmentTitle: assignmentData?.title || "General Assignment",
-      assignmentDescription: assignmentData?.description || "No description",
+      assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment",
+      assignmentDescription: assignmentData?.description || t?.('no_description') || "No description",
       assignmentDifficulty: assignmentData?.difficulty || "medium",
       assignmentPoints: assignmentData?.points || 100,
-      
-      // Информация за учителя
       teacherId: user?.uid,
-      teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher",
+      teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher",
       teacherInstitution: userData?.institution || "Unknown",
-      
-      // Timestamps
       gradedAt: serverTime,
       createdAt: serverTime,
-      
-      // Допълнителни метаданни
-      maxPoints: 10, // Фиксирано за системата
+      maxPoints: 10,
       gradePercentage: (gradingData.points / 10) * 100,
       status: 'graded',
-      
-      // Поле за категоризация
       category: assignmentData?.category || fileData?.folder || "general",
       subject: assignmentData?.subject || "prolog"
     };
 
     await setDoc(gradeRef, gradeData);
 
-    // 3. Актуализирай потребителската информация БЕЗ serverTimestamp() в масива
     const userRef = doc(db, "users", gradingData.studentId);
     const userDocSnap = await getDoc(userRef);
     
@@ -626,38 +458,33 @@ const handleSaveGrade = async (gradingData: {
       const currentUser = userDocSnap.data();
       const currentGrades = currentUser.grades || [];
       
-      // Създаване на нов grade обект БЕЗ serverTimestamp в него
       const newGrade = {
         points: gradingData.points,
         feedback: gradingData.feedback,
         assignmentId: gradingData.assignmentId,
-        assignmentTitle: assignmentData?.title || "General Assignment",
+        assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment",
         fileId: gradingData.fileId,
-        fileName: fileData?.originalFileName || "Unknown file",
-        gradedAt: new Date().toISOString(), // Използвай ISO string вместо serverTimestamp
+        fileName: fileData?.originalFileName || t?.('unknown_file') || "Unknown file",
+        gradedAt: new Date().toISOString(),
         gradedBy: user?.uid,
-        teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher",
+        teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher",
         maxPoints: 10,
-        gradeId: gradeRef.id // Записваме и ID-то на оценката в grades колекцията
+        gradeId: gradeRef.id
       };
       
-      // Провери дали вече съществува оценка за този файл
       const existingGradeIndex = currentGrades.findIndex((g: any) => 
         g.fileId === gradingData.fileId && g.assignmentId === gradingData.assignmentId
       );
       
       if (existingGradeIndex >= 0) {
-        // Актуализирай съществуващата оценка
         currentGrades[existingGradeIndex] = newGrade;
       } else {
-        // Добави нова оценка
         currentGrades.push(newGrade);
       }
       
-      // Актуализирай масива с оценки
       await updateDoc(userRef, {
         grades: currentGrades,
-        lastGraded: serverTime, // timestamp на ниво документ
+        lastGraded: serverTime,
         totalGrades: currentGrades.length,
         averageGrade: currentGrades.length > 0 
           ? currentGrades.reduce((sum: number, grade: any) => sum + (grade.points || 0), 0) / currentGrades.length
@@ -665,7 +492,6 @@ const handleSaveGrade = async (gradingData: {
       });
     }
 
-    // 4. Актуализирай локалния state
     setStudents(prev => prev.map(student => {
       if (student.uid === gradingData.studentId) {
         const updatedFiles = student.files.map(file => 
@@ -674,14 +500,13 @@ const handleSaveGrade = async (gradingData: {
                 ...file, 
                 points: gradingData.points, 
                 feedback: gradingData.feedback,
-                gradedAt: new Date(), // Локално време за UI
+                gradedAt: new Date(),
                 gradedBy: user?.uid,
-                teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher"
+                teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"
               }
             : file
         );
         
-        // Изчисляване на новата средна оценка
         const newAveragePoints = updatedFiles.length > 0 
           ? updatedFiles.reduce((sum, file) => sum + (file.points || 0), 0) / updatedFiles.length
           : 0;
@@ -697,37 +522,39 @@ const handleSaveGrade = async (gradingData: {
       return student;
     }));
 
-    // 5. Добави нотификация за студента
     try {
       const notificationRef = doc(collection(db, 'messages'));
       await setDoc(notificationRef, {
         senderId: user?.uid,
         senderName: "System",
         receiverId: gradingData.studentId,
-        receiverName: studentData?.fullName || studentData?.email?.split('@')[0] || "Student",
-        content: `Your work "${fileData?.originalFileName || 'file'}" has been graded. Points: ${gradingData.points}/10. Feedback: ${gradingData.feedback.substring(0, 50)}${gradingData.feedback.length > 50 ? '...' : ''}`,
+        receiverName: studentData?.fullName || studentData?.email?.split('@')[0] || t?.('student') || "Student",
+        content: (t?.('grade_notification') || 'Your work "{file}" has been graded. Points: {points}/10. Feedback: {feedback}')
+          .replace('{file}', fileData?.originalFileName || 'file')
+          .replace('{points}', gradingData.points.toString())
+          .replace('{feedback}', gradingData.feedback.substring(0, 50) + (gradingData.feedback.length > 50 ? '...' : '')),
         timestamp: serverTime,
         read: false,
         type: 'grade_notification',
         gradeId: gradeRef.id,
-        assignmentTitle: assignmentData?.title || "General Assignment"
+        assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment"
       });
       
       console.log("Grade notification sent to student");
     } catch (notificationError) {
       console.error("Error sending grade notification:", notificationError);
-      // Продължаваме дори ако нотификацията не успее
     }
 
-    // 6. Добави в activity logs
     try {
       await addDoc(collection(db, "activityLogs"), {
         userId: gradingData.studentId,
-        userName: studentData?.fullName || studentData?.email?.split('@')[0] || "Student",
+        userName: studentData?.fullName || studentData?.email?.split('@')[0] || t?.('student') || "Student",
         teacherId: user?.uid,
-        teacherName: userData?.fullName || user?.email?.split('@')[0] || "Teacher",
-        action: "Grade Assigned",
-        details: `Assigned ${gradingData.points}/10 points for "${fileData?.originalFileName || 'file'}"`,
+        teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher",
+        action: t?.('grade_assigned') || "Grade Assigned",
+        details: (t?.('grade_assigned_details') || 'Assigned {points}/10 points for "{file}"')
+          .replace('{points}', gradingData.points.toString())
+          .replace('{file}', fileData?.originalFileName || 'file'),
         target: `grade_${gradeRef.id}`,
         actionType: "grading",
         timestamp: serverTime,
@@ -735,49 +562,40 @@ const handleSaveGrade = async (gradingData: {
           points: gradingData.points,
           assignmentId: gradingData.assignmentId,
           fileId: gradingData.fileId,
-          assignmentTitle: assignmentData?.title || "General Assignment"
+          assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment"
         }
       });
     } catch (logError) {
       console.error("Error adding activity log:", logError);
     }
-
-    setUploadStatus("✅ Grade saved successfully! Student has been notified.");
-    
-    // ✅ Промяна: НЕ връщаме нищо или връщаме undefined
+    setUploadStatus("✅ " + (t?.('grade_saved') || "Grade saved successfully! Student has been notified."));
     return;
     
   } catch (error) {
     console.error("Error saving grade:", error);
     
-    // Подробно логване на грешката
     const errorDetails = error instanceof Error ? {
       message: error.message,
       stack: error.stack,
       name: error.name
     } : String(error);
-    
     console.error("Error details:", errorDetails);
-    
-    setUploadStatus("❌ Error saving grade! Check console for details.");
-    
-    // Промяна: Хвърляме грешка без да връщаме нищо
+    setUploadStatus("❌ " + (t?.('error_saving_grade') || "Error saving grade! Check console for details."));
     throw new Error(`Failed to save grade: ${errorDetails}`);
   }
 };
-// Helper функция за изчисляване на средна оценка
 
+// Helper функция за изчисляване на средна оценка
 const calculateAveragePoints = (grades: any[]): number => {
   if (grades.length === 0) return 0;
   
-  // Сумирайте или `points` или `grade` в зависимост от структурата
   const sum = grades.reduce((total, grade) => {
     return total + (grade.points || grade.grade || 0);
   }, 0);
   
   return parseFloat((sum / grades.length).toFixed(1));
 };
-
+console.log(calculateAveragePoints)
 // Функция за отваряне на модала за оценяване
 const openGradingModal = (student: Student, assignmentId?: string) => {
   setGradingModal({
@@ -788,10 +606,10 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
     assignmentId
   });
 };
-  
+
   // UI states
   const [activeRecommendation, setActiveRecommendation] = useState<number | null>(null);
-
+  
   // Statistics states
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -804,57 +622,7 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
     communityMembers: 0,
     activeChallenges: 0
   });
-
-  const initialInstructions = [
-    { id: 1, text: "The goal of the assignment is to create an expert system that collects, organizes, and uses knowledge from a school subject (biology, chemistry, or physics), applying logical rules to derive new information." },
-    { id: 2, text: "Develop a working expert system on a topic chosen by the student from: Biology (e.g., insects, ecosystems, organs), Chemistry (e.g., substances, reactions, acids and bases), or Physics (e.g., motion, forces, electricity)." },
-    { id: 3, text: "The system must be implemented in Prolog and start with the main predicate start/0." },
-  ];
-
-  const [instructions, setInstructions] = useState(initialInstructions);
   
-  const [assignmentForm, setAssignmentForm] = useState<AssignmentFormData>({
-    title: "",
-    description: "",
-    objective: "",
-    topic: "",
-    subject: "biology",
-    minFacts: 20,
-    minRules: 5,
-    minCombinedRules: 2,
-    minMenuItems: 5,
-    instructions: initialInstructions.map(inst => inst.text),
-    dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    difficulty: 'medium',
-    points: 100,
-    exampleCode: `%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                                                  %
-%   EXPERT SYSTEM TEMPLATE                         %
-%   ======================                         %
-%   Subject: [SUBJECT]                             %
-%   Topic: [TOPIC]                                 %
-%   Student Name: [NAME]                           %
-%   Class: [CLASS]                                 %
-%   Date: [DATE]                                   %
-%                                                  %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%%%%%%%%%%%%%%%%%%%%%%
-% PROGRAM ENTRY POINT
-%%%%%%%%%%%%%%%%%%%%%%%%%
-start :-
-    write('=== Expert System for [TOPIC] ==='), nl,
-    write('1. Show all [TOPIC_ITEMS]'), nl,
-    write('2. Search [TOPIC_ITEMS] by [CATEGORY]'), nl,
-    write('3. Check if [TOPIC_ITEM] is [PROPERTY]'), nl,
-    write('4. Information about [TOPIC]'), nl,
-    write('5. Exit'), nl,
-    read(Choice),
-    process_choice(Choice).`,
-    backgroundImage: assignmentBackgrounds[0],
-    category: "Programming"
-  });
-
   // Theme classes
   const themeClasses = {
     light: {
@@ -876,7 +644,7 @@ start :-
   };
 
   const currentTheme = themeClasses[theme];
-
+  
   // Зареждане на всички потребители
   const loadAllUsers = async () => {
     try {
@@ -939,68 +707,62 @@ start :-
     
     return () => unsubscribe();
   }, [user]);
-
+  
   // Зареждане на общностите
-  // В началото на useEffect hooks секцията:
-useEffect(() => {
-  if (!user) return;
-  
-  const communitiesQuery = query(
-    collection(db, "communities"),
-    where("teacherId", "==", user.uid)
-  );
-  
-  const unsubscribe = onSnapshot(communitiesQuery, (snapshot) => {
-    const communitiesData: Community[] = [];
+  useEffect(() => {
+    if (!user) return;
     
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      communitiesData.push({
-        id: doc.id,
-        name: data.name,
-        description: data.description,
-        teacherId: data.teacherId,
-        institution: data.institution || userData?.institution || "Unknown",
-        gradeLevel: data.gradeLevel,
-        subject: data.subject,
-        memberCount: data.memberCount || 0,
-        studentIds: data.studentIds || [],
-        pendingRequests: data.pendingRequests || [],
-        createdAt: data.createdAt,
-        isPublic: data.isPublic || false,
-        inviteCode: data.inviteCode,
-        challenges: data.challenges || [],
-        settings: data.settings || {
-          allowStudentChallenges: false,
-          allowInterCommunityChallenges: true,
-          allowStudentMessages: true,
-          autoApproveStudents: false,
-          privacy: "private"
-        }
+    const communitiesQuery = query(
+      collection(db, "communities"),
+      where("teacherId", "==", user.uid)
+    );
+    
+    const unsubscribe = onSnapshot(communitiesQuery, (snapshot) => {
+      const communitiesData: Community[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        communitiesData.push({
+          id: doc.id,
+          name: data.name,
+          description: data.description,
+          teacherId: data.teacherId,
+          institution: data.institution || userData?.institution || "Unknown",
+          gradeLevel: data.gradeLevel,
+          subject: data.subject,
+          memberCount: data.memberCount || 0,
+          studentIds: data.studentIds || [],
+          pendingRequests: data.pendingRequests || [],
+          createdAt: data.createdAt,
+          isPublic: data.isPublic || false,
+          inviteCode: data.inviteCode,
+          challenges: data.challenges || [],
+          settings: data.settings || {
+            allowStudentChallenges: false,
+            allowInterCommunityChallenges: true,
+            allowStudentMessages: true,
+            autoApproveStudents: false,
+            privacy: "private"
+          }
+        });
+      });
+      
+      setCommunities(communitiesData);
+      if (communitiesData.length > 0 && !selectedCommunity) {
+        setSelectedCommunity(communitiesData[0].id);
+      }
+      console.log("DEBUG: onSnapshot - communities updated:", {
+        count: communitiesData.length,
+        selectedCommunity
       });
     });
-    
-    setCommunities(communitiesData);
-    
-    // Критична промяна: Ако няма избрано комюнити и има поне едно, изберете първото
-    if (communitiesData.length > 0 && !selectedCommunity) {
-      setSelectedCommunity(communitiesData[0].id);
-    }
-    
-    console.log("DEBUG: onSnapshot - communities updated:", {
-      count: communitiesData.length,
-      selectedCommunity
-    });
-  });
-  
-  return () => unsubscribe();
-}, [user, userData]);
+    return () => unsubscribe();
+  }, [user, userData]);
 
   // Зареждане на общности, предизвикателства и потребители
   useEffect(() => {
     if (userData?.role === 'teacher' && user) {
       loadCommunities();
-      loadChallenges();
       loadAllSystemUsers();
     }
   }, [user, userData]);
@@ -1038,188 +800,66 @@ useEffect(() => {
   }, [user]);
 
   useEffect(() => {
-  if (
-    (selectedTab === "dashboard" || selectedTab === "students") &&
-    (userData?.role === 'teacher' || userData?.role === 'admin') &&
-    communities.length > 0
-  ) {
-    loadAllStudentsData();
-    loadActivityLogs();
-  }
-}, [selectedTab, userData?.role, communities]);
-
-
-  // Зареждане на assignments
-  useEffect(() => {
-    if (selectedTab === "assignments" || selectedTab === "dashboard") {
-      loadAssignments();
+    if (
+      (selectedTab === "dashboard" || selectedTab === "students") &&
+      (userData?.role === 'teacher' || userData?.role === 'admin') &&
+      communities.length > 0
+    ) {
+      loadAllStudentsData();
+      loadActivityLogs();
     }
-  }, [selectedTab]);
+  }, [selectedTab, userData?.role, communities]);
 
   const loadCommunities = async () => {
-  if (!user) return;
-  
-  try {
-    const q = query(
-      collection(db, "communities"),
-      where("teacherId", "==", user.uid)
-    );
-    
-    const snapshot = await getDocs(q);
-    const communitiesData: Community[] = [];
-    
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      communitiesData.push({
-        id: doc.id,
-        name: data.name,
-        description: data.description,
-        teacherId: data.teacherId,
-        institution: data.institution || userData?.institution || "Unknown",
-        gradeLevel: data.gradeLevel,
-        subject: data.subject,
-        memberCount: data.memberCount || 0,
-        studentIds: data.studentIds || [],
-        pendingRequests: data.pendingRequests || [],
-        createdAt: data.createdAt,
-        isPublic: data.isPublic || false,
-        inviteCode: data.inviteCode,
-        challenges: data.challenges || [],
-        settings: data.settings || {
-          allowStudentChallenges: false,
-          allowInterCommunityChallenges: true,
-          allowStudentMessages: true,
-          autoApproveStudents: false,
-          privacy: "private"
-        }
-      });
-    });
-    
-    setCommunities(communitiesData);
-    
-    // Критична промяна: Ако няма избрано комюнити и има поне едно, изберете първото
-    if (communitiesData.length > 0 && !selectedCommunity) {
-      setSelectedCommunity(communitiesData[0].id);
-    }
-    
-    console.log("DEBUG: Loaded communities:", {
-      count: communitiesData.length,
-      communities: communitiesData.map(c => ({ id: c.id, name: c.name })),
-      selectedCommunity
-    });
-    
-  } catch (error) {
-    console.error("Error loading communities:", error);
-  }
-};
-
-  const loadChallengeSubmissions = async (challengeId: string) => {
-    console.log("Loading submissions for challenge:", challengeId);
-    
-    try {
-      // Зареждане на решения от challengeSolutions
-      const solutionsQuery = query(
-        collection(db, "challengeSolutions"),
-        where("challengeId", "==", challengeId)
-      );
-      
-      const solutionsSnapshot = await getDocs(solutionsQuery);
-      const submissionsData: ChallengeSubmission[] = [];
-      
-      console.log("Found solutions in challengeSolutions:", solutionsSnapshot.size);
-      
-      solutionsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log("Solution data:", data);
-        
-        submissionsData.push({
-          id: doc.id,
-          studentId: data.studentId,
-          studentName: data.studentName || "Unknown Student",
-          submittedAt: data.submittedAt,
-          files: data.files || [],
-          notes: data.notes || "",
-          score: data.evaluation?.score,
-          status: data.status || 'joined',
-          solutionCode: data.solutionCode || "",
-          evaluation: data.evaluation || {},
-          communityId: data.communityId
-        });
-      });
-      
-      console.log(`✅ Loaded ${submissionsData.length} submissions from challengeSolutions`);
-      
-      // Ако няма решения, провери в challenges колекцията
-      if (submissionsData.length === 0) {
-        console.log("No solutions in challengeSolutions, checking challenges collection...");
-        
-        try {
-          const challengeDoc = await getDoc(doc(db, 'challenges', challengeId));
-          if (challengeDoc.exists()) {
-            const challengeData = challengeDoc.data();
-            console.log("Challenge data:", challengeData);
-            
-            if (challengeData.submissions && Array.isArray(challengeData.submissions)) {
-              challengeData.submissions.forEach((sub: any) => {
-                submissionsData.push({
-                  studentId: sub.studentId,
-                  studentName: sub.studentName || "Unknown Student",
-                  submittedAt: sub.submittedAt,
-                  notes: sub.notes || "",
-                  status: sub.status || 'joined'
-                });
-              });
-              console.log(`✅ Loaded ${challengeData.submissions.length} submissions from challenges collection`);
-            }
-          }
-        } catch (fallbackError) {
-          console.error("Fallback error:", fallbackError);
-        }
-      }
-      
-      return submissionsData;
-      
-    } catch (error) {
-      console.error("❌ Error loading challenge submissions:", error);
-      return [];
-    }
-  };
-
-  const loadChallenges = async () => {
     if (!user) return;
     
     try {
       const q = query(
-        collection(db, "challenges"),
-        where("createdBy", "==", user.uid)
+        collection(db, "communities"),
+        where("teacherId", "==", user.uid)
       );
       
       const snapshot = await getDocs(q);
-      const challengesData: Challenge[] = [];
+      const communitiesData: Community[] = [];
       
       snapshot.forEach((doc) => {
         const data = doc.data();
-        challengesData.push({
+        communitiesData.push({
           id: doc.id,
-          title: data.title,
+          name: data.name,
           description: data.description,
-          creatorCommunityId: data.creatorCommunityId,
-          targetCommunityId: data.targetCommunityId,
-          createdBy: data.createdBy,
-          status: data.status || 'pending',
-          dueDate: data.dueDate,
-          category: data.category || "General",
-          difficulty: data.difficulty || 'medium',
-          points: data.points || 50,
-          submissions: data.submissions || [],
-          createdAt: data.createdAt
+          teacherId: data.teacherId,
+          institution: data.institution || userData?.institution || "Unknown",
+          gradeLevel: data.gradeLevel,
+          subject: data.subject,
+          memberCount: data.memberCount || 0,
+          studentIds: data.studentIds || [],
+          pendingRequests: data.pendingRequests || [],
+          createdAt: data.createdAt,
+          isPublic: data.isPublic || false,
+          inviteCode: data.inviteCode,
+          challenges: data.challenges || [],
+          settings: data.settings || {
+            allowStudentChallenges: false,
+            allowInterCommunityChallenges: true,
+            allowStudentMessages: true,
+            autoApproveStudents: false,
+            privacy: "private"
+          }
         });
       });
-      
-      setChallenges(challengesData);
+      setCommunities(communitiesData);
+      if (communitiesData.length > 0 && !selectedCommunity) {
+        setSelectedCommunity(communitiesData[0].id);
+      }
+      console.log("DEBUG: Loaded communities:", {
+        count: communitiesData.length,
+        communities: communitiesData.map(c => ({ id: c.id, name: c.name })),
+        selectedCommunity
+      });
       
     } catch (error) {
-      console.error("Error loading challenges:", error);
+      console.error("Error loading communities:", error);
     }
   };
 
@@ -1282,19 +922,19 @@ useEffect(() => {
       }
       
       loadMessages();
-      setUploadStatus("✅ All messages marked as read!");
+      setUploadStatus("✅ " + (t?.('all_messages_read') || "All messages marked as read!"));
     } catch (error) {
       console.error("Error marking all messages as read:", error);
     }
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!window.confirm("Are you sure you want to delete this message?")) return;
+    if (!window.confirm(t?.('confirm_delete_message') || "Are you sure you want to delete this message?")) return;
     
     try {
       await deleteDoc(doc(db, 'messages', messageId));
       loadMessages();
-      setUploadStatus("✅ Message deleted!");
+      setUploadStatus("✅ " + (t?.('message_deleted') || "Message deleted!"));
     } catch (error) {
       console.error("Error deleting message:", error);
     }
@@ -1304,7 +944,6 @@ useEffect(() => {
     if (!user) return;
     
     try {
-      // Оптимизирана заявка - разделена на две, за да избегнем сложни OR заявки
       const receivedQ = query(
         collection(db, "messages"),
         where("receiverId", "==", user.uid),
@@ -1356,7 +995,6 @@ useEffect(() => {
         });
       });
       
-      // Сортиране по дата
       allMessages.sort((a, b) => 
         (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
       );
@@ -1369,136 +1007,73 @@ useEffect(() => {
   };
 
   const handleCreateCommunity = async () => {
-  if (!user || !userData) {
-    alert("Please login as a teacher!");
-    return;
-  }
-
-  try {
-    const communityRef = doc(collection(db, 'communities'));
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
-    const newCommunity: Community = {
-      id: communityRef.id,
-      name: communityForm.name,
-      description: communityForm.description,
-      teacherId: user.uid,
-      institution: userData.institution || "Unknown",
-      gradeLevel: communityForm.gradeLevel,
-      subject: communityForm.subject,
-      memberCount: 1,
-      studentIds: [],
-      pendingRequests: [],
-      createdAt: serverTimestamp(),
-      isPublic: communityForm.privacy === 'public',
-      inviteCode,
-      challenges: [],
-      settings: {
-        allowStudentChallenges: communityForm.allowStudentChallenges,
-        allowInterCommunityChallenges: communityForm.allowInterCommunityChallenges,
-        allowStudentMessages: communityForm.allowStudentMessages,
-        autoApproveStudents: communityForm.autoApprove,
-        privacy: communityForm.privacy
-      }
-    };
-    
-    await setDoc(communityRef, newCommunity);
-    
-    await updateDoc(doc(db, 'users', user.uid), {
-      communityId: communityRef.id,
-      createdCommunities: arrayUnion(communityRef.id)
-    });
-    
-    setUploadStatus("✅ Community created successfully!");
-    setShowCommunityForm(false);
-    
-    // Критична промяна: Рефрешнете комюнитита веднага след създаване
-    await loadCommunities();
-    
-    // Критична промяна: Задайте новосъздаденото комюнити като избрано
-    setSelectedCommunity(communityRef.id);
-    
-    // Ресетване на формата
-    setCommunityForm({
-      name: "",
-      description: "",
-      gradeLevel: "",
-      subject: "",
-      privacy: "private",
-      autoApprove: false,
-      allowStudentMessages: true,
-      allowStudentChallenges: false,
-      allowInterCommunityChallenges: true
-    });
-    
-    console.log("DEBUG: Created new community:", {
-      id: communityRef.id,
-      name: newCommunity.name,
-      selectedCommunity: communityRef.id
-    });
-    
-  } catch (error) {
-    console.error("Error creating community:", error);
-    setUploadStatus("❌ Error creating community!");
-  }
-};
-
-  const handleCreateChallenge = async () => {
-    if (!user || !selectedCommunity) {
-      alert("Please select a community first!");
+    if (!user || !userData) {
+      alert(t?.('login_as_teacher') || "Please login as a teacher!");
       return;
     }
 
     try {
-      const challengeRef = doc(collection(db, 'challenges'));
+      const communityRef = doc(collection(db, 'communities'));
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       
-      const newChallenge: Challenge = {
-        id: challengeRef.id,
-        title: challengeForm.title,
-        description: challengeForm.description,
-        creatorCommunityId: selectedCommunity,
-        targetCommunityId: challengeForm.targetCommunityId,
-        createdBy: user.uid,
-        status: 'pending',
-        dueDate: challengeForm.dueDate,
-        category: challengeForm.category,
-        difficulty: challengeForm.difficulty,
-        points: challengeForm.points,
-        submissions: [],
-        createdAt: serverTimestamp()
+      const newCommunity: Community = {
+        id: communityRef.id,
+        name: communityForm.name,
+        description: communityForm.description,
+        teacherId: user.uid,
+        institution: userData.institution || "Unknown",
+        gradeLevel: communityForm.gradeLevel,
+        subject: communityForm.subject,
+        memberCount: 1,
+        studentIds: [],
+        pendingRequests: [],
+        createdAt: serverTimestamp(),
+        isPublic: communityForm.privacy === 'public',
+        inviteCode,
+        challenges: [],
+        settings: {
+          allowStudentChallenges: communityForm.allowStudentChallenges,
+          allowInterCommunityChallenges: communityForm.allowInterCommunityChallenges,
+          allowStudentMessages: communityForm.allowStudentMessages,
+          autoApproveStudents: communityForm.autoApprove,
+          privacy: communityForm.privacy
+        }
       };
       
-      await setDoc(challengeRef, newChallenge);
+      await setDoc(communityRef, newCommunity);
       
-      if (selectedCommunity) {
-        await updateDoc(doc(db, 'communities', selectedCommunity), {
-          challenges: arrayUnion(challengeRef.id)
-        });
-      }
-      
-      if (challengeForm.targetCommunityId) {
-        await updateDoc(doc(db, 'communities', challengeForm.targetCommunityId), {
-          challenges: arrayUnion(challengeRef.id)
-        });
-      }
-      
-      setUploadStatus("✅ Challenge sent successfully!");
-      setShowChallengeForm(false);
-      setChallengeForm({
-        title: "",
-        description: "",
-        targetCommunityId: "",
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        category: "Programming",
-        difficulty: "medium",
-        points: 50
+      await updateDoc(doc(db, 'users', user.uid), {
+        communityId: communityRef.id,
+        createdCommunities: arrayUnion(communityRef.id)
       });
       
-      loadChallenges();
+      setUploadStatus("✅ " + (t?.('community_created') || "Community created successfully!"));
+      setShowCommunityForm(false);
+      
+      await loadCommunities();
+      setSelectedCommunity(communityRef.id);
+      
+      setCommunityForm({
+        name: "",
+        description: "",
+        gradeLevel: "",
+        subject: "",
+        privacy: "private",
+        autoApprove: false,
+        allowStudentMessages: true,
+        allowStudentChallenges: false,
+        allowInterCommunityChallenges: true
+      });
+      
+      console.log("DEBUG: Created new community:", {
+        id: communityRef.id,
+        name: newCommunity.name,
+        selectedCommunity: communityRef.id
+      });
       
     } catch (error) {
-      console.error("Error creating challenge:", error);
-      setUploadStatus("❌ Error creating challenge!");
+      console.error("Error creating community:", error);
+      setUploadStatus("❌ " + (t?.('error_creating_community') || "Error creating community!"));
     }
   };
 
@@ -1522,12 +1097,12 @@ useEffect(() => {
         
         const receiver = allUsers.find(u => u.uid === receiverId) || 
                         students.find(s => s.uid === receiverId) || 
-                        { username: "Unknown User", email: "" };
+                        { username: t?.('unknown_user') || "Unknown User", email: "" };
         
         const newMessageData: Message = {
           id: messageRef.id,
           senderId: user.uid,
-          senderName: userData?.fullName || user.email?.split('@')[0] || "Teacher",
+          senderName: userData?.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
           receiverId: receiverId,
           receiverName: receiver.username,
           content: newMessage,
@@ -1540,12 +1115,12 @@ useEffect(() => {
       }
       
       setNewMessage("");
-      setUploadStatus(`✅ ${receivers.length} message(s) sent successfully!`);
+      setUploadStatus(`✅ ${receivers.length} ` + (t?.('messages_sent') || "message(s) sent successfully!"));
       loadMessages();
       
     } catch (error) {
       console.error("Error sending message:", error);
-      setUploadStatus("❌ Error sending message!");
+      setUploadStatus("❌ " + (t?.('error_sending_message') || "Error sending message!"));
     }
   };
 
@@ -1628,12 +1203,12 @@ useEffect(() => {
         communityStatus: 'member'
       });
       
-      setUploadStatus("✅ Student approved successfully!");
+      setUploadStatus("✅ " + (t?.('student_approved') || "Student approved successfully!"));
       loadCommunities();
       
     } catch (error) {
       console.error("Error approving student:", error);
-      setUploadStatus("❌ Error approving student!");
+      setUploadStatus("❌ " + (t?.('error_approving_student') || "Error approving student!"));
     }
   };
 
@@ -1645,25 +1220,14 @@ useEffect(() => {
         pendingRequests: arrayRemove(studentId)
       });
       
-      setUploadStatus("✅ Request rejected!");
+      setUploadStatus("✅ " + (t?.('request_rejected') || "Request rejected!"));
       loadCommunities();
       
     } catch (error) {
       console.error("Error rejecting request:", error);
-      setUploadStatus("❌ Error rejecting request!");
+      setUploadStatus("❌ " + (t?.('error_rejecting_request') || "Error rejecting request!"));
     }
   };
-  // Добавете тази функция в TeacherDashboard компонента, след декларацията на променливите:
-const getStatusColor = (status: string): string => {
-  const statusColorMap: Record<string, string> = {
-    'joined': 'bg-blue-500/20 text-blue-500',
-    'submitted': 'bg-yellow-500/20 text-yellow-500',
-    'evaluated': 'bg-green-500/20 text-green-500',
-    'completed': 'bg-purple-500/20 text-purple-500'
-  };
-  
-  return statusColorMap[status] || 'bg-gray-500/20 text-gray-500';
-};
 
   // Helper functions
   const getColorByIndex = (index: number): string => {
@@ -1703,11 +1267,11 @@ const getStatusColor = (status: string): string => {
     if (file.code.length > 1000) return t?.('status_success') || "Success";
     return t?.('status_pending') || "Pending";
   };
-
+console.log(getStatusClass, getFileStatusText, getStatusText)
   const getCurrentCommunity = () => {
     return communities.find(c => c.id === selectedCommunity);
   };
-console.log(getStatusClass, getStatusText, getFileStatusText)
+
   const getCommunityStudents = () => {
     if (!selectedCommunity) return students;
     const community = getCurrentCommunity();
@@ -1733,8 +1297,8 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
         logs.push({
           id: doc.id,
           studentId: data.userId || "",
-          studentName: data.userName || data.user || "Unknown Student",
-          action: data.action || "Unknown action",
+          studentName: data.userName || data.user || t?.('unknown_student') || "Unknown Student",
+          action: data.action || t?.('unknown_action') || "Unknown action",
           timestamp: data.timestamp || serverTimestamp(),
           details: data.details || "",
           file: data.target || "",
@@ -1752,9 +1316,9 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
           id: "1",
           studentId: "student-1",
           studentName: "John Doe",
-          action: "Submitted Prolog code",
+          action: t?.('submitted_prolog_code') || "Submitted Prolog code",
           timestamp: new Date(),
-          details: "Created expert system for biology project",
+          details: t?.('created_expert_system') || "Created expert system for biology project",
           file: "expert_system.pl",
           status: 'submitted'
         },
@@ -1762,185 +1326,14 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
           id: "2",
           studentId: "student-2",
           studentName: "Jane Smith",
-          action: "Uploaded assignment file",
+          action: t?.('uploaded_assignment') || "Uploaded assignment file",
           timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          details: "Completed assignment on logical rules",
+          details: t?.('completed_logical_rules') || "Completed assignment on logical rules",
           file: "assignment_1.pl",
           status: 'submitted'
         }
       ];
       setActivityLogs(sampleLogs);
-    }
-  };
-
-  const loadAssignments = async () => {
-    setLoadingAssignments(true);
-    try {
-      if (!user || !user.uid) {
-        console.log("No user found, cannot load assignments");
-        setAssignments([]);
-        return;
-      }
-      
-      console.log("Loading assignments for teacher:", user.uid);
-      
-      const q = query(
-        collection(db, "assignments"),
-        where("teacherId", "==", user.uid),
-        orderBy("createdAt", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      const assignmentsData: Assignment[] = [];
-      
-      console.log("Found assignments:", snapshot.size);
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        
-        if (data.teacherId === user.uid) {
-          assignmentsData.push({
-            id: doc.id,
-            title: data.title,
-            description: data.description,
-            objective: data.objective,
-            topic: data.topic,
-            subject: data.subject,
-            requirements: data.requirements,
-            instructions: data.instructions,
-            teacherId: data.teacherId,
-            teacherName: data.teacherName,
-            createdAt: data.createdAt,
-            dueDate: data.dueDate,
-            status: data.status || 'active',
-            difficulty: data.difficulty || 'medium',
-            points: data.points || 100,
-            exampleCode: data.exampleCode,
-            backgroundImage: data.backgroundImage || assignmentBackgrounds[Math.floor(Math.random() * assignmentBackgrounds.length)],
-            category: data.category || categories[Math.floor(Math.random() * categories.length)],
-            progress: data.progress || 0,
-            actionText: t?.('view') || "View"
-          });
-        }
-      });
-      
-      console.log("Filtered assignments:", assignmentsData.length);
-      setAssignments(assignmentsData);
-      
-    } catch (error) {
-      console.error("❌ " + (t?.('load_assignments_error') || "Error loading assignments:"), error);
-      setAssignments([]);
-    } finally {
-      setLoadingAssignments(false);
-    }
-  };
-
-  const handleCreateOrUpdateAssignment = async () => {
-    if (!user || !userData) {
-      alert(t?.('login_as_teacher') || "Please login as a teacher!");
-      return;
-    }
-
-    try {
-      const assignmentData = {
-        title: assignmentForm.title,
-        description: assignmentForm.description,
-        objective: assignmentForm.objective,
-        topic: assignmentForm.topic,
-        subject: assignmentForm.subject,
-        requirements: {
-          minFacts: assignmentForm.minFacts,
-          minRules: assignmentForm.minRules,
-          minCombinedRules: assignmentForm.minCombinedRules,
-          minMenuItems: assignmentForm.minMenuItems
-        },
-        instructions: assignmentForm.instructions,
-        teacherId: user.uid,
-        teacherName: userData.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
-        createdAt: serverTimestamp(),
-        dueDate: assignmentForm.dueDate,
-        status: 'active',
-        difficulty: assignmentForm.difficulty,
-        points: assignmentForm.points,
-        exampleCode: assignmentForm.exampleCode,
-        backgroundImage: assignmentForm.backgroundImage,
-        category: assignmentForm.category
-      };
-
-      if (editingAssignment) {
-        await updateDoc(doc(db, "assignments", editingAssignment.id), assignmentData);
-        setUploadStatus("✅ " + (t?.('assignment_updated') || "Assignment updated successfully!"));
-      } else {
-        await addDoc(collection(db, "assignments"), assignmentData);
-        setUploadStatus("✅ " + (t?.('assignment_created') || "Assignment created successfully!"));
-      }
-
-      await loadAssignments();
-      setShowAssignmentForm(false);
-      setEditingAssignment(null);
-      resetAssignmentForm();
-
-    } catch (error) {
-      console.error(t?.('save_assignment_error') || "Error saving assignment:", error);
-      setUploadStatus("❌ " + (t?.('save_assignment_error') || "Error saving assignment!"));
-    }
-  };
-
-  const resetAssignmentForm = () => {
-    setAssignmentForm({
-      title: "",
-      description: "",
-      objective: "",
-      topic: "",
-      subject: "biology",
-      minFacts: 20,
-      minRules: 5,
-      minCombinedRules: 2,
-      minMenuItems: 5,
-      instructions: initialInstructions.map(inst => inst.text),
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      difficulty: 'medium',
-      points: 100,
-      exampleCode: "",
-      backgroundImage: assignmentBackgrounds[0],
-      category: "Programming"
-    });
-    setInstructions(initialInstructions);
-  };
-
-  const handleEditAssignment = (assignment: Assignment) => {
-    setEditingAssignment(assignment);
-    setAssignmentForm({
-      title: assignment.title,
-      description: assignment.description,
-      objective: assignment.objective,
-      topic: assignment.topic,
-      subject: assignment.subject,
-      minFacts: assignment.requirements.minFacts,
-      minRules: assignment.requirements.minRules,
-      minCombinedRules: assignment.requirements.minCombinedRules,
-      minMenuItems: assignment.requirements.minMenuItems,
-      instructions: assignment.instructions,
-      dueDate: assignment.dueDate,
-      difficulty: assignment.difficulty,
-      points: assignment.points,
-      exampleCode: assignment.exampleCode || "",
-      backgroundImage: assignment.backgroundImage || assignmentBackgrounds[0],
-      category: assignment.category || "Programming"
-    });
-    setShowAssignmentForm(true);
-  };
-
-  const handleDeleteAssignment = async (assignmentId: string) => {
-    if (!window.confirm(t?.('confirm_delete_assignment') || "Are you sure you want to delete this assignment?")) return;
-
-    try {
-      await deleteDoc(doc(db, "assignments", assignmentId));
-      setUploadStatus("✅ " + (t?.('assignment_deleted') || "Assignment deleted successfully!"));
-      await loadAssignments();
-    } catch (error) {
-      console.error(t?.('delete_assignment_error') || "Error deleting assignment:", error);
-      setUploadStatus("❌ " + (t?.('delete_assignment_error') || "Error deleting assignment!"));
     }
   };
 
@@ -1953,7 +1346,6 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
         return;
       }
 
-      // Вземи ID-тата на учениците от всички ваши общности
       const myStudentIds = new Set<string>();
       
       communities.forEach(community => {
@@ -1970,7 +1362,6 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
         return;
       }
 
-      // Зареди всички потребители
       const usersQuery = query(collection(db, "users"));
       const usersSnapshot = await getDocs(usersQuery);
       
@@ -1990,7 +1381,6 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
         };
       });
 
-      // Зареди всички кодове
       const codesQuery = query(collection(db, "prologCodes"));
       const codesSnapshot = await getDocs(codesQuery);
       
@@ -2088,7 +1478,6 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
       
       setStudents(sortedStudents);
 
-      // Актуализирай статистиките
       const totalMyStudents = sortedStudents.length;
       const activeMyStudents = sortedStudents.filter(s => s.status === 'active').length;
       const pendingApprovals = sortedStudents.filter(s => s.pendingApproval).length;
@@ -2104,9 +1493,10 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
         totalSubmissions,
         averagePoints: avgPoints,
         successRate: totalMyStudents > 0 ? Math.round((activeMyStudents / totalMyStudents) * 100) : 0,
-        lessonProgress: Math.round((assignments.filter(a => a.status === 'active').length / Math.max(assignments.length, 1)) * 100),
-        communityMembers: communities.reduce((sum, c) => sum + c.memberCount, 0),
-        activeChallenges: challenges.filter(c => c.status === 'accepted' || c.status === 'pending').length
+        lessonProgress: assignmentStats.total > 0
+          ? Math.round((assignmentStats.active / assignmentStats.total) * 100) 
+          : 0,
+        communityMembers: communities.reduce((sum, c) => sum + c.memberCount, 0)
       }));
       
     } catch (error) {
@@ -2241,7 +1631,7 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
     const newCourse = {
       id: courses.length + 1,
       title: newLesson.title,
-      description: newLesson.description || "New lesson created",
+      description: newLesson.description || t?.('new_lesson_created') || "New lesson created",
       progress: 0,
       color: `#${Math.floor(Math.random()*16777215).toString(16)}`,
       icon: "📚"
@@ -2251,27 +1641,7 @@ console.log(getStatusClass, getStatusText, getFileStatusText)
     setNewLesson({ title: '', description: '' });
     setShowLessonForm(false);
   };
-const handleRejectChallenge = async (challengeId: string) => {
-  try {
-    const challengeRef = doc(db, 'challenges', challengeId);
-    
-    await updateDoc(challengeRef, {
-      status: 'rejected'
-    });
-    
-    setUploadStatus(t?.('challenge_rejected') || "Challenge rejected!");
-    loadChallenges();
-    
-    // Ако се преглеждат submissions, затвори модала
-    if (viewingChallengeSubmissions?.id === challengeId) {
-      setViewingChallengeSubmissions(null);
-    }
-    
-  } catch (error) {
-    console.error("Error rejecting challenge:", error);
-    setUploadStatus(t?.('challenge_reject_error') || "Error rejecting challenge!");
-  }
-};
+
   const handleQuickPoints = (studentId: string, points: number) => {
     setSelectedPoints(prev => ({
       ...prev,
@@ -2279,24 +1649,29 @@ const handleRejectChallenge = async (challengeId: string) => {
     }));
   };
 
-  
-
   const handleAddFeedbackTag = (studentId: string, tag: string) => {
     setFeedbackText(prev => ({
       ...prev,
       [studentId]: (prev[studentId] || "") + (prev[studentId] ? '\n' : '') + tag
     }));
   };
-console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
+
   const downloadFile = (file: StudentFile) => {
-    const element = document.createElement('a');
-    const fileBlob = new Blob([file.code], { type: 'text/plain' });
-    element.href = URL.createObjectURL(fileBlob);
-    element.download = file.originalFileName;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
+  const element = document.createElement('a');
+  const fileBlob = new Blob([file.code], { type: 'text/plain' });
+  console.log(downloadFile, handleAddFeedbackTag, handleQuickPoints)
+  const fileName = file.originalFileName.endsWith('.pl') 
+    ? file.originalFileName 
+    : `${file.originalFileName}.pl`;
+  
+  element.href = URL.createObjectURL(fileBlob);
+  element.download = fileName;
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+  
+  URL.revokeObjectURL(element.href);
+};
 
   const openFileInNewTab = (file: StudentFile) => {
     const newWindow = window.open('', '_blank');
@@ -2322,226 +1697,160 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
     }
   };
 
-  const addInstruction = () => {
-    const newId = instructions.length > 0 ? Math.max(...instructions.map(i => i.id)) + 1 : 1;
-    setInstructions([...instructions, { id: newId, text: "" }]);
-  };
-
-  const updateInstruction = (id: number, text: string) => {
-    setInstructions(instructions.map(inst => 
-      inst.id === id ? { ...inst, text } : inst
-    ));
-    setAssignmentForm({
-      ...assignmentForm,
-      instructions: instructions.map(inst => 
-        inst.id === id ? text : inst.text
-      )
-    });
-  };
-
-  const removeInstruction = (id: number) => {
-    setInstructions(instructions.filter(inst => inst.id !== id));
-    setAssignmentForm({
-      ...assignmentForm,
-      instructions: instructions.filter(inst => inst.id !== id).map(inst => inst.text)
-    });
-  };
-
-  
-  // ДОБАВЕНА ФУНКЦИЯ: Приемане на предизвикателство
-  const handleAcceptChallenge = async (challengeId: string) => {
-    try {
-      const challengeRef = doc(db, 'challenges', challengeId);
-      
-      await updateDoc(challengeRef, {
-        status: 'accepted'
-      });
-      
-      setUploadStatus(t?.('challenge_accepted') || "Challenge accepted!");
-      loadChallenges();
-      
-    } catch (error) {
-      console.error("Error accepting challenge:", error);
-      setUploadStatus(t?.('challenge_accept_error') || "Error accepting challenge!");
-    }
-  };
-
-  // ДОБАВЕНА ФУНКЦИЯ: Отговор на предизвикателство
-  const handleChallengeResponse = async (challengeId: string, responseContent: string, solutionCode?: string) => {
-    if (!user || !userData) return;
-
-    try {
-      const challengeRef = doc(db, 'challenges', challengeId);
-      
-      await updateDoc(challengeRef, {
-        status: 'responded',
-        response: {
-          respondedAt: serverTimestamp(),
-          responderId: user.uid,
-          responderName: userData.fullName || user.email?.split('@')[0],
-          content: responseContent,
-          solutionCode: solutionCode || ''
-        }
-      });
-
-      // Изпращане на съобщение до създателя на предизвикателството
-      const challenge = challenges.find(c => c.id === challengeId);
-      if (challenge) {
-        const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
-        if (creatorCommunity) {
-          const messageRef = doc(collection(db, 'messages'));
-          await setDoc(messageRef, {
-            senderId: user.uid,
-            senderName: userData.fullName || user.email?.split('@')[0],
-            receiverId: creatorCommunity.teacherId,
-            receiverName: creatorCommunity.name,
-            content: `Отговор на вашето предизвикателство "${challenge.title}": ${responseContent.substring(0, 100)}...`,
-            timestamp: serverTimestamp(),
-            read: false,
-            type: 'challenge_response'
-          });
-        }
-      }
-
-      setUploadStatus("✅ Отговорът е изпратен успешно!");
-      loadChallenges();
-      setShowResponseForm(false);
-      setChallengeResponseForm({ content: "", solutionCode: "" });
-      
-    } catch (error) {
-      console.error("Грешка при изпращане на отговор:", error);
-      setUploadStatus("❌ Грешка при изпращане на отговор!");
-    }
-  };
-
   // Компонент за нишка от съобщения
   const MessageThread = ({ threadId, onClose }: { threadId: string, onClose: () => void }) => {
-    const [threadMessages, setThreadMessages] = useState<Message[]>([]);
-    const [newThreadMessage, setNewThreadMessage] = useState("");
-    
-    useEffect(() => {
+  const [threadMessages, setThreadMessages] = useState<Message[]>([]);
+  const [newThreadMessage, setNewThreadMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    if (threadId) {
       loadThreadMessages();
-    }, [threadId]);
+    }
+  }, [threadId]);
+  
+  const loadThreadMessages = async () => {
+    if (!user) return;
     
-    const loadThreadMessages = async () => {
-      if (!user) return;
+    setLoading(true);
+    try {
+      // Зареждане на съобщенията между текущия потребител и threadId
+      const q = query(
+        collection(db, "messages"),
+        where("senderId", "in", [user.uid, threadId]),
+        where("receiverId", "in", [user.uid, threadId]),
+        orderBy("timestamp", "asc")
+      );
       
-      try {
-        // Зареждане на съобщенията от и до потребителя
-        const receivedQ = query(
-          collection(db, "messages"),
-          where("receiverId", "==", user.uid),
-          where("senderId", "==", threadId),
-          orderBy("timestamp", "asc")
-        );
-        
-        const sentQ = query(
-          collection(db, "messages"),
-          where("senderId", "==", user.uid),
-          where("receiverId", "==", threadId),
-          orderBy("timestamp", "asc")
-        );
-        
-        const [receivedSnapshot, sentSnapshot] = await Promise.all([
-          getDocs(receivedQ),
-          getDocs(sentQ)
-        ]);
-        
-        const messagesData: Message[] = [];
-        
-        receivedSnapshot.forEach((doc) => {
-          const data = doc.data();
-          messagesData.push({
-            id: doc.id,
-            senderId: data.senderId,
-            senderName: data.senderName,
-            receiverId: data.receiverId,
-            receiverName: data.receiverName,
-            content: data.content,
-            timestamp: data.timestamp,
-            read: data.read || false,
-            type: data.type || 'direct'
-          });
+      const querySnapshot = await getDocs(q);
+      const messagesData: Message[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        messagesData.push({
+          id: doc.id,
+          senderId: data.senderId,
+          senderName: data.senderName || t?.('unknown') || "Unknown",
+          receiverId: data.receiverId,
+          receiverName: data.receiverName || t?.('unknown') || "Unknown",
+          content: data.content,
+          timestamp: data.timestamp,
+          read: data.read || false,
+          type: data.type || 'direct'
         });
-        
-        sentSnapshot.forEach((doc) => {
-          const data = doc.data();
-          messagesData.push({
-            id: doc.id,
-            senderId: data.senderId,
-            senderName: data.senderName,
-            receiverId: data.receiverId,
-            receiverName: data.receiverName,
-            content: data.content,
-            timestamp: data.timestamp,
-            read: true,
-            type: data.type || 'direct'
-          });
-        });
-        
-        // Сортиране по време
-        messagesData.sort((a, b) => 
-          (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0)
-        );
-        
-        setThreadMessages(messagesData);
-      } catch (error) {
-        console.error("Error loading thread messages:", error);
-      }
-    };
+      });
+      
+      setThreadMessages(messagesData);
+    } catch (error) {
+      console.error("Error loading thread messages:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const sendThreadMessage = async () => {
+    if (!user || !threadId || !newThreadMessage.trim()) return;
     
-    const sendThreadMessage = async () => {
-      if (!user || !threadId || !newThreadMessage.trim()) return;
+    try {
+      const messageRef = doc(collection(db, 'messages'));
       
-      try {
-        const messageRef = doc(collection(db, 'messages'));
-        
-        const receiverName = 
-          students.find(s => s.uid === threadId)?.username || 
-          communities.find(c => c.id === threadId)?.name || 
-          "Unknown";
-        
-        const newMessageData: Message = {
-          id: messageRef.id,
-          senderId: user.uid,
-          senderName: userData?.fullName || user.email?.split('@')[0] || "Teacher",
-          receiverId: threadId,
-          receiverName: receiverName,
-          content: newThreadMessage,
-          timestamp: serverTimestamp(),
-          read: false,
-          type: 'direct'
-        };
-        
-        await setDoc(messageRef, newMessageData);
-        setNewThreadMessage("");
-        loadThreadMessages();
-        
-      } catch (error) {
-        console.error("Error sending message:", error);
+      // Намерете името на получателя
+      let receiverName = t?.('unknown') || "Unknown";
+      
+      // Първо проверете в students
+      const student = students.find(s => s.uid === threadId);
+      if (student) {
+        receiverName = student.username;
+      } else {
+        // После проверете в communities
+        const community = communities.find(c => c.id === threadId);
+        if (community) {
+          receiverName = community.name;
+        } else {
+          // Накрая проверете в allUsers
+          const foundUser = allUsers.find(u => u.uid === threadId);
+          if (foundUser) {
+            receiverName = foundUser.username;
+          }
+        }
       }
-    };
+      
+      const newMessageData = {
+        senderId: user.uid,
+        senderName: userData?.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
+        receiverId: threadId,
+        receiverName: receiverName,
+        content: newThreadMessage,
+        timestamp: serverTimestamp(),
+        read: false,
+        type: 'direct'
+      };
+      
+      await setDoc(messageRef, newMessageData);
+      
+      // Добавете съобщението локално за по-бързо визуализиране
+      const tempMessage: Message = {
+        id: messageRef.id,
+        ...newMessageData,
+        timestamp: new Date() // временно
+      };
+      
+      setThreadMessages(prev => [...prev, tempMessage]);
+      setNewThreadMessage("");
+      
+      // Презаредете, за да получите правилния timestamp
+      setTimeout(() => loadThreadMessages(), 100);
+      
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert(t?.('error_sending_message') || "Грешка при изпращане на съобщение!");
+    }
+  };
     
     return (
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-black/80' : 'bg-black/60'}`}>
-        <div className="absolute inset-0" onClick={onClose} />
-        <motion.div
-          initial={{ scale: 0.9, y: 20 }}
-          animate={{ scale: 1, y: 0 }}
-          className={`relative w-full max-w-2xl rounded-2xl border overflow-hidden ${
-            theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-          }`}
-        >
-          <div className="p-6 h-[600px] flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">Message Thread</h3>
-              <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
-                <X className="w-5 h-5" />
-              </button>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-black/80' : 'bg-black/60'}`}>
+      <div className="absolute inset-0" onClick={onClose} />
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className={`relative w-full max-w-2xl rounded-2xl border overflow-hidden ${
+          theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+        }`}
+      >
+        <div className="p-6 h-[600px] flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold">
+              {t?.('message_thread') || "Message Thread"} - {
+                students.find(s => s.uid === threadId)?.username ||
+                communities.find(c => c.id === threadId)?.name ||
+                allUsers.find(u => u.uid === threadId)?.username ||
+                threadId.substring(0, 8)
+              }
+            </h3>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {loading && (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-500"></div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-              {threadMessages.map((msg) => (
+          )}
+          
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-2">
+            {threadMessages.length === 0 && !loading ? (
+              <div className="text-center py-8">
+                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {t?.('no_messages_yet') || "No messages yet"}
+                </p>
+                <p className="text-sm opacity-70 mt-2">
+                  {t?.('start_conversation') || "Start the conversation by sending a message below"}
+                </p>
+              </div>
+            ) : (
+              threadMessages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`p-3 rounded-lg ${
@@ -2552,43 +1861,59 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                 >
                   <div className="font-medium text-sm mb-1">
                     {msg.senderName}
+                    {msg.senderId === user?.uid && ` (${t?.('you') || 'You'})`}
                   </div>
-                  <div className="text-sm">{msg.content}</div>
+                  <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
                   <div className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {new Date(msg.timestamp?.toMillis?.() || Date.now()).toLocaleString()}
+                    {msg.timestamp?.toDate 
+                      ? new Date(msg.timestamp.toDate()).toLocaleString()
+                      : msg.timestamp instanceof Date
+                      ? msg.timestamp.toLocaleString()
+                      : t?.('just_now') || 'Just now'}
                   </div>
                 </div>
-              ))}
-            </div>
-            
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newThreadMessage}
-                onChange={(e) => setNewThreadMessage(e.target.value)}
-                placeholder="Type your message..."
-                className="flex-1 p-3 rounded-lg border"
-                onKeyPress={(e) => e.key === 'Enter' && sendThreadMessage()}
-              />
-              <button
-                onClick={sendThreadMessage}
-                className="px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
+              ))
+            )}
           </div>
-        </motion.div>
-      </div>
+          
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newThreadMessage}
+              onChange={(e) => setNewThreadMessage(e.target.value)}
+              placeholder={t?.('type_message') || "Type your message..."}
+              className={`flex-1 p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                theme === 'dark' 
+                  ? 'bg-gray-800 border-gray-700 text-white' 
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendThreadMessage();
+                }
+              }}
+            />
+            <button
+              onClick={sendThreadMessage}
+              disabled={!newThreadMessage.trim()}
+              className="px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
     );
-  };
+};
 
   // Статистики
   const totalSubmissions = submissions.length;
   const successfulSubmissions = submissions.filter(s => s.status === "success").length;
   const successRate = totalSubmissions > 0 ? Math.round((successfulSubmissions / totalSubmissions) * 100) : 0;
-  const activeAssignments = assignments.filter(a => a.status === "active").length;
-  console.log(successRate,activeAssignments)
+  const activeAssignments = assignmentStats.active; 
+  console.log(successRate, activeAssignments)
   const studentActivities = [...students]
     .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime())
     .slice(0, 5);
@@ -2626,7 +1951,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
       value: students.filter(s => s.role === 'student').length,
       icon: <Users className="w-6 h-6" />,
       color: "from-blue-500 to-cyan-500",
-      change: `${students.filter(s => s.role === 'student' && s.status === 'active').length} active`,
+      change: `${students.filter(s => s.role === 'student' && s.status === 'active').length} ${t?.('active') || 'active'}`,
       description: t?.('students_in_my_communities') || "Students in my communities"
     },
     {
@@ -2634,15 +1959,15 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
       value: communities.length,
       icon: <GroupIcon className="w-6 h-6" />,
       color: "from-purple-500 to-pink-500",
-      change: `${stats.communityMembers} members`,
+      change: `${stats.communityMembers} ${t?.('members') || 'members'}`,
       description: t?.('learning_communities') || "Learning communities"
     },
     {
       title: t?.('my_assignments') || "My Assignments",
-      value: assignments.length,
+      value: assignmentStats.total, 
       icon: <FileText className="w-6 h-6" />,
       color: "from-amber-500 to-orange-500",
-      change: `${assignments.filter(a => a.status === 'active').length} active`,
+      change: `${assignmentStats.active} ${t?.('active') || 'active'}`, 
       description: t?.('assignments_created_by_me') || "Assignments created by me"
     },
     {
@@ -2678,7 +2003,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
       id: "challenges", 
       label: t?.('challenges') || "Challenges", 
       icon: <Target className="w-5 h-5" />,
-      badge: challenges.length
+      badge: null
     },
     { 
       id: "courses", 
@@ -2690,7 +2015,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
       id: "assignments", 
       label: t?.('all_assignments') || "Assignments", 
       icon: <FileText className="w-5 h-5" />,
-      badge: assignments.length
+      badge: assignmentStats.total 
     },
     { 
       id: "students", 
@@ -2774,7 +2099,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                   <div className="text-left">
                     <div className="font-medium">{community.name}</div>
                     <div className={`text-sm ${selectedCommunity === community.id ? 'text-white/80' : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {community.memberCount} members
+                      {community.memberCount} {t?.('members') || 'members'}
                     </div>
                   </div>
                 </div>
@@ -2806,7 +2131,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                         ? 'bg-green-500/20 text-green-500'
                         : 'bg-blue-500/20 text-blue-500'
                     }`}>
-                      {getCurrentCommunity()?.isPublic ? 'Public' : 'Private'}
+                      {getCurrentCommunity()?.isPublic ? t?.('public') || 'Public' : t?.('private') || 'Private'}
                     </span>
                   </div>
                 </div>
@@ -2820,14 +2145,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                     } transition-colors flex items-center gap-2`}
                   >
                     <MessageCircle className="w-4 h-4" />
-                    Message All
-                  </button>
-                  <button
-                    onClick={() => setShowChallengeForm(true)}
-                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium flex items-center gap-2"
-                  >
-                    <Target className="w-4 h-4" />
-                    Send Challenge
+                    {t?.('message_all') || "Message All"}
                   </button>
                 </div>
               </div>
@@ -2878,9 +2196,9 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                               <UserPlus className="w-4 h-4 text-gray-400" />
                             </div>
                             <div>
-                              <div className="font-medium">Unknown User</div>
+                              <div className="font-medium">{t?.('unknown_user') || "Unknown User"}</div>
                               <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                ID: {studentId.substring(0, 8)}...
+                                {t?.('id') || "ID"}: {studentId.substring(0, 8)}...
                               </div>
                             </div>
                           </div>
@@ -2912,7 +2230,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                     onClick={() => setSelectedTab("students")}
                     className={`text-sm ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}
                   >
-                    View All →
+                    {t?.('view_all') || "View All"} →
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2960,230 +2278,31 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
 
   // Рендиране на предизвикателствата
   const renderChallengesView = () => (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold">{t?.('challenges') || "Challenges"}</h2>
-          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-            {t?.('manage_community_challenges') || "Manage and create challenges between communities"}
-          </p>
-        </div>
-        <button
-          onClick={() => setShowChallengeForm(true)}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          {t?.('create_challenge') || "Create Challenge"}
-        </button>
-      </div>
-
-      {challenges.length === 0 ? (
-        <div className={`rounded-2xl p-12 border text-center ${
-          theme === 'dark'
-            ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-            : 'bg-white border-gray-200'
-        }`}>
-          <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold mb-2">
-            {t?.('no_challenges_yet') || "No challenges yet"}
-          </h3>
-          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            {t?.('create_first_challenge') || "Create your first challenge to engage communities"}
-          </p>
-          <button
-            onClick={() => setShowChallengeForm(true)}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-          >
-            <Plus className="w-4 h-4 inline mr-2" />
-            {t?.('create_first_challenge') || "Create First Challenge"}
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {challenges.map((challenge) => {
-            const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
-            const targetCommunity = communities.find(c => c.id === challenge.targetCommunityId);
-            
-            return (
-              <motion.div
-                key={challenge.id}
-                whileHover={{ scale: 1.02, translateY: -5 }}
-                className={`rounded-2xl p-6 border ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                    : 'bg-white border-gray-200'
-                } backdrop-blur-xl`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      challenge.status === 'accepted' ? 'bg-green-500/20 text-green-500' :
-                      challenge.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
-                      challenge.status === 'completed' ? 'bg-blue-500/20 text-blue-500' :
-                      challenge.status === 'responded' ? 'bg-purple-500/20 text-purple-500' :
-                      'bg-red-500/20 text-red-500'
-                    }`}>
-                      <Target className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold">{challenge.title}</h3>
-                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {challenge.category}
-                      </span>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    challenge.difficulty === 'easy' ? 'bg-green-500/20 text-green-500' :
-                    challenge.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-500' :
-                    'bg-red-500/20 text-red-500'
-                  }`}>
-                    {challenge.difficulty}
-                  </span>
-                </div>
-
-                <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {challenge.description}
-                </p>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-sm">
-                    <GroupIcon className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                      {t?.('from') || "From"}: {creatorCommunity?.name || "Unknown"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Target className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                      {t?.('to') || "To"}: {targetCommunity?.name || "Unknown"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                      {t?.('due') || "Due"}: {challenge.dueDate}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Trophy className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                    <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                      {t?.('points') || "Points"}: {challenge.points}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    challenge.status === 'accepted' ? 'bg-green-500/20 text-green-500' :
-                    challenge.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
-                    challenge.status === 'completed' ? 'bg-blue-500/20 text-blue-500' :
-                    challenge.status === 'responded' ? 'bg-purple-500/20 text-purple-500' :
-                    'bg-red-500/20 text-red-500'
-                  }`}>
-                    {challenge.status}
-                  </span>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={async () => {
-                        try {
-                          console.log("Clicked view submissions for challenge:", challenge.id);
-                          console.log("Current challenge submissions:", challenge.submissions);
-                          
-                          const submissions = await loadChallengeSubmissions(challenge.id);
-                          console.log("Loaded submissions from function:", submissions);
-                          
-                          if (submissions.length > 0) {
-                            const challengeWithSubmissions = {
-                              ...challenge,
-                              submissions: submissions
-                            };
-                            setViewingChallengeSubmissions(challengeWithSubmissions);
-                          } else {
-                            alert("No submissions yet for this challenge.");
-                          }
-                        } catch (error) {
-                          console.error("Error loading submissions:", error);
-                          alert("Error loading submissions. Check console for details.");
-                        }
-                      }}
-                      className={`px-3 py-1 rounded text-sm ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 hover:bg-white/10' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      {t?.('challenge_view_submissions') || "View Submissions"} ({challenge.submissions?.length || 0})
-                    </button>
-                    
-                 
-                    
-                    {challenge.status === 'pending' && communities.some(c => c.id === challenge.targetCommunityId) && (
-                      <button
-                        onClick={() => handleAcceptChallenge(challenge.id)}
-                        className={`px-3 py-1 rounded text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white`}
-                      >
-                        <CheckCircle className="w-4 h-4 inline mr-1" />
-                        {t?.('challenge_accept') || "Accept Challenge"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Показване на отговор ако има */}
-{challenge.response && (
-  <div className={`mt-4 p-4 rounded-lg ${
-    theme === 'dark' ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
-  }`}>
-    <div className="flex items-center gap-2 mb-2">
-      <MessageCircle className="w-4 h-4 text-blue-500" />
-      <span className="font-medium text-blue-500">
-        {t?.('challenge_response_title') || "Challenge Response"}
-      </span>
-    </div>
-    <p className="text-sm mb-2">{challenge.response.content}</p>
-    {challenge.response.solutionCode && (
-      <button
-        onClick={() => {
-          const newWindow = window.open('', '_blank');
-          if (newWindow) {
-            newWindow.document.write(`
-              <html>
-                <head>
-                  <title>${t?.('challenge_solution_title') || "Challenge Solution"}</title>
-                  <style>
-                    body { 
-                      font-family: monospace; 
-                      margin: 20px; 
-                      background: ${theme === 'dark' ? '#1e1e1e' : '#ffffff'}; 
-                      color: ${theme === 'dark' ? '#ffffff' : '#000000'};
-                      white-space: pre-wrap;
-                    }
-                  </style>
-                </head>
-                <body>${challenge.response?.solutionCode || ''}</body>
-              </html>
-            `);
-            newWindow.document.close();
-          }
-        }}
-        className="text-sm text-blue-500 hover:text-blue-600"
-      >
-        {t?.('challenge_view_solution_code') || "View solution code"} →
-      </button>
-    )}
-    <div className="text-xs opacity-70 mt-2">
-      {t?.('challenge_response_from') || "Response from"} {challenge.response.responderName} {t?.('challenge_response_on') || "on"} {
-        new Date(challenge.response.respondedAt?.toMillis?.() || Date.now()).toLocaleString()
-      }
-    </div>
-  </div>
-)}
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <TeacherChallenges 
+      communities={communities}
+      selectedCommunityId={selectedCommunity}
+      onCommunityChange={(communityId) => {
+        console.log("🔄 Смяна на community към:", communityId);
+        setSelectedCommunity(communityId);
+      }}
+      onUpdate={() => {
+        loadCommunities();
+      }}
+      onNewChallenge={(challenge) => {
+        setUploadStatus(`✅ ${t?.('challenge_sent') || 'Challenge'} "${challenge.title}" ${t?.('sent_successfully') || 'sent successfully'}!`);
+        setTimeout(() => setUploadStatus(""), 3000);
+      }}
+      onIncomingChallenge={(notification) => {
+        setChallengeNotifications(prev => [notification, ...prev]);
+        setUploadStatus(`📬 ${notification.description}`);
+        setTimeout(() => setUploadStatus(""), 5000);
+      }}
+      onChallengeStatusChange={(notification) => {
+        setChallengeNotifications(prev => [notification, ...prev]);
+        setUploadStatus(notification.description);
+        setTimeout(() => setUploadStatus(""), 5000);
+      }}
+    />
   );
 
   return (
@@ -3198,7 +2317,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
               <span>{t?.('teacher_dashboard') || "Teacher Dashboard"}</span>
             </h1>
             <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t?.('welcome_back') || "Welcome back"}, {userData?.fullName || user?.email?.split('@')[0] || "Teacher"}!
+              {t?.('welcome_back') || "Welcome back"}, {userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"}!
             </p>
           </div>
           
@@ -3272,7 +2391,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                 >
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold">Notifications</h4>
+                      <h4 className="font-bold">{t?.('notifications') || "Notifications"}</h4>
                       <button 
                         onClick={() => setShowNotifications(false)}
                         className={`p-1 rounded ${
@@ -3297,15 +2416,16 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                           read: boolean;
                         }> = [];
                         
-                        // 1. Добавяне на чакащи заявки за общности
                         communities.forEach(community => {
                           community.pendingRequests.forEach(studentId => {
                             const student = students.find(s => s.uid === studentId);
                             allNotifications.push({
                               id: `${community.id}-${studentId}`,
                               type: 'pending_request',
-                              title: 'Join Request',
-                              description: `${student?.username || 'Student'} wants to join "${community.name}"`,
+                              title: t?.('join_request') || 'Join Request',
+                              description: (t?.('student_wants_to_join') || '{student} wants to join "{community}"')
+                                .replace('{student}', student?.username || t?.('student') || 'Student')
+                                .replace('{community}', community.name),
                               communityId: community.id,
                               studentId: studentId,
                               timestamp: community.createdAt,
@@ -3314,39 +2434,33 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                           });
                         });
                         
-                        // 2. Добавяне на непрочетени съобщения
                         messages
                           .filter(m => !m.read && m.receiverId === user?.uid)
                           .forEach(msg => {
                             allNotifications.push({
                               id: msg.id,
                               type: 'direct_message',
-                              title: 'New Message',
+                              title: t?.('new_message') || 'New Message',
                               description: `${msg.senderName}: ${msg.content.substring(0, 60)}${msg.content.length > 60 ? '...' : ''}`,
                               studentId: msg.senderId,
                               timestamp: msg.timestamp,
                               read: msg.read
                             });
                           });
-                        
-                        // 3. Добавяне на изчакващи предизвикателства
-                        challenges
-                          .filter(ch => ch.status === 'pending' && 
-                            communities.some(c => c.id === ch.targetCommunityId && c.teacherId === user?.uid))
-                          .forEach(challenge => {
-                            const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
-                            allNotifications.push({
-                              id: challenge.id,
-                              type: 'challenge',
-                              title: 'New Challenge',
-                              description: `"${challenge.title}" from ${creatorCommunity?.name || 'Unknown Community'}`,
-                              challengeId: challenge.id,
-                              timestamp: challenge.createdAt,
-                              read: false
-                            });
+
+                        challengeNotifications.forEach(notification => {
+                          allNotifications.push({
+                            id: notification.id,
+                            type: 'challenge',
+                            title: notification.title,
+                            description: notification.description,
+                            communityId: notification.targetCommunityId,
+                            challengeId: notification.challengeId,
+                            timestamp: notification.timestamp,
+                            read: notification.read
                           });
+                        });
                         
-                        // Сортиране по дата (най-новите първи)
                         allNotifications.sort((a, b) => 
                           (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
                         );
@@ -3356,7 +2470,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                             <div className="text-center py-8">
                               <Bell className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                               <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                No notifications
+                                {t?.('no_notifications') || "No notifications"}
                               </p>
                             </div>
                           );
@@ -3459,7 +2573,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                               }}
                               className="w-full py-2 text-sm text-blue-500 hover:text-blue-600"
                             >
-                              Mark all as read
+                              {t?.('mark_all_as_read') || "Mark all as read"}
                             </button>
                           </div>
                         );
@@ -3663,14 +2777,14 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                             <div>
                               <h4 className="font-medium">{community.name}</h4>
                               <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {community.memberCount} members
+                                {community.memberCount} {t?.('members') || 'members'}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             {community.pendingRequests.length > 0 && (
                               <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-500">
-                                {community.pendingRequests.length} pending
+                                {community.pendingRequests.length} {t?.('pending') || 'pending'}
                               </span>
                             )}
                             <button
@@ -3684,7 +2798,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                                   : 'bg-gray-100 hover:bg-gray-200'
                               }`}
                             >
-                              View
+                              {t?.('view') || "View"}
                             </button>
                           </div>
                         </div>
@@ -3762,411 +2876,297 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
         {selectedTab === "communities" && renderCommunitiesView()}
 
         {/* Challenges View */}
-        {selectedTab === "challenges" && renderChallengesView()}
+        {selectedTab === "challenges" && (
+          communities.length === 0 ? (
+            <div className={`rounded-2xl p-12 border text-center ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+                : 'bg-white border-gray-200'
+            }`}>
+              <GroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">{t?.('no_communities_yet') || "No Communities Yet"}</h3>
+              <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                {t?.('need_community_for_challenges') || "You need to create a community before you can create challenges."}
+              </p>
+              <button
+                onClick={() => setSelectedTab("communities")}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+              >
+                <Plus className="w-4 h-4 inline mr-2" />
+                {t?.('create_first_community') || "Create Your First Community"}
+              </button>
+            </div>
+          ) : !selectedCommunity ? (
+            <div className={`rounded-2xl p-12 border text-center ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+                : 'bg-white border-gray-200'
+            }`}>
+              <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">{t?.('no_community_selected') || "No Community Selected"}</h3>
+              <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                {t?.('select_community_for_challenges') || "Please select a community from the Communities tab to view and manage challenges."}
+              </p>
+              <button
+                onClick={() => setSelectedTab("communities")}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+              >
+                {t?.('go_to_communities') || "Go to Communities"}
+              </button>
+            </div>
+          ) : (
+            renderChallengesView()
+          )
+        )}
 
         {/* Courses/Lessons View */}
-{selectedTab === "courses" && (
-  <div className="mb-8">
-    <div className="flex items-center justify-between mb-6">
-      <div>
-        <h2 className="text-2xl font-bold">{t?.('my_lessons') || "My Lessons"}</h2>
-        <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-          {filteredLessons.length} lessons • {lessons.filter(l => l.status === 'published').length} published
-        </p>
-      </div>
-      
-      <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="relative">
-          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-          }`} />
-          <input
-            type="text"
-            placeholder="Search lessons..."
-            value={lessonSearch}
-            onChange={(e) => setLessonSearch(e.target.value)}
-            className={`pl-10 pr-4 py-2 rounded-lg border ${
-              theme === 'dark' 
-                ? 'bg-white/5 border-white/10 text-white' 
-                : 'bg-white border-gray-300 text-gray-900'
-            }`}
-          />
-        </div>
-        
-        {/* Filter Dropdown */}
-        <select
-          value={lessonFilter}
-          onChange={(e) => setLessonFilter(e.target.value)}
-          className={`px-4 py-2 rounded-lg border ${
-            theme === 'dark' 
-              ? 'bg-white/5 border-white/10 text-white' 
-              : 'bg-white border-gray-300 text-gray-900'
-          }`}
-        >
-          <option value="all">All Lessons</option>
-          <option value="published">Published</option>
-          <option value="draft">Drafts</option>
-          <option value="archived">Archived</option>
-        </select>
-        
-        {/* Create Lesson Button */}
-        <button 
-          onClick={() => {
-            setEditingLesson(null);
-            setShowLessonForm(true);
-          }}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          {t?.('add_new_lesson') || "Add New Lesson"}
-        </button>
-      </div>
-    </div>
-
-    {/* Stats Cards for Lessons */}
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div className={`p-4 rounded-xl border ${
-        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <div className="text-2xl font-bold mb-1">{lessons.length}</div>
-        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          Total Lessons
-        </div>
-      </div>
-      <div className={`p-4 rounded-xl border ${
-        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <div className="text-2xl font-bold mb-1">
-          {lessons.filter(l => l.status === 'published').length}
-        </div>
-        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          Published
-        </div>
-      </div>
-      <div className={`p-4 rounded-xl border ${
-        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <div className="text-2xl font-bold mb-1">
-          {lessons.filter(l => l.status === 'draft').length}
-        </div>
-        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          Drafts
-        </div>
-      </div>
-      <div className={`p-4 rounded-xl border ${
-        theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <div className="text-2xl font-bold mb-1">
-          {[...new Set(lessons.map(l => l.category))].length}
-        </div>
-        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          Categories
-        </div>
-      </div>
-    </div>
-
-    {/* Lessons Grid */}
-    {filteredLessons.length === 0 ? (
-      <div className={`rounded-2xl p-12 border text-center ${
-        theme === 'dark'
-          ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-          : 'bg-white border-gray-200'
-      }`}>
-        <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-bold mb-2">
-          {lessonSearch || lessonFilter !== 'all' 
-            ? 'No matching lessons found' 
-            : t?.('no_lessons_yet') || "No lessons yet"}
-        </h3>
-        <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          {lessonSearch || lessonFilter !== 'all' 
-            ? 'Try changing your search or filter criteria'
-            : t?.('create_first_lesson') || "Create your first lesson to get started"}
-        </p>
-        <button
-          onClick={() => {
-            setEditingLesson(null);
-            setShowLessonForm(true);
-            setLessonSearch('');
-            setLessonFilter('all');
-          }}
-          className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-        >
-          <Plus className="w-4 h-4 inline mr-2" />
-          {t?.('create_first_lesson') || "Create First Lesson"}
-        </button>
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredLessons.map((lesson) => (
-          <motion.div
-            key={lesson.id}
-            whileHover={{ scale: 1.02, translateY: -5 }}
-            className={`rounded-2xl p-6 border cursor-pointer ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10 hover:border-white/20'
-                : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'
-            } backdrop-blur-xl transition-all`}
-            onClick={() => setViewingLesson(lesson)}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                  style={{ backgroundColor: `${lesson.color}20`, color: lesson.color }}
-                >
-                  {lesson.icon}
-                </div>
-                <div>
-                  <h3 className="font-bold line-clamp-1">{lesson.title}</h3>
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {lesson.category}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className={`px-2 py-1 rounded text-xs ${
-                  lesson.status === 'published' ? 'bg-green-500/20 text-green-500' :
-                  lesson.status === 'draft' ? 'bg-yellow-500/20 text-yellow-500' :
-                  'bg-gray-500/20 text-gray-500'
-                }`}>
-                  {lesson.status}
-                </span>
-                <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                  {lesson.estimatedTime || 'N/A'}
-                </span>
-              </div>
-            </div>
-
-            <p className={`mb-4 line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {lesson.description}
-            </p>
-
-            <div className="space-y-3 mb-6">
-              {lesson.tags && lesson.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {lesson.tags.slice(0, 3).map((tag, index) => (
-                    <span
-                      key={index}
-                      className={`px-2 py-1 rounded text-xs ${
-                        theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                      }`}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {lesson.tags.length > 3 && (
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                    }`}>
-                      +{lesson.tags.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
-              <div className="flex items-center gap-4 text-sm">
-                <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  {new Date(lesson.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
-                </span>
-                {lesson.attachments && lesson.attachments.length > 0 && (
-                  <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                    <FileText className="w-4 h-4 inline mr-1" />
-                    {lesson.attachments.length}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-  <span className="text-blue-400 font-bold text-sm">U</span>
-</div>
-                <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {lesson.teacherName}
-                </span>
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingLesson(lesson);
-                    setShowLessonForm(true);
-                  }}
-                  className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                  }`}
-                  title="Edit"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setViewingLesson(lesson);
-                  }}
-                  className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                  }`}
-                  title="View"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
-
-        {/* Assignments View */}
-        {selectedTab === "assignments" && (
+        {selectedTab === "courses" && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold">{t?.('all_assignments') || "All Assignments"}</h2>
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>{t?.('manage_create_assignments') || "Manage and create new assignments"}</p>
+                <h2 className="text-2xl font-bold">{t?.('my_lessons') || "My Lessons"}</h2>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {filteredLessons.length} {t?.('lessons') || 'lessons'} • {lessons.filter(l => l.status === 'published').length} {t?.('published') || 'published'}
+                </p>
               </div>
-              <div className="flex gap-2">
-                {(userData?.role === 'teacher' || userData?.role === 'admin') && (
-                  <button
-                    onClick={() => setShowAssignmentForm(true)}
-                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {t?.('add_assignment') || "Add Assignment"}
-                  </button>
-                )}
+              
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder={t?.('search_lessons') || "Search lessons..."}
+                    value={lessonSearch}
+                    onChange={(e) => setLessonSearch(e.target.value)}
+                    className={`pl-10 pr-4 py-2 rounded-lg border ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border-white/10 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+                
+                <select
+                  value={lessonFilter}
+                  onChange={(e) => setLessonFilter(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="all">{t?.('all_lessons') || "All Lessons"}</option>
+                  <option value="published">{t?.('published') || "Published"}</option>
+                  <option value="draft">{t?.('drafts') || "Drafts"}</option>
+                  <option value="archived">{t?.('archived') || "Archived"}</option>
+                </select>
+                
+                <button 
+                  onClick={() => {
+                    setEditingLesson(null);
+                    setShowLessonForm(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  {t?.('add_new_lesson') || "Add New Lesson"}
+                </button>
               </div>
             </div>
 
-            {loadingAssignments ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">{lessons.length}</div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('total_lessons') || "Total Lessons"}
+                </div>
               </div>
-            ) : assignments.length === 0 ? (
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">
+                  {lessons.filter(l => l.status === 'published').length}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('published') || "Published"}
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">
+                  {lessons.filter(l => l.status === 'draft').length}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('drafts') || "Drafts"}
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+                <div className="text-2xl font-bold mb-1">
+                  {[...new Set(lessons.map(l => l.category))].length}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t?.('categories') || "Categories"}
+                </div>
+              </div>
+            </div>
+
+            {filteredLessons.length === 0 ? (
               <div className={`rounded-2xl p-12 border text-center ${
                 theme === 'dark'
                   ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
                   : 'bg-white border-gray-200'
               }`}>
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold mb-2">{t?.('no_assignments_yet') || "No assignments yet"}</h3>
+                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-2">
+                  {lessonSearch || lessonFilter !== 'all' 
+                    ? t?.('no_matching_lessons') || 'No matching lessons found' 
+                    : t?.('no_lessons_yet') || "No lessons yet"}
+                </h3>
                 <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('create_first_assignment') || "Create your first assignment to get started"}
+                  {lessonSearch || lessonFilter !== 'all' 
+                    ? t?.('try_changing_criteria') || 'Try changing your search or filter criteria'
+                    : t?.('create_first_lesson') || "Create your first lesson to get started"}
                 </p>
-                {(userData?.role === 'teacher' || userData?.role === 'admin') && (
-                  <button
-                    onClick={() => setShowAssignmentForm(true)}
-                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                  >
-                    <Plus className="w-4 h-4 inline mr-2" />
-                    {t?.('create_first_assignment') || "Create First Assignment"}
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setEditingLesson(null);
+                    setShowLessonForm(true);
+                    setLessonSearch('');
+                    setLessonFilter('all');
+                  }}
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+                >
+                  <Plus className="w-4 h-4 inline mr-2" />
+                  {t?.('create_first_lesson') || "Create First Lesson"}
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {assignments.map((assignment) => (
+                {filteredLessons.map((lesson) => (
                   <motion.div
-                    key={assignment.id}
+                    key={lesson.id}
                     whileHover={{ scale: 1.02, translateY: -5 }}
-                    className={`rounded-2xl p-6 border ${
+                    className={`rounded-2xl p-6 border cursor-pointer ${
                       theme === 'dark'
-                        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                        : 'bg-white border-gray-200'
-                    } backdrop-blur-xl`}
+                        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10 hover:border-white/20'
+                        : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'
+                    } backdrop-blur-xl transition-all`}
+                    onClick={() => setViewingLesson(lesson)}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          assignment.category === 'Design' ? 'bg-pink-500/20 text-pink-500' :
-                          assignment.category === 'Programming' ? 'bg-blue-500/20 text-blue-500' :
-                          'bg-green-500/20 text-green-500'
-                        }`}>
-                          {assignment.category === 'Design' ? '🎨' :
-                           assignment.category === 'Programming' ? '💻' :
-                           assignment.category === 'Algorithms' ? '🧠' :
-                           assignment.category === 'Data Science' ? '📊' : '🤖'}
+                        <div 
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                          style={{ backgroundColor: `${lesson.color}20`, color: lesson.color }}
+                        >
+                          {lesson.icon}
                         </div>
                         <div>
-                          <h3 className="font-bold">{assignment.title}</h3>
+                          <h3 className="font-bold line-clamp-1">{lesson.title}</h3>
                           <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {assignment.category}
+                            {lesson.category}
                           </span>
                         </div>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        assignment.difficulty === 'easy' ? 'bg-green-500/20 text-green-500' :
-                        assignment.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-500' :
-                        'bg-red-500/20 text-red-500'
-                      }`}>
-                        {assignment.difficulty}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          lesson.status === 'published' ? 'bg-green-500/20 text-green-500' :
+                          lesson.status === 'draft' ? 'bg-yellow-500/20 text-yellow-500' :
+                          'bg-gray-500/20 text-gray-500'
+                        }`}>
+                          {lesson.status === 'published' ? t?.('published') || 'published' :
+                           lesson.status === 'draft' ? t?.('draft') || 'draft' :
+                           t?.('archived') || 'archived'}
+                        </span>
+                        <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                          {lesson.estimatedTime || 'N/A'}
+                        </span>
+                      </div>
                     </div>
 
-                    <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {assignment.description}
+                    <p className={`mb-4 line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {lesson.description}
                     </p>
 
                     <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('due') || "Due"}: {assignment.dueDate}
+                      {lesson.tags && lesson.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {lesson.tags.slice(0, 3).map((tag, index) => (
+                            <span
+                              key={index}
+                              className={`px-2 py-1 rounded text-xs ${
+                                theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                              }`}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {lesson.tags.length > 3 && (
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                            }`}>
+                              +{lesson.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                          <Calendar className="w-4 h-4 inline mr-1" />
+                          {new Date(lesson.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('difficulty') || "Difficulty"}: {assignment.difficulty}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Star className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('points') || "Points"}: {assignment.points}
-                        </span>
+                        {lesson.attachments && lesson.attachments.length > 0 && (
+                          <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                            <FileText className="w-4 h-4 inline mr-1" />
+                            {lesson.attachments.length}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      {(userData?.role === 'teacher' || userData?.role === 'admin') ? (
-                        <>
-                          <button
-                            onClick={() => handleEditAssignment(assignment)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                              theme === 'dark' 
-                                ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
-                                : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
-                            }`}
-                          >
-                            <Edit className="w-4 h-4 inline mr-1" /> {t?.('edit') || "Edit"}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteAssignment(assignment.id)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                              theme === 'dark' 
-                                ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400' 
-                                : 'bg-red-100 hover:bg-red-200 text-red-600'
-                            }`}
-                          >
-                            <Trash2 className="w-4 h-4 inline mr-1" /> {t?.('delete') || "Delete"}
-                          </button>
-                        </>
-                      ) : (
-                        <button className={`w-full py-2 rounded-lg text-sm font-medium ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 hover:bg-white/10' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}>
-                          <Eye className="w-4 h-4 inline mr-1" /> {t?.('view') || "View"}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                          <span className="text-blue-400 font-bold text-sm">U</span>
+                        </div>
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {lesson.teacherName}
+                        </span>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingLesson(lesson);
+                            setShowLessonForm(true);
+                          }}
+                          className={`p-2 rounded-lg ${
+                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                          }`}
+                          title={t?.('edit') || "Edit"}
+                        >
+                          <Edit className="w-4 h-4" />
                         </button>
-                      )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingLesson(lesson);
+                          }}
+                          className={`p-2 rounded-lg ${
+                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                          }`}
+                          title={t?.('view') || "View"}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -4175,207 +3175,224 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
           </div>
         )}
 
+        {selectedTab === "assignments" && (
+          <TeacherAssignments 
+            teacherId={user?.uid || ''}
+            isTeacherOrAdmin={userData?.role === 'teacher' || userData?.role === 'admin'}
+            onStatsChange={(stats) => {
+              setAssignmentStats(stats);
+              setStats(prev => ({
+                ...prev,
+                lessonProgress: stats.total > 0 
+                  ? Math.round((stats.active / stats.total) * 100) 
+                  : 0
+              }));
+            }}
+          />
+        )}
+
         {/* Students View */}
-{selectedTab === "students" && (userData?.role === 'teacher' || userData?.role === 'admin') && (
-  <div className="mb-8">
-    <div className={`rounded-2xl p-6 border ${
-      theme === 'dark'
-        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-        : 'bg-white border-gray-200'
-    } backdrop-blur-xl`}>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold">
-            {t?.('my_students') || "My Students"} ({students.filter(s => s.role === 'student').length})
-          </h2>
-          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-            {t?.('manage_students_subtitle') || "Review student submissions and assign grades"}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-            }`} />
-            <input
-              type="text"
-              placeholder={t?.('search_students') || "Search students..."}
-              className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                theme === 'dark' 
-                  ? 'bg-white/5 border-white/10' 
-                  : 'bg-white border-gray-300'
-              }`}
-            />
-          </div>
-          <button
-            onClick={loadAllStudentsData}
-            disabled={loadingStudents}
-            className={`px-4 py-2 rounded-lg ${
-              theme === 'dark' 
-                ? 'bg-white/5 hover:bg-white/10' 
-                : 'bg-gray-100 hover:bg-gray-200'
-            } transition-colors disabled:opacity-50`}
-          >
-            {loadingStudents ? (
-              <span className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-500"></div>
-                {t?.('loading') || "Loading..."}
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" />
-                {t?.('refresh') || "Refresh"}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
+        {selectedTab === "students" && (userData?.role === 'teacher' || userData?.role === 'admin') && (
+          <div className="mb-8">
+            <div className={`rounded-2xl p-6 border ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+                : 'bg-white border-gray-200'
+            } backdrop-blur-xl`}>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold">
+                    {t?.('my_students') || "My Students"} ({students.filter(s => s.role === 'student').length})
+                  </h2>
+                  <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    {t?.('manage_students_subtitle') || "Review student submissions and assign grades"}
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`} />
+                    <input
+                      type="text"
+                      placeholder={t?.('search_students') || "Search students..."}
+                      className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 border-white/10' 
+                          : 'bg-white border-gray-300'
+                      }`}
+                    />
+                  </div>
+                  <button
+                    onClick={loadAllStudentsData}
+                    disabled={loadingStudents}
+                    className={`px-4 py-2 rounded-lg ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    } transition-colors disabled:opacity-50`}
+                  >
+                    {loadingStudents ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-500"></div>
+                        {t?.('loading') || "Loading..."}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4" />
+                        {t?.('refresh') || "Refresh"}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
 
-      {loadingStudents ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-        </div>
-      ) : students.length === 0 ? (
-        <div className="text-center py-12">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold mb-2">
-            {t?.('no_students_found') || "No Students Found"}
-          </h3>
-          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            {t?.('no_students_description') || "No students with uploaded files found in the system."}
-          </p>
-          <button
-            onClick={loadAllStudentsData}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-          >
-            {t?.('try_again') || "Try Again"}
-          </button>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
-                <th className="py-3 px-4 text-left font-medium">{t?.('student') || "Student"}</th>
-                <th className="py-3 px-4 text-left font-medium">{t?.('class') || "Class"}</th>
-                <th className="py-3 px-4 text-left font-medium">{t?.('files') || "Files"}</th>
-                <th className="py-3 px-4 text-left font-medium">{t?.('last_activity') || "Last Activity"}</th>
-                <th className="py-3 px-4 text-left font-medium">{t?.('avg_points') || "Avg Points"}</th>
-                <th className="py-3 px-4 text-left font-medium">{t?.('status') || "Status"}</th>
-                <th className="py-3 px-4 text-left font-medium">{t?.('actions') || "Actions"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student, index) => (
-                <tr key={student.username} className={`border-b ${
-                  theme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'
-                }`}>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-                        style={{ backgroundColor: getColorByIndex(index) }}
-                      >
-                        {student.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-medium">{student.username}</div>
-                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {student.email || t?.('no_email') || "No email"}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                    }`}>
-                      {student.class || t?.('na') || "N/A"}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{student.totalFiles}</span>
-                      {student.totalFiles > 0 && (
-                        <span className={`text-xs ${
-                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              {loadingStudents ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                </div>
+              ) : students.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold mb-2">
+                    {t?.('no_students_found') || "No Students Found"}
+                  </h3>
+                  <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {t?.('no_students_description') || "No students with uploaded files found in the system."}
+                  </p>
+                  <button
+                    onClick={loadAllStudentsData}
+                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+                  >
+                    {t?.('try_again') || "Try Again"}
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('student') || "Student"}</th>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('class') || "Class"}</th>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('files') || "Files"}</th>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('last_activity') || "Last Activity"}</th>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('avg_points') || "Avg Points"}</th>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('status') || "Status"}</th>
+                        <th className="py-3 px-4 text-left font-medium">{t?.('actions') || "Actions"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.map((student, index) => (
+                        <tr key={student.username} className={`border-b ${
+                          theme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'
                         }`}>
-                          ({student.files.filter(f => f.points !== undefined).length} graded)
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">{student.lastActivity}</td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{student.averagePoints?.toFixed(1) || "0.0"}/10</span>
-                      <div className={`w-16 h-2 rounded-full overflow-hidden ${
-                        theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
-                      }`}>
-                        <div
-                          className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                          style={{ width: `${(student.averagePoints || 0) * 10}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      student.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                      student.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                      'bg-red-500/20 text-red-500'
-                    }`}>
-                      {student.status === 'active' ? t?.('active') || "Active" :
-                       student.status === 'warning' ? t?.('warning') || "Warning" :
-                       t?.('inactive') || "Inactive"}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openGradingModal(student)}
-                        className={`p-2 rounded ${
-                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                        } transition-colors`}
-                        title={t?.('grade') || "Grade"}
-                      >
-                        <GraduationCap className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setViewingStudentFiles(student.username)}
-                        className={`p-2 rounded ${
-                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                        } transition-colors`}
-                        title={t?.('view_files') || "View Files"}
-                      >
-                        <FolderOpen className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+                                style={{ backgroundColor: getColorByIndex(index) }}
+                              >
+                                {student.username.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-medium">{student.username}</div>
+                                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  {student.email || t?.('no_email') || "No email"}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`px-3 py-1 rounded-full text-sm ${
+                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                            }`}>
+                              {student.class || t?.('na') || "N/A"}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{student.totalFiles}</span>
+                              {student.totalFiles > 0 && (
+                                <span className={`text-xs ${
+                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
+                                  ({student.files.filter(f => f.points !== undefined).length} {t?.('graded') || 'graded'})
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">{student.lastActivity}</td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{student.averagePoints?.toFixed(1) || "0.0"}/10</span>
+                              <div className={`w-16 h-2 rounded-full overflow-hidden ${
+                                theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
+                              }`}>
+                                <div
+                                  className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                                  style={{ width: `${(student.averagePoints || 0) * 10}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              student.status === 'active' ? 'bg-green-500/20 text-green-500' :
+                              student.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
+                              'bg-red-500/20 text-red-500'
+                            }`}>
+                              {student.status === 'active' ? t?.('active') || "Active" :
+                               student.status === 'warning' ? t?.('warning') || "Warning" :
+                               t?.('inactive') || "Inactive"}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openGradingModal(student)}
+                                className={`p-2 rounded ${
+                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                                } transition-colors`}
+                                title={t?.('grade') || "Grade"}
+                              >
+                                <GraduationCap className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setViewingStudentFiles(student.username)}
+                                className={`p-2 rounded ${
+                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                                } transition-colors`}
+                                title={t?.('view_files') || "View Files"}
+                              >
+                                <FolderOpen className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-{/* Grading Modal */}
-{gradingModal.isOpen && (
-  <AssignmentGradingModal
-    studentName={gradingModal.studentName}
-    studentId={gradingModal.studentId}
-    files={gradingModal.files}
-    assignmentId={gradingModal.assignmentId}
-    onClose={() => setGradingModal({ isOpen: false, studentName: '', studentId: '', files: [] })}
-    onSave={handleSaveGrade}
-  />
-)}
+        {/* Grading Modal */}
+        {gradingModal.isOpen && (
+          <AssignmentGradingModal
+            studentName={gradingModal.studentName}
+            studentId={gradingModal.studentId}
+            files={gradingModal.files}
+            assignmentId={gradingModal.assignmentId}
+            onClose={() => setGradingModal({ isOpen: false, studentName: '', studentId: '', files: [] })}
+            onSave={handleSaveGrade}
+          />
+        )}
 
-{/* View Student Files Modal - АКТУАЛИЗИРАН */}
+        {/* View Student Files Modal */}
+        {/* View Student Files Modal */}
 {viewingStudentFiles && (
   <motion.div
     initial={{ opacity: 0 }}
@@ -4462,7 +3479,23 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => downloadFile(file)}
+                    onClick={() => {
+                      // Актуализирана функция за изтегляне
+                      const element = document.createElement('a');
+                      const fileBlob = new Blob([file.code], { type: 'text/plain' });
+                      
+                      // Уверете се, че файлът има .pl разширение
+                      const fileName = file.originalFileName.endsWith('.pl') 
+                        ? file.originalFileName 
+                        : `${file.originalFileName}.pl`;
+                      
+                      element.href = URL.createObjectURL(fileBlob);
+                      element.download = fileName;
+                      document.body.appendChild(element);
+                      element.click();
+                      document.body.removeChild(element);
+                      URL.revokeObjectURL(element.href);
+                    }}
                     className={`p-2 rounded-lg ${
                       theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
                     } transition-colors`}
@@ -4488,7 +3521,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
 
         {/* Бутон за оценяване в модала за файлове */}
         {students.find(s => s.username === viewingStudentFiles) && 
- students.find(s => s.username === viewingStudentFiles)!.files.length > 0 && (
+         students.find(s => s.username === viewingStudentFiles)!.files.length > 0 && (
           <div className="mt-6 pt-6 border-t border-white/10 dark:border-gray-700">
             <div className="flex justify-center">
               <button
@@ -4513,6 +3546,7 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
     </motion.div>
   </motion.div>
 )}
+
         {/* Submissions View */}
         {selectedTab === "submissions" && (
           <div className="mb-8">
@@ -4967,215 +4001,6 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
           </motion.div>
         )}
 
-        {/* Challenge Form Modal */}
-        {showChallengeForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setShowChallengeForm(false)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-md rounded-2xl border ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <Target className="w-5 h-5 text-green-400" />
-                    </div>
-                    <h3 className="text-xl font-bold">{t?.('create_challenge') || "Create Challenge"}</h3>
-                  </div>
-                  <button
-                    onClick={() => setShowChallengeForm(false)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('challenge_title') || "Challenge Title"} *
-                    </label>
-                    <input
-                      type="text"
-                      value={challengeForm.title}
-                      onChange={(e) => setChallengeForm({...challengeForm, title: e.target.value})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('enter_challenge_title') || "Enter challenge title"}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('description') || "Description"} *
-                    </label>
-                    <textarea
-                      value={challengeForm.description}
-                      onChange={(e) => setChallengeForm({...challengeForm, description: e.target.value})}
-                      rows={4}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('enter_description') || "Enter challenge description"}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('target_community') || "Target Community"} *
-                    </label>
-                    <select
-  value={challengeForm.targetCommunityId}
-  onChange={(e) => setChallengeForm({...challengeForm, targetCommunityId: e.target.value})}
-  className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-    theme === 'dark' 
-      ? 'bg-gray-800 border-gray-700 text-gray-100' 
-      : 'bg-white border-gray-300 text-gray-900'
-  } border`}
->
-  <option 
-    value=""
-    className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
-  >
-    {t?.('select_community') || "Select a community"}
-  </option>
-  {communities
-    // ИЗМЕНЕНИЕ: Премахнете филтъра напълно
-    .map(community => (
-      <option 
-        key={community.id} 
-        value={community.id}
-        className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
-      >
-        {community.name} ({community.memberCount} members)
-      </option>
-    ))}
-</select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        {t?.('due_date') || "Due Date"}
-                      </label>
-                      <input
-                        type="date"
-                        value={challengeForm.dueDate}
-                        onChange={(e) => setChallengeForm({...challengeForm, dueDate: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        {t?.('points') || "Points"}
-                      </label>
-                      <input
-                        type="number"
-                        min="10"
-                        max="200"
-                        value={challengeForm.points}
-                        onChange={(e) => setChallengeForm({...challengeForm, points: parseInt(e.target.value)})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('difficulty') || "Difficulty"}
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value="easy"
-                          checked={challengeForm.difficulty === 'easy'}
-                          onChange={(e) => setChallengeForm({...challengeForm, difficulty: e.target.value as "easy" | "medium" | "hard"})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${challengeForm.difficulty === 'easy' ? 'bg-green-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('easy') || "Easy"}
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value="medium"
-                          checked={challengeForm.difficulty === 'medium'}
-                          onChange={(e) => setChallengeForm({...challengeForm, difficulty: e.target.value as "easy" | "medium" | "hard"})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${challengeForm.difficulty === 'medium' ? 'bg-yellow-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('medium') || "Medium"}
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value="hard"
-                          checked={challengeForm.difficulty === 'hard'}
-                          onChange={(e) => setChallengeForm({...challengeForm, difficulty: e.target.value as "easy" | "medium" | "hard"})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${challengeForm.difficulty === 'hard' ? 'bg-red-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('hard') || "Hard"}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowChallengeForm(false)}
-                    className={`flex-1 py-3 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    {t?.('cancel') || "Cancel"}
-                  </button>
-                  <button
-                    onClick={handleCreateChallenge}
-                    disabled={!challengeForm.title.trim() || !challengeForm.targetCommunityId}
-                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Target className="w-5 h-5 inline mr-2" />
-                    {t?.('send_challenge') || "Send Challenge"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
         {/* Messaging Modal */}
         {showMessaging && (
           <motion.div
@@ -5535,935 +4360,8 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
           </motion.div>
         )}
 
-        {/* View Student Files Modal */}
-        {viewingStudentFiles && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setViewingStudentFiles(null)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl border overflow-hidden ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <FolderOpen className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        {t?.('student_files') || "Student Files"}: {viewingStudentFiles}
-                      </h3>
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {students.find(s => s.username === viewingStudentFiles)?.files.length || 0} {t?.('files') || "files"}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setViewingStudentFiles(null)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                  {students.find(s => s.username === viewingStudentFiles)?.files.map((file) => (
-                    <div
-                      key={file.id}
-                      className={`p-4 rounded-xl border ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      } transition-colors`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                            <FileCode className="w-5 h-5 text-green-400" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium mb-1">{file.originalFileName}</div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                <Folder className="w-4 h-4 inline mr-1" /> {file.folder}
-                              </span>
-                              <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                <Calendar className="w-4 h-4 inline mr-1" />
-                                {new Date(file.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
-                              </span>
-                              <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                {(file.fileSize / 1024).toFixed(2)} KB
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <button
-                            onClick={() => openFileInNewTab(file)}
-                            className={`p-2 rounded-lg ${
-                              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                            } transition-colors`}
-                            title={t?.('view_code') || "View Code"}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => downloadFile(file)}
-                            className={`p-2 rounded-lg ${
-                              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                            } transition-colors`}
-                            title={t?.('download_file') || "Download File"}
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                          {file.points !== undefined && (
-                            <span className="px-2 py-1 rounded bg-green-500/20 text-green-500 text-xs font-medium">
-                              {file.points}/10
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {students.find(s => s.username === viewingStudentFiles)?.files.length === 0 && (
-                  <div className="text-center py-12">
-                    <Folder className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h4 className="text-lg font-bold mb-2">{t?.('no_files_found') || "No Files Found"}</h4>
-                    <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                      {t?.('no_files_uploaded') || "This student hasn't uploaded any files yet."}
-                    </p>
-                  </div>
-                )}
-              </div>
-              {/* В края на viewingStudentFiles модала, преди затварящия тег </div> */}
-<div className="mt-6 pt-6 border-t border-white/10 dark:border-gray-700">
-  <div className="flex justify-center">
-    <button
-      onClick={() => {
-        const student = students.find(s => s.username === viewingStudentFiles);
-        if (student) {
-          setViewingStudentFiles(null);
-          setTimeout(() => {
-            openGradingModal(student);
-          }, 300);
-        }
-      }}
-      className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-    >
-      <GraduationCap className="w-5 h-5" />
-      {t?.('grade_all_work') || "Grade All Work"}
-    </button>
-  </div>
-</div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        
-        {/* Assignment Form Modal */}
-        {showAssignmentForm && (userData?.role === 'teacher' || userData?.role === 'admin') && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setShowAssignmentForm(false)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <FileTextIcon className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        {editingAssignment ? t?.('edit_assignment') || "Edit Assignment" : t?.('create_new_assignment') || "Create New Assignment"}
-                      </h3>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowAssignmentForm(false);
-                      setEditingAssignment(null);
-                    }}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {uploadStatus && (
-                  <div className={`mb-6 p-3 rounded-lg ${
-                    uploadStatus.includes('✅') 
-                      ? theme === 'dark' ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'
-                      : theme === 'dark' ? 'bg-red-500/10 text-red-400' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {uploadStatus}
-                  </div>
-                )}
-
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        <FileTextIcon className="w-4 h-4 inline mr-2" /> {t?.('assignment_title') || "Assignment Title"} *
-                      </label>
-                      <input
-                        type="text"
-                        value={assignmentForm.title}
-                        onChange={(e) => setAssignmentForm({...assignmentForm, title: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                        placeholder={t?.('example_expert_system') || "Example: Creating an Expert System"}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        <TargetIcon className="w-4 h-4 inline mr-2" /> {t?.('topic') || "Topic"} *
-                      </label>
-                      <input
-                        type="text"
-                        value={assignmentForm.topic}
-                        onChange={(e) => setAssignmentForm({...assignmentForm, topic: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                        placeholder={t?.('example_insects') || "Example: Insects, Chemical Reactions, Electricity"}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        <BookOpen className="w-4 h-4 inline mr-2" /> {t?.('subject') || "Subject"} *
-                      </label>
-                      <select
-                        value={assignmentForm.subject}
-                        onChange={(e) => setAssignmentForm({...assignmentForm, subject: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-gray-800 border-gray-700 text-gray-100' 
-                            : 'bg-white border-gray-300 text-gray-900'
-                        } border`}
-                      >
-                        <option value="biology">{t?.('biology') || "Biology"}</option>
-                        <option value="chemistry">{t?.('chemistry') || "Chemistry"}</option>
-                        <option value="physics">{t?.('physics') || "Physics"}</option>
-                        <option value="other">{t?.('other') || "Other"}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        <Calendar className="w-4 h-4 inline mr-2" /> {t?.('due_date') || "Due Date"} *
-                      </label>
-                      <input
-                        type="date"
-                        value={assignmentForm.dueDate}
-                        onChange={(e) => setAssignmentForm({...assignmentForm, dueDate: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <Target className="w-4 h-4 inline mr-2" /> {t?.('objective') || "Objective"} *
-                    </label>
-                    <textarea
-                      value={assignmentForm.objective}
-                      onChange={(e) => setAssignmentForm({...assignmentForm, objective: e.target.value})}
-                      rows={4}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('describe_objective') || "Describe the objective of the assignment..."}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <FileCheck className="w-4 h-4 inline mr-2" /> {t?.('description') || "Description"} *
-                    </label>
-                    <textarea
-                      value={assignmentForm.description}
-                      onChange={(e) => setAssignmentForm({...assignmentForm, description: e.target.value})}
-                      rows={3}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('brief_description') || "Brief description of the assignment..."}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <label className="block text-sm font-medium">
-                        <ListChecks className="w-4 h-4 inline mr-2" /> {t?.('instructions') || "Instructions"} *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={addInstruction}
-                        className={`px-3 py-1 rounded-lg text-sm ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 hover:bg-white/10' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      >
-                        <Plus className="w-4 h-4 inline mr-1" /> {t?.('add_instruction') || "Add Instruction"}
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      {instructions.map((instruction, index) => (
-                        <div key={instruction.id} className="flex items-start gap-2">
-                          <span className={`mt-3 px-2 py-1 rounded text-xs ${
-                            theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
-                          }`}>
-                            {index + 1}
-                          </span>
-                          <textarea
-                            value={instruction.text}
-                            onChange={(e) => updateInstruction(instruction.id, e.target.value)}
-                            rows={2}
-                            className={`flex-1 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                              theme === 'dark' 
-                                ? 'bg-white/5 border border-white/10' 
-                                : 'bg-white border border-gray-300'
-                            }`}
-                            placeholder={t?.('enter_instruction') || "Enter instruction..."}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeInstruction(instruction.id)}
-                            className={`mt-3 p-2 rounded-lg ${
-                              theme === 'dark' 
-                                ? 'hover:bg-white/10 text-red-400' 
-                                : 'hover:bg-gray-200 text-red-500'
-                            }`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <ImageIcon className="w-4 h-4 inline mr-2" /> {t?.('background_image') || "Background Image"}
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                      {assignmentBackgrounds.map((image, index) => (
-                        <div 
-                          key={index}
-                          className={`cursor-pointer rounded-lg overflow-hidden border-2 ${
-                            assignmentForm.backgroundImage === image 
-                              ? 'border-green-500' 
-                              : theme === 'dark' ? 'border-white/10' : 'border-gray-300'
-                          }`}
-                          onClick={() => setAssignmentForm({...assignmentForm, backgroundImage: image})}
-                        >
-                          <img 
-                            src={image} 
-                            alt={`Option ${index + 1}`} 
-                            className="w-full h-20 object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <Tag className="w-4 h-4 inline mr-2" /> {t?.('category') || "Category"}
-                    </label>
-                    <select
-                      value={assignmentForm.category}
-                      onChange={(e) => setAssignmentForm({...assignmentForm, category: e.target.value})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-gray-800 border-gray-700 text-gray-100' 
-                          : 'bg-white border-gray-300 text-gray-900'
-                      } border`}
-                    >
-                      {categories.map((category) => (
-                        <option key={category} value={category} className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-lg mb-4">
-                      <ListChecks className="w-5 h-5 inline mr-2" /> {t?.('minimum_requirements') || "Minimum Requirements"}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          <Database className="w-4 h-4 inline mr-2" /> {t?.('minimum_facts') || "Minimum Facts"}
-                        </label>
-                        <input
-                          type="number"
-                          min="5"
-                          max="100"
-                          value={assignmentForm.minFacts}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, minFacts: parseInt(e.target.value)})}
-                          className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border border-white/10' 
-                              : 'bg-white border border-gray-300'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          <List className="w-4 h-4 inline mr-2" /> {t?.('minimum_rules') || "Minimum Rules"}
-                        </label>
-                        <input
-                          type="number"
-                          min="2"
-                          max="50"
-                          value={assignmentForm.minRules}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, minRules: parseInt(e.target.value)})}
-                          className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border border-white/10' 
-                              : 'bg-white border border-gray-300'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          <Link className="w-4 h-4 inline mr-2" /> {t?.('combined_rules') || "Combined Rules"}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={assignmentForm.minCombinedRules}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, minCombinedRules: parseInt(e.target.value)})}
-                          className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border border-white/10' 
-                              : 'bg-white border border-gray-300'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          <List className="w-4 h-4 inline mr-2" /> {t?.('menu_items') || "Menu Items"}
-                        </label>
-                        <input
-                          type="number"
-                          min="3"
-                          max="20"
-                          value={assignmentForm.minMenuItems}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, minMenuItems: parseInt(e.target.value)})}
-                          className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border border-white/10' 
-                              : 'bg-white border border-gray-300'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <GraduationCap className="w-4 h-4 inline mr-2" /> {t?.('difficulty') || "Difficulty"}
-                    </label>
-                    <div className="flex flex-wrap gap-4">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value="easy"
-                          checked={assignmentForm.difficulty === 'easy'}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, difficulty: e.target.value as 'easy'})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${assignmentForm.difficulty === 'easy' ? 'bg-green-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('easy') || "Easy"}
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value="medium"
-                          checked={assignmentForm.difficulty === 'medium'}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, difficulty: e.target.value as 'medium'})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${assignmentForm.difficulty === 'medium' ? 'bg-yellow-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('medium') || "Medium"}
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="difficulty"
-                          value="hard"
-                          checked={assignmentForm.difficulty === 'hard'}
-                          onChange={(e) => setAssignmentForm({...assignmentForm, difficulty: e.target.value as 'hard'})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${assignmentForm.difficulty === 'hard' ? 'bg-red-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('hard') || "Hard"}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <Trophy className="w-4 h-4 inline mr-2" /> {t?.('points') || "Points"}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="200"
-                      value={assignmentForm.points}
-                      onChange={(e) => setAssignmentForm({...assignmentForm, points: parseInt(e.target.value)})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <FileCode className="w-4 h-4 inline mr-2" /> {t?.('example_code') || "Example Code"} ({t?.('optional') || "optional"})
-                    </label>
-                    <textarea
-                      value={assignmentForm.exampleCode}
-                      onChange={(e) => setAssignmentForm({...assignmentForm, exampleCode: e.target.value})}
-                      rows={10}
-                      className={`w-full rounded-xl p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('example_code_placeholder') || "You can provide example Prolog code..."}
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-white/10">
-                    <button
-                      onClick={() => {
-                        setShowAssignmentForm(false);
-                        setEditingAssignment(null);
-                        resetAssignmentForm();
-                      }}
-                      className={`flex-1 py-3 rounded-lg ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 hover:bg-white/10' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      } transition-colors`}
-                    >
-                      {t?.('cancel') || "Cancel"}
-                    </button>
-                    <button
-                      onClick={handleCreateOrUpdateAssignment}
-                      disabled={!assignmentForm.title || !assignmentForm.objective}
-                      className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <CheckCircle className="w-5 h-5 inline mr-2" />
-                      {editingAssignment ? t?.('save_changes') || "Save Changes" : t?.('create_assignment') || "Create Assignment"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* MODAL FOR VIEWING CHALLENGE SUBMISSIONS */}
-        {viewingChallengeSubmissions && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setViewingChallengeSubmissions(null)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl border overflow-hidden ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <FileCheck className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        Submissions for: {viewingChallengeSubmissions.title}
-                      </h3>
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {viewingChallengeSubmissions.submissions?.length || 0} submissions
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setViewingChallengeSubmissions(null)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    }`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-                  {viewingChallengeSubmissions.submissions && viewingChallengeSubmissions.submissions.length > 0 ? (
-                    viewingChallengeSubmissions.submissions.map((submission, index) => {
-                      const student = allSystemUsers.find(u => u.uid === submission.studentId);
-                      const studentName = submission.studentName || 
-                        student?.fullName || 
-                        student?.username || 
-                        'Unknown Student';
-                      
-                      const status = submission.status || 'joined';
-                      const statusColors = {
-                        'joined': 'bg-blue-500/20 text-blue-500',
-                        'submitted': 'bg-yellow-500/20 text-yellow-500',
-                        'evaluated': 'bg-green-500/20 text-green-500',
-                        'completed': 'bg-purple-500/20 text-purple-500'
-                      };
-                      console.log(statusColors)
-                      return (
-                        <div
-                          key={submission.id || index}
-                          className={`p-4 rounded-xl border ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border-white/10' 
-                              : 'bg-gray-50 border-gray-200'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-medium mb-1">
-                                Submission {index + 1}: {studentName}
-                              </h4>
-                              <div className="flex items-center gap-3 text-sm">
-                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                  Student ID: {submission.studentId.substring(0, 8)}...
-                                </span>
-                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                  Submitted: {(() => {
-                                    try {
-                                      if (submission.submittedAt?.toMillis) {
-                                        return new Date(submission.submittedAt.toMillis()).toLocaleString();
-                                      } else if (typeof submission.submittedAt === 'string') {
-                                        return new Date(submission.submittedAt).toLocaleString();
-                                      }
-                                      return 'No date';
-                                    } catch {
-                                      return 'Invalid date';
-                                    }
-                                  })()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-    {status}
-  </span>
-  {submission.evaluation?.score !== undefined && (
-    <span className="px-3 py-1 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium">
-      {submission.evaluation.score}/{viewingChallengeSubmissions.points}
-    </span>
-  )}
-</div>
-                          </div>
-
-                          {submission.notes && (
-                            <div className={`mb-3 p-3 rounded-lg ${
-                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                            }`}>
-                              <p className="text-sm">{submission.notes}</p>
-                            </div>
-                          )}
-
-                          {submission.solutionCode && (
-                            <div className="mb-3">
-                              <h5 className="font-medium mb-2 text-sm">Solution Code:</h5>
-                              <div className={`p-3 rounded-lg max-h-32 overflow-y-auto font-mono text-xs ${
-                                theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'
-                              }`}>
-                                <pre className="whitespace-pre-wrap break-words">
-                                  {submission.solutionCode.substring(0, 300)}
-                                  {submission.solutionCode.length > 300 ? '...' : ''}
-                                </pre>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const newWindow = window.open('', '_blank');
-                                  if (newWindow) {
-                                    newWindow.document.write(`
-                                      <html>
-                                        <head>
-                                          <title>${studentName}'s Solution</title>
-                                          <style>
-                                            body { 
-                                              font-family: monospace; 
-                                              margin: 20px; 
-                                              background: ${theme === 'dark' ? '#1e1e1e' : '#ffffff'};
-                                              color: ${theme === 'dark' ? '#ffffff' : '#000000'};
-                                              white-space: pre-wrap;
-                                            }
-                                          </style>
-                                        </head>
-                                        <body>${submission.solutionCode}</body>
-                                      </html>
-                                    `);
-                                    newWindow.document.close();
-                                  }
-                                }}
-                                className="mt-2 text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1"
-                              >
-                                <Eye className="w-4 h-4" /> View Full Code
-                              </button>
-                            </div>
-                          )}
-
-                          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center gap-3 justify-between">
-  <div className="flex-1">
-    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-      Challenge Status: <span className={`font-medium ${
-        viewingChallengeSubmissions.status === 'accepted' ? 'text-green-500' :
-        viewingChallengeSubmissions.status === 'pending' ? 'text-yellow-500' :
-        viewingChallengeSubmissions.status === 'responded' ? 'text-blue-500' :
-        'text-gray-500'
-      }`}>
-        {viewingChallengeSubmissions.status}
-      </span>
-    </p>
-    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} mt-1`}>
-      Points: {viewingChallengeSubmissions.points}
-    </p>
-  </div>
-  
-  {viewingChallengeSubmissions.status === 'accepted' && (
-    <button
-      onClick={() => {
-        // Това ще отвори форма за отговор на предизвикателството
-        setSelectedChallenge(viewingChallengeSubmissions);
-        setShowResponseForm(true);
-      }}
-      className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium flex items-center gap-2 hover:from-blue-600 hover:to-cyan-600 transition-all"
-    >
-      <MessageCircle className="w-4 h-4" />
-      {t?.('challenge_respond') || "Respond to Challenge"}
-    </button>
-  )}
-
-  {viewingChallengeSubmissions.status === 'pending' && (
-    <div className="flex gap-2">
-      <button
-        onClick={() => handleAcceptChallenge(viewingChallengeSubmissions.id)}
-        className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2 hover:from-green-600 hover:to-emerald-600 transition-all"
-      >
-        <CheckCircle className="w-4 h-4" />
-        {t?.('challenge_accept') || "Accept Challenge"}
-      </button>
-      <button
-        onClick={() => {
-          // Функция за отхвърляне на предизвикателство
-          if (window.confirm(t?.('challenge_reject_confirm') || "Are you sure you want to reject this challenge?")) {
-            handleRejectChallenge(viewingChallengeSubmissions.id);
-          }
-        }}
-        className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium flex items-center gap-2 hover:from-red-600 hover:to-pink-600 transition-all"
-      >
-        <X className="w-4 h-4" />
-        {t?.('challenge_reject') || "Reject Challenge"}
-      </button>
-    </div>
-  )}
-
-  {viewingChallengeSubmissions.status === 'responded' && viewingChallengeSubmissions.response && (
-    <button
-      onClick={() => {
-        // Показване на отговора
-        alert(`Response from ${viewingChallengeSubmissions.response?.responderName}:\n\n${viewingChallengeSubmissions.response?.content}`);
-      }}
-      className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium flex items-center gap-2 hover:from-purple-600 hover:to-pink-600 transition-all"
-    >
-      <Eye className="w-4 h-4" />
-      {t?.('challenge_view_response') || "View Response"}
-    </button>
-  )}
-                      </div>
-                  </div>
-              );
-            })
-          ) : (
-                    <div className="text-center py-12">
-                      <FileCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h4 className="text-lg font-bold mb-2">No Submissions Yet</h4>
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        No students have submitted solutions for this challenge yet.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Challenge Response Form Modal */}
-        {showResponseForm && selectedChallenge && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setShowResponseForm(false)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-md rounded-2xl border ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5 text-green-400" />
-                    </div>
-                    <h3 className="text-xl font-bold">
-                      {t?.('challenge_respond') || "Respond to Challenge"}
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => setShowResponseForm(false)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    }`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('challenge_response_content') || "Response Content"} *
-                    </label>
-                    <textarea
-                      value={challengeResponseForm.content}
-                      onChange={(e) => setChallengeResponseForm({...challengeResponseForm, content: e.target.value})}
-                      rows={4}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('challenge_response_placeholder') || "Write your response to the challenge..."}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('challenge_solution_code') || "Solution Code"} ({t?.('optional') || "optional"})
-                    </label>
-                    <textarea
-                      value={challengeResponseForm.solutionCode}
-                      onChange={(e) => setChallengeResponseForm({...challengeResponseForm, solutionCode: e.target.value})}
-                      rows={6}
-                      className={`w-full rounded-xl p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('challenge_solution_code_placeholder') || "Enter your solution code here (optional)..."}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowResponseForm(false);
-                      setChallengeResponseForm({ content: "", solutionCode: "" });
-                    }}
-                    className={`flex-1 py-3 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                  >
-                    {t?.('cancel') || "Cancel"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (selectedChallenge) {
-                        handleChallengeResponse(
-                          selectedChallenge.id,
-                          challengeResponseForm.content,
-                          challengeResponseForm.solutionCode
-                        );
-                      }
-                    }}
-                    disabled={!challengeResponseForm.content.trim()}
-                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50"
-                  >
-                    <Send className="w-5 h-5 inline mr-2" />
-                    {t?.('challenge_send_response') || "Send Response"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
+        {/* View Student Files Modal - този е излишен, вече имаме един по-горе */}
+        {/* Премахнах дублиращия се модал */}
 
         {/* Message Thread Modal */}
         {activeThread && (
@@ -6473,31 +4371,32 @@ console.log(handleAddFeedbackTag, handleQuickPoints, calculateAveragePoints)
           />
         )}
       </div>
-      {/* Lesson View Modal */}
-{viewingLesson && (
-  <LessonViewModal
-    lesson={viewingLesson}
-    onClose={() => setViewingLesson(null)}
-    onEdit={(lesson) => {
-      setViewingLesson(null);
-      setEditingLesson(lesson);
-      setShowLessonForm(true);
-    }}
-    onDelete={handleDeleteLesson}
-  />
-)}
 
-{/* Lesson Form Modal */}
-{showLessonForm && (
-  <LessonFormModal
-    editingLesson={editingLesson}
-    onClose={() => {
-      setShowLessonForm(false);
-      setEditingLesson(null);
-    }}
-    onSave={handleSaveLesson}
-  />
-)}
-    </div>
+      {/* Lesson View Modal */}
+      {viewingLesson && (
+        <LessonViewModal
+          lesson={viewingLesson}
+          onClose={() => setViewingLesson(null)}
+          onEdit={(lesson) => {
+            setViewingLesson(null);
+            setEditingLesson(lesson);
+            setShowLessonForm(true);
+          }}
+          onDelete={handleDeleteLesson}
+        />
+      )}
+
+      {/* Lesson Form Modal */}
+      {showLessonForm && (
+        <LessonFormModal
+          editingLesson={editingLesson}
+          onClose={() => {
+            setShowLessonForm(false);
+            setEditingLesson(null);
+          }}
+          onSave={handleSaveLesson}
+        />
+      )}
+    </div> 
   );
 }
