@@ -25,7 +25,7 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
-  setDoc
+  writeBatch
 } from "firebase/firestore";
 
 // Интерфейси - актуализирани с всички полета от оригинала
@@ -85,12 +85,12 @@ interface TeacherAssignmentsProps {
 
 // Константи - точно както в оригинала
 const assignmentBackgrounds = [
-  "https://images.unsplash.com/photo-1561070791-2526d30994b5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-  "https://images.unsplash.com/photo-1677442136019-21780ecad995?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
+  "https://img.freepik.com/free-photo/clock-top-textbooks-teacher-desk_23-2148199985.jpg?semt=ais_hybrid&w=740&q=80",
+  "https://naukatolubie.pl/app/uploads/2023/03/jak-szybciej-sie-uczyc-1023x550.png",
+  "https://www.superprof.pl/blog/wp-content/uploads/2020/02/nauka-prawa-online.jpeg",
+  "https://szkolawchmurze.pl/wp-content/uploads/2019/09/nauka-zdalna.jpg",
+  "https://www.shutterstock.com/image-vector/cute-seamless-pattern-school-education-260nw-2571827227.jpg",
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTGpMHf5oEKL0seirtuqidIDIgyz1I0Lkt6QZrTwB1giA&s"
 ];
 
 const categories = ["Design", "Programming", "Algorithms", "Data Science", "Database", "AI"];
@@ -160,7 +160,7 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
     category: "Programming"
   });
 
-  // 🔥 АКТУАЛИЗИРАНА ФУНКЦИЯ: Изпращане на нотификации до всички ученици
+  // 🔥 АКТУАЛИЗИРАНА ФУНКЦИЯ: Изпращане на нотификации до всички ученици в НОВАТА КОЛЕКЦИЯ "notifications"
   const sendAssignmentNotifications = async (assignmentTitle: string, assignmentId: string) => {
     if (!teacherId || !userData) return;
     
@@ -184,33 +184,38 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
       // Премахнете дублиращите се ID-та
       const uniqueStudentIds = [...new Set(allStudentIds)];
       
-      console.log(`📢 Sending notifications to ${uniqueStudentIds.length} students for new assignment: ${assignmentTitle}`);
-      
-      // Изпратете нотификация до всеки ученик - без поле title!
-      const notifications = uniqueStudentIds.map(studentId => ({
-        senderId: teacherId,
-        senderName: userData.fullName || userData.email?.split('@')[0] || "Teacher",
-        receiverId: studentId,
-        receiverName: "Student",
-        content: `📚 ${t?.('new_assignment_notification') || 'New assignment'}: "${assignmentTitle}" ${t?.('has_been_published') || 'has been published'}. ${t?.('open_in_assignments') || 'Open it in Assignments section.'}`,
-        timestamp: serverTimestamp(),
-        read: false,
-        type: 'assignment',
-        link: '/dashboard/student?tab=assignments',
-        details: {
-          assignmentId: assignmentId,
-          assignmentTitle: assignmentTitle,
-          teacherName: userData.fullName || userData.email?.split('@')[0] || "Teacher"
-        }
-      }));
-      
-      // Запазете всички нотификации в колекцията messages
-      for (const notification of notifications) {
-        const notificationRef = doc(collection(db, 'messages'));
-        await setDoc(notificationRef, notification);
+      console.log(`📢 Sending assignment notifications to ${uniqueStudentIds.length} students`);
+
+      if (uniqueStudentIds.length === 0) {
+        console.log("No students found in communities");
+        return;
       }
+
+      // Създаване на нотификации в НОВАТА КОЛЕКЦИЯ "notifications"
+      const batch = writeBatch(db);
       
-      // Запазете и в activityLogs за проследяване
+      uniqueStudentIds.forEach((studentId) => {
+        const notificationRef = doc(collection(db, 'notifications'));
+        batch.set(notificationRef, {
+          userId: studentId,
+          type: 'assignment',
+          title: t?.('new_assignment') || '📚 Ново задание',
+          message: `${t?.('teacher') || 'Учител'} ${userData.fullName || userData.email?.split('@')[0] || "Teacher"} ${t?.('created_new_assignment') || 'създаде ново задание'}: "${assignmentTitle}"`,
+          timestamp: serverTimestamp(),
+          read: false,
+          data: {
+            assignmentId: assignmentId,
+            assignmentTitle: assignmentTitle,
+            teacherId: teacherId,
+            teacherName: userData.fullName || userData.email?.split('@')[0] || "Teacher"
+          },
+          actionUrl: '/dashboard/student?tab=assignments'
+        });
+      });
+
+      await batch.commit();
+      
+      // Запазете и в activityLogs за проследяване (остава за история)
       await addDoc(collection(db, "activityLogs"), {
         userId: teacherId,
         userName: userData.fullName || userData.email?.split('@')[0] || "Teacher",
@@ -226,7 +231,7 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
         }
       });
       
-      console.log(`✅ Notifications sent to ${uniqueStudentIds.length} students`);
+      console.log(`✅ Assignment notifications sent to ${uniqueStudentIds.length} students`);
       
       // Покажете съобщение на учителя
       if (uniqueStudentIds.length > 0) {

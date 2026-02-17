@@ -11,6 +11,27 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  new_lesson: string;
+new_lesson_in: string;
+code_uploaded: string;
+code_submitted: string;
+challenge_solved: string;
+lesson_completed: string;
+completed_lesson: string;
+lessons_to_read: string;
+assignment_submission: string;
+no_lessons_description: string;
+browse_communities: string;
+objectives: string;
+read_lesson: string;
+no_notifications_description: string;
+learning_objectives: string;
+prerequisites: string;
+lesson_content: string;
+tags: string;
+mark_as_completed: string;
+solved_challenge:string;
+
 unlisted:string;
 has_been_published: string;
 open_in_assignments: string;
@@ -2149,6 +2170,26 @@ get_started_free: 'Get Started Free',
 all_rights_reserved: 'All rights reserved.',
 privacy: 'Privacy',
 terms: 'Terms',
+solved_challenge:'Solved challenge',
+new_lesson: "New Lesson",
+new_lesson_in: "New lesson in",
+code_uploaded: "Code Uploaded",
+code_submitted: "Code Submitted",
+challenge_solved: "Challenge Solved",
+lesson_completed: "Lesson Completed",
+completed_lesson: "Completed Lesson",
+lessons_to_read: "Lessons to Read",
+assignment_submission: "Assignment Submission",
+no_lessons_description: "No lessons available.",
+browse_communities: "Browse Communities",
+objectives: "Objectives",
+read_lesson: "Read Lesson",
+no_notifications_description: "No notifications.",
+learning_objectives: "Learning Objectives",
+prerequisites: "Prerequisites",
+lesson_content: "Lesson Content",
+tags: "Tags",
+mark_as_completed: "Mark as Completed",
     dashboard_schools: "Schools and Users",
 dashboard_knowledge: "Knowledge Bases",
 dashboard_education: "Educational Materials",
@@ -2940,6 +2981,26 @@ made_with_love: 'Създадено с ❤️ за образованието',
 get_started_free: 'Започнете Безплатно',
 all_rights_reserved: 'Всички права запазени.',
     dashboard_schools: "Училища и Потребители",
+    new_lesson: "Нов урок",
+new_lesson_in: "Нов урок в",
+code_uploaded: "Каченият код",
+code_submitted: "Изпратеният код",
+challenge_solved: "Задачата е решена",
+lesson_completed: "Урокът е завършен",
+completed_lesson: "Завършен урок",
+lessons_to_read: "Уроци за четене",
+assignment_submission: "Предаване на задание",
+no_lessons_description: "Няма налични уроци.",
+browse_communities: "Разгледайте общностите",
+objectives: "Цели",
+read_lesson: "Прочетете урока",
+no_notifications_description: "Няма известия.",
+learning_objectives: "Учебни цели",
+prerequisites: "Предварителни изисквания",
+lesson_content: "Съдържание на урока",
+tags: "Етикети",
+mark_as_completed: "Маркирай като завършен",
+solved_challenge:"Решено задание",
 dashboard_knowledge: "Бази Знания",
 dashboard_education: "Образователни Материали",
 total_schools: "Общо Училища",
@@ -5454,7 +5515,26 @@ success: "Éxito",
   error_sending_response: "❌ ¡Error al enviar respuesta!",
   error_deleting_challenge: "❌ ¡Error al eliminar desafío!",
   error_grading_submission: "❌ ¡Error al calificar envío!",
-  
+  solved_challenge:"Desafío resuelto",
+  new_lesson: "Nueva Lección",
+new_lesson_in: "Nueva lección en",
+code_uploaded: "Código Subido",
+code_submitted: "Código Enviado",
+challenge_solved: "Desafío Resuelto",
+lesson_completed: "Lección Completada",
+completed_lesson: "Lección Completada",
+lessons_to_read: "Lecciones por Leer",
+assignment_submission: "Entrega de Tarea",
+no_lessons_description: "No hay lecciones disponibles.",
+browse_communities: "Explorar Comunidades",
+objectives: "Objetivos",
+read_lesson: "Leer Lección",
+no_notifications_description: "No hay notificaciones.",
+learning_objectives: "Objetivos de Aprendizaje",
+prerequisites: "Requisitos Previos",
+lesson_content: "Contenido de la Lección",
+tags: "Etiquetas",
+mark_as_completed: "Marcar como Completado",
   // Успешни съобщения
   submission_graded: "✅ ¡Envío calificado! ¡Desafío completado!",
   response_sent: "✅ ¡Respuesta enviada con éxito!",

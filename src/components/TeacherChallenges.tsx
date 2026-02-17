@@ -1,3 +1,4 @@
+// components/TeacherChallenges.tsx
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -37,7 +38,9 @@ import {
   arrayUnion,
   onSnapshot,
   deleteDoc,
-  getDoc
+  getDoc,
+  writeBatch,
+  addDoc
 } from "firebase/firestore";
 
 // ============ ИНТЕРФЕЙСИ ============
@@ -379,43 +382,75 @@ export default function TeacherChallenges({
       if (!targetCommunity) return;
 
       const studentIds = targetCommunity.studentIds || [];
-      console.log(`📢 Sending challenge notification to ${studentIds.length} students`);
+      console.log(`📢 Sending challenge notifications to ${studentIds.length} students`);
 
       const actionMessages = {
-        created: t?.('challenge_created_notification') || `📢 New challenge "${challengeTitle}" has been created!`,
-        accepted: t?.('challenge_accepted_notification') || `✅ Challenge "${challengeTitle}" has been accepted!`,
-        responded: t?.('challenge_responded_notification') || `💬 Teacher responded to challenge "${challengeTitle}"`,
-        completed: t?.('challenge_completed_notification') || `🎉 Challenge "${challengeTitle}" has been completed!`
+        created: {
+          title: t?.('new_challenge') || '🎯 Ново предизвикателство',
+          message: `${t?.('teacher') || 'Учител'} ${userData.fullName || user.email?.split('@')[0] || "Teacher"} ${t?.('created_new_challenge') || 'създаде ново предизвикателство'}: "${challengeTitle}"`
+        },
+        accepted: {
+          title: t?.('challenge_accepted') || '✅ Предизвикателството е прието',
+          message: `${t?.('challenge') || 'Предизвикателството'} "${challengeTitle}" ${t?.('has_been_accepted') || 'беше прието'}!`
+        },
+        responded: {
+          title: t?.('challenge_response') || '💬 Отговор на предизвикателство',
+          message: `${t?.('teacher') || 'Учителят'} ${t?.('responded_to') || 'отговори на предизвикателство'} "${challengeTitle}"`
+        },
+        completed: {
+          title: t?.('challenge_completed') || '🎉 Предизвикателството е завършено',
+          message: `${t?.('challenge') || 'Предизвикателството'} "${challengeTitle}" ${t?.('has_been_completed') || 'беше завършено успешно'}!`
+        }
       };
 
-      const notifications = studentIds.map(studentId => ({
-        senderId: user.uid,
-        senderName: userData.fullName || user.email?.split('@')[0] || "Teacher",
-        senderRole: 'teacher',
-        receiverId: studentId,
-        receiverRole: 'student',
-        content: actionMessages[action],
-        type: 'challenge',
-        challengeId: challengeId,
-        challengeTitle: challengeTitle,
-        communityId: targetCommunityId,
-        communityName: targetCommunity.name,
-        timestamp: serverTimestamp(),
-        read: false,
-        actionUrl: '/dashboard/student?tab=challenges',
-        metadata: {
-          action: action,
-          teacherId: user.uid,
-          teacherName: userData.fullName || user.email?.split('@')[0] || "Teacher"
-        }
-      }));
+      // ИЗПРАТЕТЕ НОТИФИКАЦИИ В НОВАТА КОЛЕКЦИЯ "notifications"
+      const batch = writeBatch(db);
+      
+      studentIds.forEach((studentId) => {
+        const notificationRef = doc(collection(db, 'notifications'));
+        batch.set(notificationRef, {
+          userId: studentId,
+          type: 'challenge',
+          title: actionMessages[action].title,
+          message: actionMessages[action].message,
+          timestamp: serverTimestamp(),
+          read: false,
+          data: {
+            challengeId: challengeId,
+            challengeTitle: challengeTitle,
+            teacherId: user.uid,
+            teacherName: userData.fullName || user.email?.split('@')[0] || "Teacher",
+            communityId: targetCommunityId,
+            communityName: targetCommunity.name,
+            action: action
+          },
+          actionUrl: '/dashboard/student?tab=challenges'
+        });
+      });
 
-      for (const notification of notifications) {
-        const notificationRef = doc(collection(db, 'messages'));
-        await setDoc(notificationRef, notification);
+      await batch.commit();
+      
+      console.log(`✅ Challenge notifications sent to ${studentIds.length} students`);
+      
+      // Добавете и в activityLogs за проследяване (опционално)
+      if (studentIds.length > 0) {
+        await addDoc(collection(db, "activityLogs"), {
+          userId: user.uid,
+          userName: userData.fullName || user.email?.split('@')[0] || "Teacher",
+          action: t?.('challenge_notification_sent') || "Challenge Notification Sent",
+          details: `${t?.('sent_notifications') || 'Sent notifications'} for challenge "${challengeTitle}" ${t?.('to') || 'to'} ${studentIds.length} ${t?.('students') || 'students'}`,
+          target: `challenge_${challengeId}`,
+          actionType: "challenge_notification",
+          timestamp: serverTimestamp(),
+          metadata: {
+            challengeId: challengeId,
+            challengeTitle: challengeTitle,
+            action: action,
+            studentCount: studentIds.length
+          }
+        });
       }
-
-      console.log(`✅ Notifications sent to ${studentIds.length} students`);
+      
     } catch (error) {
       console.error("Error sending challenge notifications:", error);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { motion } from "framer-motion";
 import { 
   Users, Target,
@@ -16,7 +16,8 @@ import {
   MessageCircle,
   Send,
   UserPlus,
-  Hash
+  Hash,
+  Star
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -38,7 +39,8 @@ import {
   setDoc,
   arrayUnion,
   arrayRemove,
-  getDoc
+  getDoc,
+  writeBatch
 } from "firebase/firestore";
 import { supabase } from "../services/supabase";
 import MessagesTab from "../components/MessagesTab";
@@ -249,6 +251,36 @@ const [showLessonForm, setShowLessonForm] = useState(false);
 const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
 const [lessonSearch, setLessonSearch] = useState('');
 const [lessonFilter, setLessonFilter] = useState('all'); 
+const [notifications, setNotifications] = useState<any[]>([]);
+const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+
+useEffect(() => {
+  if (!user) return;
+  
+  const notificationsQuery = query(
+    collection(db, "notifications"),
+    where("userId", "==", user.uid),
+    orderBy("timestamp", "desc"),
+    limit(50)
+  );
+  
+  const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+    const notificationsData: any[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      notificationsData.push({
+        id: doc.id,
+        ...data
+      });
+    });
+    
+    setNotifications(notificationsData);
+    setUnreadNotificationsCount(notificationsData.filter(n => !n.read).length);
+  });
+  
+  return () => unsubscribe();
+}, [user]);
 
 // Зареждане на уроците
 const loadLessons = async () => {
@@ -390,6 +422,7 @@ const [gradingModal, setGradingModal] = useState<{
 });
 
 // Нова функция за запазване на оценката
+// Нова функция за запазване на оценката
 const handleSaveGrade = async (gradingData: {
   points: number;
   feedback: string;
@@ -522,29 +555,40 @@ const handleSaveGrade = async (gradingData: {
       return student;
     }));
 
+    // 🔥 АКТУАЛИЗИРАНА ЧАСТ: Изпращане на нотификация в НОВАТА КОЛЕКЦИЯ "notifications"
     try {
-      const notificationRef = doc(collection(db, 'messages'));
+      // Създайте нотификация в НОВАТА КОЛЕКЦИЯ "notifications"
+      const notificationRef = doc(collection(db, 'notifications'));
       await setDoc(notificationRef, {
-        senderId: user?.uid,
-        senderName: "System",
-        receiverId: gradingData.studentId,
-        receiverName: studentData?.fullName || studentData?.email?.split('@')[0] || t?.('student') || "Student",
-        content: (t?.('grade_notification') || 'Your work "{file}" has been graded. Points: {points}/10. Feedback: {feedback}')
+        userId: gradingData.studentId,
+        type: 'grade',
+        title: t?.('grade_received') || '📊 Получена оценка',
+        message: (t?.('grade_notification') || 'Your work "{file}" has been graded. Points: {points}/10. Feedback: {feedback}')
           .replace('{file}', fileData?.originalFileName || 'file')
           .replace('{points}', gradingData.points.toString())
           .replace('{feedback}', gradingData.feedback.substring(0, 50) + (gradingData.feedback.length > 50 ? '...' : '')),
         timestamp: serverTime,
         read: false,
-        type: 'grade_notification',
-        gradeId: gradeRef.id,
-        assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment"
+        data: {
+          gradeId: gradeRef.id,
+          assignmentId: gradingData.assignmentId,
+          assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment",
+          fileId: gradingData.fileId,
+          fileName: fileData?.originalFileName || 'file',
+          points: gradingData.points,
+          maxPoints: 10,
+          teacherId: user?.uid,
+          teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"
+        },
+        actionUrl: '/dashboard/student?tab=grades'
       });
       
-      console.log("Grade notification sent to student");
+      console.log("✅ Grade notification sent to student via notifications collection");
     } catch (notificationError) {
-      console.error("Error sending grade notification:", notificationError);
+      console.error("❌ Error sending grade notification:", notificationError);
     }
 
+    // Запазете и в activityLogs за проследяване (това остава в messages)
     try {
       await addDoc(collection(db, "activityLogs"), {
         userId: gradingData.studentId,
@@ -568,6 +612,7 @@ const handleSaveGrade = async (gradingData: {
     } catch (logError) {
       console.error("Error adding activity log:", logError);
     }
+    
     setUploadStatus("✅ " + (t?.('grade_saved') || "Grade saved successfully! Student has been notified."));
     return;
     
@@ -623,6 +668,27 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
     activeChallenges: 0
   });
   
+  const handleMarkNotificationAsRead = async (notificationId: string) => {
+  try {
+    const notificationRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notificationRef, { 
+      read: true,
+      readAt: serverTimestamp() 
+    });
+    
+    // Локално обновяване на state-а
+    setNotifications(prev => 
+      prev.map(n => 
+        n.id === notificationId ? { ...n, read: true } : n
+      )
+    );
+    setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
+    
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+  }
+};
+
   // Theme classes
   const themeClasses = {
     light: {
@@ -1187,7 +1253,28 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
       console.error("Error loading all messages:", error);
     }
   };
-
+const handleMarkAllNotificationsAsRead = async () => {
+  if (!user || unreadNotificationsCount === 0) return;
+  
+  try {
+    const batch = writeBatch(db);
+    const unreadNotifications = notifications.filter(n => !n.read);
+    
+    for (const notification of unreadNotifications) {
+      const notificationRef = doc(db, 'notifications', notification.id);
+      batch.update(notificationRef, { read: true, readAt: serverTimestamp() });
+    }
+    
+    await batch.commit();
+    
+    // Актуализирайте локалното състояние
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadNotificationsCount(0);
+    
+  } catch (error) {
+    console.error("Error marking notifications as read:", error);
+  }
+};
   const handleApproveRequest = async (studentId: string, communityId: string) => {
     try {
       const communityRef = doc(db, 'communities', communityId);
@@ -2350,236 +2437,307 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
             </button>
             
             <div className="relative">
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={`relative p-2 rounded-lg ${
-                  theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                <Bell className="w-5 h-5" />
-                
-                {(() => {
-                  const pendingRequestsCount = communities.reduce((total, community) => 
-                    total + community.pendingRequests.length, 0
-                  );
-                  
-                  const unreadMessagesCount = messages.filter(m => 
-                    !m.read && m.receiverId === user?.uid
-                  ).length;
-                  
-                  const totalNotifications = pendingRequestsCount + unreadMessagesCount;
-                  
-                  if (totalNotifications > 0) {
-                    return (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {totalNotifications}
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </button>
-              
-              {/* Падащо меню за нотификации */}
-              {showNotifications && (
-                <div 
-                  className={`absolute right-0 mt-2 w-96 rounded-xl border shadow-lg z-50 ${
-                    theme === 'dark' 
-                      ? 'bg-gray-900 border-gray-700' 
-                      : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold">{t?.('notifications') || "Notifications"}</h4>
-                      <button 
-                        onClick={() => setShowNotifications(false)}
-                        className={`p-1 rounded ${
-                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div className="max-h-96 overflow-y-auto">
-                      {(() => {
-                        const allNotifications: Array<{
-                          id: string;
-                          type: 'pending_request' | 'direct_message' | 'challenge';
-                          title: string;
-                          description: string;
-                          communityId?: string;
-                          studentId?: string;
-                          challengeId?: string;
-                          timestamp: any;
-                          read: boolean;
-                        }> = [];
-                        
-                        communities.forEach(community => {
-                          community.pendingRequests.forEach(studentId => {
-                            const student = students.find(s => s.uid === studentId);
-                            allNotifications.push({
-                              id: `${community.id}-${studentId}`,
-                              type: 'pending_request',
-                              title: t?.('join_request') || 'Join Request',
-                              description: (t?.('student_wants_to_join') || '{student} wants to join "{community}"')
-                                .replace('{student}', student?.username || t?.('student') || 'Student')
-                                .replace('{community}', community.name),
-                              communityId: community.id,
-                              studentId: studentId,
-                              timestamp: community.createdAt,
-                              read: false
-                            });
-                          });
-                        });
-                        
-                        messages
-                          .filter(m => !m.read && m.receiverId === user?.uid)
-                          .forEach(msg => {
-                            allNotifications.push({
-                              id: msg.id,
-                              type: 'direct_message',
-                              title: t?.('new_message') || 'New Message',
-                              description: `${msg.senderName}: ${msg.content.substring(0, 60)}${msg.content.length > 60 ? '...' : ''}`,
-                              studentId: msg.senderId,
-                              timestamp: msg.timestamp,
-                              read: msg.read
-                            });
-                          });
+           <button 
+  onClick={() => setShowNotifications(!showNotifications)}
+  className={`relative p-2 rounded-lg ${
+    theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+  }`}
+>
+  <Bell className="w-5 h-5" />
+  
+  {/* БРОЯЧ - червеното кръгче на бутона */}
+  {(() => {
+    const pendingRequestsCount = communities.reduce((total, community) => 
+      total + community.pendingRequests.length, 0
+    );
+    
+    const unreadMessagesCount = messages.filter(m => 
+      !m.read && m.receiverId === user?.uid
+    ).length;
+    
+    const totalNotifications = pendingRequestsCount + unreadMessagesCount + unreadNotificationsCount;
+    
+    if (totalNotifications > 0) {
+      return (
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+          {totalNotifications > 9 ? '9+' : totalNotifications}
+        </span>
+      );
+    }
+    return null;
+  })()}
+</button>
 
-                        challengeNotifications.forEach(notification => {
-                          allNotifications.push({
-                            id: notification.id,
-                            type: 'challenge',
-                            title: notification.title,
-                            description: notification.description,
-                            communityId: notification.targetCommunityId,
-                            challengeId: notification.challengeId,
-                            timestamp: notification.timestamp,
-                            read: notification.read
-                          });
-                        });
-                        
-                        allNotifications.sort((a, b) => 
-                          (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
-                        );
-                        
-                        if (allNotifications.length === 0) {
-                          return (
-                            <div className="text-center py-8">
-                              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                {t?.('no_notifications') || "No notifications"}
-                              </p>
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <div className="space-y-3">
-                            {allNotifications.map(notification => (
-                              <div
-                                key={notification.id}
-                                className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                                  theme === 'dark' 
-                                    ? 'hover:bg-white/5 border-white/10' 
-                                    : 'hover:bg-gray-50 border-gray-200'
-                                }`}
-                                onClick={() => {
-                                  setShowNotifications(false);
-                                  
-                                  if (notification.type === 'pending_request') {
-                                    setSelectedCommunity(notification.communityId || null);
-                                    setSelectedTab('communities');
-                                  } else if (notification.type === 'direct_message') {
-                                    setActiveThread(notification.studentId || null);
-                                    setShowMessaging(true);
-                                  } else if (notification.type === 'challenge') {
-                                    setSelectedTab('challenges');
-                                  }
-                                }}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                    notification.type === 'pending_request'
-                                      ? 'bg-amber-500/20 text-amber-500'
-                                      : notification.type === 'challenge'
-                                      ? 'bg-purple-500/20 text-purple-500'
-                                      : 'bg-blue-500/20 text-blue-500'
-                                  }`}>
-                                    {notification.type === 'pending_request' ? (
-                                      <UserPlus className="w-5 h-5" />
-                                    ) : notification.type === 'challenge' ? (
-                                      <Target className="w-5 h-5" />
-                                    ) : (
-                                      <MessageCircle className="w-5 h-5" />
-                                    )}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="flex justify-between items-start mb-1">
-                                      <div className="font-medium text-sm">
-                                        {notification.title}
-                                      </div>
-                                      {!notification.read && (
-                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                      )}
-                                    </div>
-                                    <div className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                      {notification.description}
-                                    </div>
-                                    <div className="text-xs opacity-70">
-                                      {new Date(notification.timestamp?.toMillis?.() || Date.now()).toLocaleString()}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
+{/* Падащо меню за нотификации */}
+{/* Падащо меню за нотификации */}
+{showNotifications && (
+  <div 
+    className={`absolute right-0 mt-2 w-96 rounded-xl border shadow-lg z-50 ${
+      theme === 'dark' 
+        ? 'bg-gray-900 border-gray-700' 
+        : 'bg-white border-gray-200'
+    }`}
+  >
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-bold">{t?.('notifications') || "Notifications"}</h4>
+        <button 
+          onClick={() => setShowNotifications(false)}
+          className={`p-1 rounded ${
+            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+          }`}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      
+      <div className="max-h-96 overflow-y-auto">
+        {(() => {
+          // Създаване на масив с всички нотификации
+          const allNotifications: Array<{
+            id: string;
+            type: 'pending_request' | 'direct_message' | 'challenge' | 'assignment' | 'grade' | string;
+            title: string;
+            description: string;
+            communityId?: string;
+            studentId?: string;
+            challengeId?: string;
+            assignmentId?: string;
+            timestamp: any;
+            read: boolean;
+            icon?: JSX.Element;
+            color?: string;
+          }> = [];
+          
+          // Добавяне на pending requests от общности
+          communities.forEach(community => {
+            community.pendingRequests.forEach(studentId => {
+              const student = students.find(s => s.uid === studentId);
+              allNotifications.push({
+                id: `${community.id}-${studentId}`,
+                type: 'pending_request',
+                title: t?.('join_request') || 'Join Request',
+                description: (t?.('student_wants_to_join') || '{student} wants to join "{community}"')
+                  .replace('{student}', student?.username || t?.('student') || 'Student')
+                  .replace('{community}', community.name),
+                communityId: community.id,
+                studentId: studentId,
+                timestamp: community.createdAt,
+                read: false,
+                icon: <UserPlus className="w-5 h-5" />,
+                color: 'bg-amber-500/20 text-amber-500'
+              });
+            });
+          });
+          
+          // Добавяне на директни съобщения
+          messages
+            .filter(m => !m.read && m.receiverId === user?.uid)
+            .forEach(msg => {
+              allNotifications.push({
+                id: msg.id,
+                type: 'direct_message',
+                title: t?.('new_message') || 'New Message',
+                description: `${msg.senderName}: ${msg.content.substring(0, 60)}${msg.content.length > 60 ? '...' : ''}`,
+                studentId: msg.senderId,
+                timestamp: msg.timestamp,
+                read: msg.read,
+                icon: <MessageCircle className="w-5 h-5" />,
+                color: 'bg-blue-500/20 text-blue-500'
+              });
+            });
+
+          // Добавяне на challengeNotifications (от prop)
+          challengeNotifications.forEach(notification => {
+  if (!notification.read) { // ← ДОБАВЕТЕ ТОВА
+    allNotifications.push({
+      id: notification.id,
+      type: 'challenge',
+      title: notification.title,
+      description: notification.description,
+      communityId: notification.targetCommunityId,
+      challengeId: notification.challengeId,
+      timestamp: notification.timestamp,
+      read: notification.read,
+      icon: <Target className="w-5 h-5" />,
+      color: 'bg-purple-500/20 text-purple-500'
+    });
+  }
+});
+          
+          // Добавяне на ВСИЧКИ нотификации от колекцията notifications
+          notifications.forEach((notification: any) => {
+  if (!notification.read) {
+            let icon = <Bell className="w-5 h-5" />;
+            let color = 'bg-blue-500/20 text-blue-500';
+            
+            if (notification.type === 'challenge') {
+              icon = <Target className="w-5 h-5" />;
+              color = 'bg-purple-500/20 text-purple-500';
+            } else if (notification.type === 'assignment') {
+              icon = <FileText className="w-5 h-5" />;
+              color = 'bg-green-500/20 text-green-500';
+            } else if (notification.type === 'grade') {
+              icon = <Star className="w-5 h-5" />;
+              color = 'bg-yellow-500/20 text-yellow-500';
+            } else if (notification.type === 'message') {
+              icon = <MessageCircle className="w-5 h-5" />;
+              color = 'bg-blue-500/20 text-blue-500';
+            } else if (notification.type === 'system') {
+              icon = <Bell className="w-5 h-5" />;
+              color = 'bg-gray-500/20 text-gray-500';
+            }
+            
+            allNotifications.push({
+              id: notification.id,
+              type: notification.type,
+              title: notification.title || t?.('notification') || 'Notification',
+              description: notification.message || notification.description || '',
+              communityId: notification.data?.communityId,
+              challengeId: notification.data?.challengeId,
+              assignmentId: notification.data?.assignmentId,
+              timestamp: notification.timestamp,
+              read: notification.read || false,
+              icon: icon,
+              color: color
+            
+            });
+          }
+          });
+          
+          // Сортиране по време (най-новите отгоре)
+          allNotifications.sort((a, b) => 
+            (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
+          );
+          
+          if (allNotifications.length === 0) {
+            return (
+              <div className="text-center py-8">
+                <Bell className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {t?.('no_notifications') || "No notifications"}
+                </p>
+              </div>
+            );
+          }
+          
+          return (
+            <div className="space-y-3">
+              {allNotifications.map((notification: any) => (
+                <div
+                  key={notification.id}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                    theme === 'dark' 
+                      ? 'hover:bg-white/5 border-white/10' 
+                      : 'hover:bg-gray-50 border-gray-200'
+                  }`}
+                  onClick={async () => {
+  // Маркирай като прочетена (ако е от колекцията notifications)
+  if (notification.id && notification.type !== 'pending_request' && notification.type !== 'direct_message') {
+    await handleMarkNotificationAsRead(notification.id);
+  }
+  
+  setShowNotifications(false);
+  
+  if (notification.type === 'pending_request') {
+    setSelectedCommunity(notification.communityId || null);
+    setSelectedTab('communities');
+  } else if (notification.type === 'direct_message') {
+    setActiveThread(notification.studentId || null);
+    setShowMessaging(true);
+  } else if (notification.type === 'challenge' || 
+             notification.type === 'challenge_accepted' || 
+             notification.type === 'challenge_rejected' ||
+             notification.type === 'challenge_completed' ||
+             notification.type === 'challenge_sent' ||
+             notification.type.includes('challenge')) {
+    setSelectedTab('challenges');
+    if (notification.communityId) {
+      setSelectedCommunity(notification.communityId);
+    }
+  } else if (notification.type === 'assignment') {
+    setSelectedTab('assignments');
+  } else if (notification.type === 'grade') {
+    setSelectedTab('students');
+  }
+}}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${notification.color}`}>
+                      {notification.icon}
                     </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="font-medium text-sm">
+                          {notification.title}
+                        </div>
+                        {!notification.read && (
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        )}
+                      </div>
+                      <div className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {notification.description}
+                      </div>
+                      <div className="text-xs opacity-70">
+                        {new Date(notification.timestamp?.toMillis?.() || Date.now()).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+      
+      {/* БУТОН ЗА МАРКИРАНЕ НА ВСИЧКИ КАТО ПРОЧЕТЕНИ */}
+      {(() => {
+        const pendingRequestsCount = communities.reduce((total, community) => 
+          total + community.pendingRequests.length, 0
+        );
+        
+        const unreadMessagesCount = messages.filter(m => 
+          !m.read && m.receiverId === user?.uid
+        ).length;
+        
+        const total = pendingRequestsCount + unreadMessagesCount + unreadNotificationsCount;
+        
+        if (total > 0) {
+          return (
+            <div className={`mt-4 pt-4 ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
+              <button
+                onClick={async () => {
+                  try {
+                    // Маркирай всички съобщения като прочетени
+                    const unreadMessages = messages.filter(m => !m.read && m.receiverId === user?.uid);
+                    const batch = writeBatch(db);
                     
-                    {(() => {
-                      const pendingRequestsCount = communities.reduce((total, community) => 
-                        total + community.pendingRequests.length, 0
-                      );
-                      
-                      const unreadMessagesCount = messages.filter(m => 
-                        !m.read && m.receiverId === user?.uid
-                      ).length;
-                      
-                      const total = pendingRequestsCount + unreadMessagesCount;
-                      
-                      if (total > 0) {
-                        return (
-                          <div className={`mt-4 pt-4 ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const unreadMessages = messages.filter(m => !m.read && m.receiverId === user?.uid);
-                                  
-                                  for (const msg of unreadMessages) {
-                                    await updateDoc(doc(db, 'messages', msg.id), {
-                                      read: true
-                                    });
-                                  }
-                                  
-                                  loadMessages();
-                                  setShowNotifications(false);
-                                } catch (error) {
-                                  console.error("Error marking messages as read:", error);
-                                }
-                              }}
-                              className="w-full py-2 text-sm text-blue-500 hover:text-blue-600"
-                            >
-                              {t?.('mark_all_as_read') || "Mark all as read"}
-                            </button>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+                    for (const msg of unreadMessages) {
+                      const messageRef = doc(db, 'messages', msg.id);
+                      batch.update(messageRef, { read: true });
+                    }
+                    
+                    await batch.commit();
+                    
+                    loadMessages();
+                    
+                    // Маркирай всички нотификации като прочетени
+                    await handleMarkAllNotificationsAsRead();
+                    
+                    setShowNotifications(false);
+                  } catch (error) {
+                    console.error("Error marking all as read:", error);
+                  }
+                }}
+                className="w-full py-2 text-sm text-blue-500 hover:text-blue-600 text-center"
+              >
+                {t?.('mark_all_as_read') || "Mark all as read"} ({total})
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })()}
                   </div>
                 </div>
               )}
@@ -2948,20 +3106,28 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                   />
                 </div>
                 
-                <select
-                  value={lessonFilter}
-                  onChange={(e) => setLessonFilter(e.target.value)}
-                  className={`px-4 py-2 rounded-lg border ${
-                    theme === 'dark' 
-                      ? 'bg-white/5 border-white/10 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                >
-                  <option value="all">{t?.('all_lessons') || "All Lessons"}</option>
-                  <option value="published">{t?.('published') || "Published"}</option>
-                  <option value="draft">{t?.('drafts') || "Drafts"}</option>
-                  <option value="archived">{t?.('archived') || "Archived"}</option>
-                </select>
+           <select
+  value={lessonFilter}
+  onChange={(e) => setLessonFilter(e.target.value)}
+  className={`px-4 py-2 rounded-lg border ${
+    theme === 'dark' 
+      ? 'bg-white/5 border-white/10 text-white [&>option]:bg-gray-800 [&>option]:text-white' 
+      : 'bg-white border-gray-300 text-gray-900'
+  }`}
+>
+  <option value="all" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
+    {t?.('all_lessons') || "All Lessons"}
+  </option>
+  <option value="published" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
+    {t?.('published') || "Published"}
+  </option>
+  <option value="draft" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
+    {t?.('drafts') || "Drafts"}
+  </option>
+  <option value="archived" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
+    {t?.('archived') || "Archived"}
+  </option>
+</select>
                 
                 <button 
                   onClick={() => {

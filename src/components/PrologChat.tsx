@@ -720,7 +720,7 @@ console.log(language)
               <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
                 <Terminal className="w-6 h-6 text-blue-400" />
               </div>
-              <span>Prolog AI Assistant</span>
+              <span>Prolog Assistant</span>
             </h1>
             <p className={`mt-2 ${currentTheme.textSecondary}`}>
               {t('domain_based_knowledge') || "Multi-user Prolog environment"}

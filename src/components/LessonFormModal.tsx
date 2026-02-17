@@ -635,21 +635,27 @@ export default function LessonFormModal({ editingLesson, onClose, onSave }: Less
                   </div>
                 ) : (
                   <select
-                    value={formData.communityId}
-                    onChange={(e) => setFormData({...formData, communityId: e.target.value})}
-                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border border-white/10' 
-                        : 'bg-white border border-gray-300'
-                    }`}
-                  >
-                    <option value="">Select a community...</option>
-                    {communities.map(community => (
-                      <option key={community.id} value={community.id}>
-                        {community.name} ({community.memberCount} members)
-                      </option>
-                    ))}
-                  </select>
+  value={formData.communityId}
+  onChange={(e) => setFormData({...formData, communityId: e.target.value})}
+  className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+    theme === 'dark' 
+      ? 'bg-white/5 border border-white/10 text-white [&>option]:bg-gray-800 [&>option]:text-white' 
+      : 'bg-white border border-gray-300 text-gray-900'
+  }`}
+>
+  <option value="" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
+    Select a community...
+  </option>
+  {communities.map(community => (
+    <option 
+      key={community.id} 
+      value={community.id}
+      className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}
+    >
+      {community.name} ({community.memberCount} members)
+    </option>
+  ))}
+</select>
                 )}
                 {formData.communityId && (
                   <p className={`text-xs mt-2 ${

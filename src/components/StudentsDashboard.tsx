@@ -31,7 +31,9 @@ import {
   Trash2,
   ListChecks,
   Link,
-  List
+  List,
+  BookMarked,
+  Tag,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -53,9 +55,25 @@ import {
   updateDoc,
   arrayUnion,
   writeBatch,
-  deleteDoc 
+  deleteDoc,
+  Timestamp
 } from "firebase/firestore";
 import StudentMessages from "./StudentMessages";
+
+
+interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'grade' | 'assignment' | 'challenge' | 'system' | 'message' | 'direct' | 'lesson' | 'challenge_response' | 'submission_evaluated' | 'challenge_submission' | 'challenge_accepted' | 'challenge_rejected' | 'challenge_completed';
+  timestamp: any;
+  read: boolean;
+  link?: string;
+  details?: any;
+  icon?: JSX.Element;
+  color?: string;
+}
 
 interface Community {
   id: string;
@@ -81,6 +99,37 @@ interface Community {
   };
 }
 
+interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  category: string;
+  status: 'draft' | 'published' | 'archived';
+  tags: string[];
+  estimatedTime: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  visibility: 'public' | 'private' | 'unlisted' | 'community';
+  language?: string;
+  prerequisites?: string[];
+  learningObjectives?: string[];
+  communityId?: string;
+  communityName?: string;
+  teacherId: string;
+  teacherName: string;
+  teacherAvatar?: string;
+  createdAt: any;
+  updatedAt: any;
+  views: number;
+  likes: string[];
+  students: string[];
+  rating: number;
+  totalRatings: number;
+  progress?: number;
+  lastRead?: any;
+  completed?: boolean;
+}
+
 interface ChallengeSolution {
   id: string;
   challengeId: string;
@@ -98,18 +147,6 @@ interface ChallengeSolution {
   challengeTitle?: string;
   challengeDescription?: string;
   createdAt?: any;
-}
-
-interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: 'grade' | 'assignment' | 'challenge' | 'system' | 'message' | 'direct';
-  timestamp: any;
-  read: boolean;
-  link?: string;
-  details?: any;
 }
 
 interface ChallengeSubmission {
@@ -162,15 +199,6 @@ interface Message {
   read: boolean;
   type: 'direct' | 'community' | 'broadcast';
 }
-
-const courses = [
-  { id: 1, title: "Prolog Basics", description: "Introduction to Prolog programming", progress: 70, color: "#FF6B8B", icon: "💻" },
-  { id: 2, title: "Expert Systems", description: "Build intelligent systems", progress: 45, color: "#36D1DC", icon: "🧠" },
-  { id: 3, title: "Logical Rules", description: "Advanced logic programming", progress: 85, color: "#FFD166", icon: "⚡" },
-  { id: 4, title: "AI Fundamentals", description: "Artificial Intelligence basics", progress: 30, color: "#9D4EDD", icon: "🤖" },
-  { id: 5, title: "Data Structures", description: "Prolog data organization", progress: 60, color: "#4CC9F0", icon: "🗂️" },
-  { id: 6, title: "Problem Solving", description: "Solve real-world problems", progress: 25, color: "#FF9E6D", icon: "🎯" },
-];
 
 const prologTemplates = [
   {
@@ -333,7 +361,6 @@ export default function StudentsDashboard(): JSX.Element {
   const [selectedAssignmentDetails, setSelectedAssignmentDetails] = useState<Assignment | null>(null);
   const [challengeSolutions, setChallengeSolutions] = useState<ChallengeSolution[]>([]);
   const [loadingSolutions, setLoadingSolutions] = useState(false);
-  
   const [communities, setCommunities] = useState<Community[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -343,13 +370,26 @@ export default function StudentsDashboard(): JSX.Element {
   const [communityInviteCode, setCommunityInviteCode] = useState("");
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
   const [loadingData, setLoadingData] = useState({
-    communities: true,
-    challenges: true,
-    assignments: true,
-    users: true,
-    notifications: true,
-    grades: true
-  });
+  communities: true,
+  challenges: true,
+  assignments: true,
+  users: true,
+  notifications: true,
+  grades: true,
+  lessons: true,
+  initialLoad: true
+});
+const notificationsListenerActive = useRef(false);
+const notificationsUnsubscribe = useRef<(() => void) | null>(null);
+
+// 🔍 ДОБАВЕТЕ ТОВА ЗА ДЕБЪГВАНЕ
+console.log('Current loading states:', loadingData);
+  
+  // 🔥 НОВО: Състояние за уроците
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [loadingLessons, setLoadingLessons] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [showLessonModal, setShowLessonModal] = useState(false);
   
   const [codeMetadata, setCodeMetadata] = useState({
     domain: "",
@@ -360,7 +400,7 @@ export default function StudentsDashboard(): JSX.Element {
     assignmentTitle: ""
   });
 
-  const [submissions, _setSubmissions] = useState<Submission[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activeRecommendation, setActiveRecommendation] = useState<number | null>(null);
 
@@ -373,7 +413,11 @@ export default function StudentsDashboard(): JSX.Element {
     activeStreak: 7,
     averageScore: 0,
     communityMembers: 0,
-    activeChallenges: 0
+    activeChallenges: 0,
+    // 🔥 НОВО: Статистика за уроци
+    totalLessons: 0,
+    completedLessons: 0,
+    pendingLessons: 0
   });
 
   const themeClasses = {
@@ -428,6 +472,307 @@ export default function StudentsDashboard(): JSX.Element {
     }
   ];
 
+  // Зареждане на уроците от общностите на ученика
+  const loadLessons = async () => {
+  if (!user) {
+    setLessons([]);
+    setStats(prev => ({
+      ...prev,
+      totalLessons: 0,
+      completedLessons: 0,
+      pendingLessons: 0
+    }));
+    setLoadingData(prev => ({ ...prev, lessons: false }));
+    return;
+  }
+
+  // Изчакваме communities да се заредят, ако все още не са
+  if (communities.length === 0) {
+    console.log("No communities yet, waiting...");
+    // Не маркираме като заредено - ще се извика отново когато communities се заредят
+    return;
+  }
+
+  setLoadingLessons(true);
+  
+  try {
+    const communityIds = communities.map(c => c.id);
+    console.log(`Loading lessons for communities:`, communityIds);
+    
+    // Ако няма communityIds, няма какво да зареждаме
+    if (communityIds.length === 0) {
+      setLessons([]);
+      setStats(prev => ({
+        ...prev,
+        totalLessons: 0,
+        completedLessons: 0,
+        pendingLessons: 0
+      }));
+      setLoadingData(prev => ({ ...prev, lessons: false }));
+      setLoadingLessons(false);
+      return;
+    }
+
+    const lessonsQuery = query(
+      collection(db, "lessons"),
+      where("status", "==", "published"),
+      where("communityId", "in", communityIds),
+      orderBy("createdAt", "desc")
+    );
+    
+    const snapshot = await getDocs(lessonsQuery);
+    console.log(`Found ${snapshot.size} lessons`);
+    
+    const lessonsData: Lesson[] = [];
+    
+    // Зареждаме прогреса на ученика
+    const progressQuery = query(
+      collection(db, "lessonProgress"),
+      where("studentId", "==", user.uid)
+    );
+    const progressSnapshot = await getDocs(progressQuery);
+    const progressMap = new Map();
+    
+    progressSnapshot.forEach((doc) => {
+      const data = doc.data();
+      progressMap.set(data.lessonId, {
+        completed: data.completed || false,
+        lastRead: data.lastRead,
+        progress: data.progress || 0
+      });
+    });
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const lessonProgress = progressMap.get(doc.id);
+      
+      lessonsData.push({
+        id: doc.id,
+        title: data.title || "Untitled Lesson",
+        description: data.description || "No description",
+        content: data.content || "",
+        category: data.category || "General",
+        status: data.status || "published",
+        tags: data.tags || [],
+        estimatedTime: data.estimatedTime || "30 min",
+        difficulty: data.difficulty || "beginner",
+        visibility: data.visibility || "community",
+        language: data.language || "en",
+        prerequisites: data.prerequisites || [],
+        learningObjectives: data.learningObjectives || [],
+        communityId: data.communityId,
+        communityName: data.communityName,
+        teacherId: data.teacherId,
+        teacherName: data.teacherName,
+        teacherAvatar: data.teacherAvatar,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        views: data.views || 0,
+        likes: data.likes || [],
+        students: data.students || [],
+        rating: data.rating || 0,
+        totalRatings: data.totalRatings || 0,
+        progress: lessonProgress?.progress || 0,
+        completed: lessonProgress?.completed || false,
+        lastRead: lessonProgress?.lastRead
+      });
+    });
+    
+    setLessons(lessonsData);
+
+    const completedLessons = lessonsData.filter(l => l.completed).length;
+    setStats(prev => ({
+      ...prev,
+      totalLessons: lessonsData.length,
+      completedLessons: completedLessons,
+      pendingLessons: lessonsData.length - completedLessons
+    }));
+    
+  } catch (error) {
+    console.error("Error loading lessons:", error);
+  } finally {
+    setLoadingLessons(false);
+    setLoadingData(prev => ({ ...prev, lessons: false }));
+  }
+};
+
+
+  // Следете кога communities се зареждат и тогава заредете уроците
+useEffect(() => {
+  if (communities.length > 0 && !loadingData.communities) {
+    console.log("Communities loaded, now loading lessons...");
+    loadLessons();
+  }
+}, [communities, loadingData.communities]);
+  // Слушател за нови уроци (за нотификации)
+// Слушател за нови уроци (за нотификации) - ОПРАВЕНА ВЕРСИЯ
+useEffect(() => {
+  if (!user || communities.length === 0) return;
+  
+  const communityIds = communities.map(c => c.id);
+  console.log('📚 Setting up lessons listener for communities:', communityIds);
+  
+  // Вземаме само уроците от последните 24 часа
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+  
+  const lessonsQuery = query(
+    collection(db, "lessons"),
+    where("status", "==", "published"),
+    where("communityId", "in", communityIds),
+    where("createdAt", ">=", oneDayAgo), // Само уроци от последните 24 часа
+    orderBy("createdAt", "desc"),
+    limit(10)
+  );
+  
+  const unsubscribe = onSnapshot(lessonsQuery, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      // Създаваме нотификация само при ADDED и само ако урокът е от последните 5 минути
+      if (change.type === "added") {
+        const newLesson = change.doc.data();
+        const lessonId = change.doc.id;
+        
+        // Проверяваме дали урокът е създаден скоро (последните 5 минути)
+        const createdAt = newLesson.createdAt?.toDate?.() || new Date();
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        
+        if (createdAt < fiveMinutesAgo) {
+          console.log('⏭️ Skipping old lesson:', newLesson.title);
+          return; // Пропускаме стари уроци
+        }
+        
+        // Проверяваме дали вече имаме нотификация за този урок
+        const existingNotification = notifications.some(n => 
+          n.type === 'lesson' && n.details?.lessonId === lessonId
+        );
+        
+        if (existingNotification) {
+          console.log('⏭️ Notification already exists for lesson:', lessonId);
+          return;
+        }
+        
+        // Намираме общността
+        const community = communities.find(c => c.id === newLesson.communityId);
+        
+        console.log('📝 Creating notification for new lesson:', newLesson.title);
+        
+        // Създаваме нотификация
+const notificationRef = doc(collection(db, 'notifications'));
+setDoc(notificationRef, {
+  userId: user.uid,
+  type: 'lesson',
+  title: t?.('new_lesson') || '📚 Нов урок',
+  message: `${t?.('new_lesson_in') || 'Нов урок в'} ${community?.name || t?.('community') || 'общността'}: "${newLesson.title}"`,
+  timestamp: serverTimestamp(),
+  read: false,
+  data: {
+    lessonId: lessonId,
+    lessonTitle: newLesson.title,
+    communityId: newLesson.communityId,
+    communityName: community?.name || 'Unknown'
+  },
+  actionUrl: '/dashboard/student?tab=lessons'
+}).catch(error => {
+  console.error('❌ Error creating notification:', error);
+});
+      }
+    });
+  }, (error) => {
+    console.error("Error in lessons snapshot:", error);
+  });
+  
+  return () => {
+    console.log('🔌 Unsubscribing from lessons listener');
+    unsubscribe();
+  };
+}, [user, communities, notifications]); // Добавяме notifications за да проверим за дублиращи се
+useEffect(() => {
+  console.log('📊 Current notifications:', 
+    notifications.filter(n => n.type === 'lesson').map(n => ({
+      id: n.id,
+      title: n.title,
+      lessonId: n.details?.lessonId,
+      read: n.read,
+      timestamp: n.timestamp?.toDate?.()
+    }))
+  );
+}, [notifications]);
+
+
+  const handleMarkAllNotificationsAsRead = async () => {
+  if (!user) return;
+  
+  try {
+    console.log('📝 Marking all notifications as read...');
+    const batch = writeBatch(db);
+    const unreadNotificationsList = notifications.filter(n => !n.read);
+    
+    for (const notification of unreadNotificationsList) {
+      const notificationRef = doc(db, 'notifications', notification.id);
+      batch.update(notificationRef, { read: true, readAt: serverTimestamp() });
+    }
+    
+    await batch.commit();
+    
+    // Локално обновяваме веднага
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadNotifications(0);
+    
+    console.log(`✅ Marked ${unreadNotificationsList.length} notifications as read`);
+    
+  } catch (error) {
+    console.error("Error marking all as read:", error);
+  }
+};
+// Инициализиране на зареждането на всички данни
+useEffect(() => {
+  if (!user) {
+    setLoadingData({
+      communities: false,
+      challenges: false,
+      assignments: false,
+      users: false,
+      notifications: false,
+      grades: false,
+      lessons: false,
+      initialLoad: false
+    });
+    return;
+  }
+
+  const loadAllData = async () => {
+    try {
+      // Първо зареждаме общностите
+      await loadCommunities();
+      await loadAllUsers();
+      
+      // След като communities са заредени, зареждаме зависимите данни
+      if (communities.length > 0) {
+        await Promise.all([
+          loadChallenges(),
+          loadAssignments(),
+          loadLessons(), // Това вече ще работи, защото communities са заредени
+          loadStudentGrades(),
+          loadChallengeSolutions(),
+          loadSubmissions(),
+          loadActivityLogs()
+        ]);
+      } else {
+        // Ако няма общности, все пак маркираме тези като заредени
+        setLoadingData(prev => ({
+          ...prev,
+          challenges: false,
+          assignments: false,
+          lessons: false
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading initial data:", error);
+    }
+  };
+
+  loadAllData();
+}, [user]); 
   // Зареждане на решенията на студента за всички challenge-и
   const loadChallengeSolutions = async () => {
     if (!user?.uid) return;
@@ -453,441 +798,137 @@ export default function StudentsDashboard(): JSX.Element {
     }
   };
 
-  const handleDeleteNotification = async (notificationId: string) => {
-    if (!user) return;
-    
-    try {
-      await deleteDoc(doc(db, 'messages', notificationId));
-      
-      const deletedNotification = notifications.find(n => n.id === notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      
-      if (deletedNotification && !deletedNotification.read) {
-        setUnreadNotifications(prev => Math.max(0, prev - 1));
-      }
-      
-      console.log("Notification deleted:", notificationId);
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-      alert(t?.('delete_notification_error') || 'Грешка при изтриване на нотификацията!');
-    }
-  };
-
-  const handleDeleteAllNotifications = async () => {
-    if (!user || notifications.length === 0) return;
-    
-    try {
-      const batch = writeBatch(db);
-      
-      notifications.forEach(notification => {
-        const notificationRef = doc(db, 'messages', notification.id);
-        batch.delete(notificationRef);
+ // Зареждане на нотификации 
+useEffect(() => {
+  // Ако няма user, спираме
+  if (!user) {
+    setLoadingData(prev => ({ ...prev, notifications: false }));
+    return;
+  }
+  
+  // Ако вече има активен listener, не създаваме нов
+  if (notificationsListenerActive.current) {
+    console.log('⚠️ Notifications listener already active, skipping...');
+    return;
+  }
+  
+  console.log('🔔 Setting up notifications listener for user:', user.uid);
+  notificationsListenerActive.current = true;
+  
+  const notificationsQuery = query(
+    collection(db, "notifications"),
+    where("userId", "==", user.uid),
+    orderBy("timestamp", "desc"),
+    limit(50)
+  );
+  
+  // Запазваме unsubscribe функцията
+  notificationsUnsubscribe.current = onSnapshot(notificationsQuery, 
+    (snapshot) => {
+      console.log('📥 Received notifications snapshot:', {
+        size: snapshot.size,
+        changes: snapshot.docChanges().map(c => ({ 
+          type: c.type, 
+          id: c.doc.id,
+          read: c.doc.data().read
+        }))
       });
       
-      await batch.commit();
-      
-      setNotifications([]);
-      setUnreadNotifications(0);
-      
-      console.log("All notifications deleted");
-    } catch (error) {
-      console.error("Error deleting all notifications:", error);
-      alert(t?.('delete_all_notifications_error') || 'Грешка при изтриване на нотификациите!');
-    }
-  };
-
-  const loadNotifications = async () => {
-    if (!user) return;
-    
-    try {
-      setLoadingData(prev => ({ ...prev, notifications: true }));
-      
-      // Директен listener за всички нотификации
-      const q = query(
-        collection(db, "messages"),
-        where("receiverId", "==", user.uid),
-        where("type", "in", ["grade", "grade_notification", "assignment", "challenge", "direct", "system"]),
-        orderBy("timestamp", "desc"),
-        limit(50)
-      );
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log("✅ Notifications loaded:", snapshot.size);
-        
-        const notificationsData: Notification[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          
-          let notificationType = data.type;
-          if (notificationType === 'grade_notification') {
-            notificationType = 'grade';
-          }
-          
-          let title = data.title;
-          if (!title) {
-            if (notificationType === 'grade') {
-              title = t?.('grade_received') || "📊 Получена оценка";
-            } else if (notificationType === 'assignment') {
-              title = t?.('new_assignment') || "📚 Ново задание";
-            } else if (notificationType === 'challenge') {
-              title = t?.('new_challenge') || "🎯 Ново предизвикателство";
-            } else if (notificationType === 'direct') {
-              title = t?.('new_message') || "💬 Ново съобщение";
-            } else {
-              title = t?.('notification') || "📢 Известие";
-            }
-          }
-          
-          notificationsData.push({
-            id: doc.id,
-            userId: data.receiverId || user.uid,
-            title: title,
-            message: data.content || data.message || "",
-            type: notificationType,
-            timestamp: data.timestamp,
-            read: data.read || false,
-            link: data.link,
-            details: data.details || {
-              gradeId: data.gradeId,
-              assignmentTitle: data.assignmentTitle,
-              challengeId: data.challengeId,
-              points: data.content?.match(/\d+\/10/)?.[0] || data.points
-            }
-          });
-        });
-        
-        setNotifications(notificationsData);
-        setUnreadNotifications(notificationsData.filter(n => !n.read).length);
-        setLoadingData(prev => ({ ...prev, notifications: false }));
-        
-      }, (error) => {
-        console.error("❌ Error loading notifications:", error);
-        setLoadingData(prev => ({ ...prev, notifications: false }));
-      });
-      
-      return unsubscribe;
-      
-    } catch (error) {
-      console.error("Error setting up notifications listener:", error);
-      setLoadingData(prev => ({ ...prev, notifications: false }));
-    }
-  };
-
-  const markAllNotificationsAsRead = async () => {
-    if (!user || unreadNotifications === 0) return;
-    
-    try {
-      const batch = writeBatch(db);
-      const unreadNotificationsList = notifications.filter(n => !n.read);
-      
-      for (const notification of unreadNotificationsList) {
-        const notificationRef = doc(db, 'messages', notification.id);
-        batch.update(notificationRef, { read: true });
-      }
-      
-      await batch.commit();
-      
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadNotifications(0);
-      
-    } catch (error) {
-      console.error("Error marking notifications as read:", error);
-    }
-  };
-
-  const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.read && user) {
-      try {
-        const notificationRef = doc(db, 'messages', notification.id);
-        await updateDoc(notificationRef, { read: true });
-        
-        setUnreadNotifications(prev => prev - 1);
-        
-        setNotifications(prev => 
-          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-        );
-      } catch (error) {
-        console.error("Error marking notification as read:", error);
-      }
-    }
-    
-    if (notification.type === 'grade') {
-      setShowGradesModal(true);
-      await loadStudentGrades();
-    } else if (notification.type === 'assignment') {
-      setSelectedTab("assignments");
-    } else if (notification.type === 'challenge') {
-      setSelectedTab("challenges");
-      if (notification.details?.challengeId) {
-        console.log("Challenge ID:", notification.details.challengeId);
-        setSelectedChallengeId(notification.details.challengeId);
-      }
-    } else if (notification.type === 'direct') {
-      setSelectedTab("messages");
-    }
-    
-    setShowNotifications(false);
-  };
-
-  const loadAllUsers = async () => {
-    try {
-      const usersQuery = query(collection(db, "users"));
-      const usersSnapshot = await getDocs(usersQuery);
-      
-      const usersData: UserData[] = [];
-      
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-        usersData.push({
-          uid: doc.id,
-          username: userData.fullName || userData.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
-          email: userData.email || "",
-          role: userData.role || 'student',
-          teacherId: userData.teacherId,
-          fullName: userData.fullName
-        });
-      });
-      
-      setAllUsers(usersData);
-      setLoadingData(prev => ({ ...prev, users: false }));
-    } catch (error) {
-      console.error("Error loading all users:", error);
-      setLoadingData(prev => ({ ...prev, users: false }));
-    }
-  };
-
-  const loadCommunities = async () => {
-    if (!user) {
-      setLoadingData(prev => ({ ...prev, communities: false }));
-      return;
-    }
-    
-    try {
-      const q = query(
-        collection(db, "communities"),
-        where("studentIds", "array-contains", user.uid)
-      );
-      
-      const snapshot = await getDocs(q);
-      const communitiesData: Community[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        communitiesData.push({
-          id: doc.id,
-          name: data.name || t?.('unnamed_community') || "Unnamed Community",
-          description: data.description || t?.('no_description') || "No description",
-          teacherId: data.teacherId || "",
-          institution: data.institution || t?.('unknown') || "Unknown",
-          gradeLevel: data.gradeLevel,
-          subject: data.subject,
-          memberCount: data.memberCount || data.studentIds?.length || 0,
-          studentIds: data.studentIds || [],
-          pendingRequests: data.pendingRequests || [],
-          createdAt: data.createdAt,
-          isPublic: data.isPublic || false,
-          inviteCode: data.inviteCode || "N/A",
-          challenges: data.challenges || [],
-          settings: data.settings || {
-            allowStudentChallenges: false,
-            allowInterCommunityChallenges: true,
-            allowStudentMessages: true,
-            autoApproveStudents: false,
-            privacy: "private"
-          }
-        });
-      });
-      
-      setCommunities(communitiesData);
-      
-      setStats(prev => ({
-        ...prev,
-        communityMembers: communitiesData.reduce((sum, c) => sum + c.memberCount, 0)
-      }));
-      
-      if (communitiesData.length > 0 && !activeCommunity) {
-        setActiveCommunity(communitiesData[0]);
-      }
-      
-      setLoadingData(prev => ({ ...prev, communities: false }));
-    } catch (error) {
-      console.error("Error loading communities:", error);
-      setLoadingData(prev => ({ ...prev, communities: false }));
-    }
-  };
-
-  const loadChallenges = async () => {
-    if (!user || communities.length === 0) {
-      setLoadingData(prev => ({ ...prev, challenges: false }));
-      return;
-    }
-    
-    try {
-      const userCommunityIds = communities.map(c => c.id);
-      
-      if (userCommunityIds.length === 0) {
-        setChallenges([]);
-        setLoadingData(prev => ({ ...prev, challenges: false }));
-        return;
-      }
-      
-      const q = query(
-        collection(db, "challenges"),
-        where("targetCommunityId", "in", userCommunityIds),
-        orderBy("createdAt", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      const challengesData: Challenge[] = [];
-      
-      const gradesQuery = query(
-        collection(db, "grades"),
-        where("studentId", "==", user.uid),
-        where("type", "==", "challenge")
-      );
-      
-      const gradesSnapshot = await getDocs(gradesQuery);
-      const gradesMap = new Map();
-      
-      gradesSnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.challengeId) {
-          gradesMap.set(data.challengeId, {
-            score: data.points * 10,
-            feedback: data.feedback,
-            gradedAt: data.gradedAt
-          });
-        }
-      });
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const challengeId = doc.id;
-        
-        const studentGrade = gradesMap.get(challengeId);
-        
-        challengesData.push({
-          id: challengeId,
-          title: data.title || t?.('untitled_challenge') || "Untitled Challenge",
-          description: data.description || t?.('no_description') || "No description",
-          creatorCommunityId: data.creatorCommunityId,
-          targetCommunityId: data.targetCommunityId,
-          createdBy: data.createdBy || t?.('unknown') || "Unknown",
-          status: data.status || 'pending',
-          dueDate: data.dueDate,
-          category: data.category || t?.('general') || "General",
-          difficulty: data.difficulty || 'medium',
-          points: data.points || 50,
-          submissions: data.submissions || [],
-          createdAt: data.createdAt,
-          studentGrade: studentGrade
-        });
-      });
-      
-      setChallenges(challengesData);
-      
-      const activeChallengesCount = challengesData.filter(c => 
-        c.status === 'accepted' || c.status === 'pending'
-      ).length;
-      
-      setStats(prev => ({
-        ...prev,
-        activeChallenges: activeChallengesCount
-      }));
-      
-      setLoadingData(prev => ({ ...prev, challenges: false }));
-    } catch (error) {
-      console.error("Error loading challenges:", error);
-      setLoadingData(prev => ({ ...prev, challenges: false }));
-    }
-  };
-
-  const loadMessages = async () => {
-    if (!user) return;
-    
-    try {
-      const q = query(
-        collection(db, "messages"),
-        where("receiverId", "==", user.uid),
-        where("type", "==", "direct"),
-        orderBy("timestamp", "desc"),
-        limit(20)
-      );
-      
-      const snapshot = await getDocs(q);
-      const messagesData: Message[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.type === 'direct' || data.type === 'community') {
-          messagesData.push({
-            id: doc.id,
-            senderId: data.senderId,
-            senderName: data.senderName,
-            receiverId: data.receiverId,
-            receiverName: data.receiverName,
-            content: data.content,
-            timestamp: data.timestamp,
-            read: data.read || false,
-            type: data.type || 'direct'
-          });
-        }
-      });
-      
-      setMessages(messagesData);
-    } catch (error) {
-      console.error("Error loading messages:", error);
-    }
-  };
-
-  const loadNotificationsFromMessages = async () => {
-    if (!user) return;
-    
-    try {
-      const q = query(
-        collection(db, "messages"),
-        where("receiverId", "==", user.uid),
-        where("type", "in", ["grade_notification", "system", "grade", "assignment", "challenge"]),
-        orderBy("timestamp", "desc"),
-        limit(20)
-      );
-      console.log(loadNotificationsFromMessages)
-      const snapshot = await getDocs(q);
       const notificationsData: Notification[] = [];
+      let unreadCount = 0;
       
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        let notificationType = data.type;
-        if (notificationType === 'grade_notification') {
-          notificationType = 'grade';
+        let icon = <Bell className="w-4 h-4" />;
+        let color = 'bg-blue-500/20 text-blue-500';
+        
+        switch (data.type) {
+          case 'grade':
+          case 'submission_evaluated':
+            icon = <Award className="w-4 h-4" />;
+            color = 'bg-yellow-500/20 text-yellow-500';
+            break;
+          case 'assignment':
+          case 'assignment_submission':
+            icon = <FileText className="w-4 h-4" />;
+            color = 'bg-green-500/20 text-green-500';
+            break;
+          case 'challenge':
+          case 'challenge_submission':
+          case 'challenge_accepted':
+          case 'challenge_completed':
+            icon = <Target className="w-4 h-4" />;
+            color = 'bg-purple-500/20 text-purple-500';
+            break;
+          case 'message':
+          case 'direct':
+            icon = <MessageCircle className="w-4 h-4" />;
+            color = 'bg-blue-500/20 text-blue-500';
+            break;
+          case 'lesson':
+            icon = <BookOpen className="w-4 h-4" />;
+            color = 'bg-green-500/20 text-green-500';
+            break;
+        }
+        
+        const isRead = data.read === true;
+        if (!isRead) {
+          unreadCount++;
         }
         
         notificationsData.push({
           id: doc.id,
-          userId: data.receiverId || user.uid,
-          title: data.title || 
-                (data.type === 'grade_notification' ? t?.('grade_received') || "Grade Received" : t?.('system') || "System"),
-          message: data.content || "",
-          type: notificationType,
+          userId: data.userId,
+          title: data.title,
+          message: data.message,
+          type: data.type,
           timestamp: data.timestamp,
-          read: data.read || false,
-          link: data.link,
-          details: data.details || {
-            gradeId: data.gradeId,
-            assignmentTitle: data.assignmentTitle,
-            points: data.content?.match(/\d+\/10/)?.[0] || ""
-          }
+          read: isRead,
+          link: data.actionUrl,
+          details: data.data,
+          icon: icon,
+          color: color
         });
       });
       
+      console.log('📬 Final notifications:', {
+        total: notificationsData.length,
+        unread: unreadCount,
+        firstFew: notificationsData.slice(0, 3).map(n => ({ id: n.id, read: n.read }))
+      });
+      
       setNotifications(notificationsData);
-      setUnreadNotifications(notificationsData.filter(n => !n.read).length);
-    } catch (error) {
-      console.error("Error loading notifications from messages:", error);
+      setUnreadNotifications(unreadCount);
+      
+      setLoadingData(prev => ({ 
+        ...prev, 
+        notifications: false,
+        initialLoad: false
+      }));
+    },
+    (error) => {
+      console.error("❌ Error in notifications snapshot:", error);
+      notificationsListenerActive.current = false;
+      setLoadingData(prev => ({ 
+        ...prev, 
+        notifications: false, 
+        initialLoad: false 
+      }));
     }
+  );
+  
+  // Cleanup функция
+  return () => {
+    console.log('🔌 Cleaning up notifications listener');
+    if (notificationsUnsubscribe.current) {
+      notificationsUnsubscribe.current();
+      notificationsUnsubscribe.current = null;
+    }
+    notificationsListenerActive.current = false;
   };
-
+}, [user]); // Само user като dependency - МАХНЕТЕ ВСИЧКИ ДРУГИ!
+  
   useEffect(() => {
     if (!user) return;
     
@@ -1002,45 +1043,6 @@ export default function StudentsDashboard(): JSX.Element {
       unsubscribeMessages();
     };
   }, [user, t]);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    console.log("📡 Setting up notifications listener...");
-    
-    const unsubscribe = loadNotifications();
-    
-    return () => {
-      if (unsubscribe) {
-        unsubscribe.then(unsub => unsub?.());
-      }
-    };
-  }, [user, t]);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const notificationsQ = query(
-      collection(db, "messages"),
-      where("receiverId", "==", user.uid),
-      where("type", "in", ["grade_notification", "direct", "system", "assignment", "challenge"]),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
-    
-    const unsubscribeNotifications = onSnapshot(notificationsQ, 
-      (snapshot) => {
-        console.log("✅ Notifications loaded:", snapshot.size);
-      },
-      (error) => {
-        console.error("❌ Error loading notifications:", error);
-      }
-    );
-    
-    return () => {
-      unsubscribeNotifications();
-    };
-  }, [user]);
 
   const loadAssignments = async () => {
     if (!user || isAssignmentsLoading.current) {
@@ -1288,21 +1290,67 @@ export default function StudentsDashboard(): JSX.Element {
       
       snapshot.forEach((doc) => {
         const data = doc.data();
+        
+        // Определяме икона и статус според действието
+        let status = 'general';
+        let actionText = data.action || t?.('unknown_action') || "Unknown action";
+        
+        if (data.actionType === 'submission' || data.action?.toLowerCase().includes('submit')) {
+          status = 'submitted';
+        } else if (data.actionType === 'challenge_submission' || data.action?.toLowerCase().includes('challenge')) {
+          status = 'submitted';
+        } else if (data.actionType === 'lesson_completion' || data.action?.toLowerCase().includes('lesson')) {
+          status = 'completed';
+        } else if (data.action?.toLowerCase().includes('start')) {
+          status = 'started';
+        }
+        
         logs.push({
           id: doc.id,
           studentId: data.userId || user?.uid || "",
           studentName: data.userName || userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
-          action: data.action || t?.('unknown_action') || "Unknown action",
+          action: actionText,
           timestamp: data.timestamp || serverTimestamp(),
           details: data.details || "",
           file: data.target || "",
-          status: data.actionType || 'general'
+          status: status
         });
       });
+      
+      // Ако няма логове, създаваме примерни от submissions
+      if (logs.length === 0 && submissions.length > 0) {
+        submissions.slice(0, 5).forEach(sub => {
+          logs.push({
+            id: `sub-${sub.id}`,
+            studentId: user?.uid || "",
+            studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+            action: sub.status === 'success' ? t?.('code_uploaded') || "Code Uploaded" : t?.('code_submitted') || "Code Submitted",
+            details: sub.assignmentTitle ? `${t?.('assignment') || "Assignment"}: ${sub.assignmentTitle}` : sub.name,
+            file: sub.name,
+            timestamp: sub.date,
+            status: sub.status === 'success' ? 'submitted' : 'pending'
+          });
+        });
+      }
       
       setActivityLogs(logs);
     } catch (error) {
       console.error("Error loading activity logs:", error);
+      
+      // Ако има грешка, показваме примерни активности от submissions
+      if (submissions.length > 0) {
+        const logsFromSubs: ActivityLog[] = submissions.slice(0, 5).map(sub => ({
+          id: `sub-${sub.id}`,
+          studentId: user?.uid || "",
+          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+          action: sub.status === 'success' ? t?.('code_uploaded') || "Code Uploaded" : t?.('code_submitted') || "Code Submitted",
+          details: sub.assignmentTitle ? `${t?.('assignment') || "Assignment"}: ${sub.assignmentTitle}` : sub.name,
+          file: sub.name,
+          timestamp: sub.date,
+          status: sub.status === 'success' ? 'submitted' : 'pending'
+        }));
+        setActivityLogs(logsFromSubs);
+      }
     }
   };
 
@@ -1438,103 +1486,213 @@ export default function StudentsDashboard(): JSX.Element {
   };
 
   const submitChallengeSolution = async () => {
-    if (!selectedChallengeId || !user) {
-      setUploadStatus("❌ " + (t?.('select_challenge_first') || "Please select a challenge first!"));
+  if (!selectedChallengeId || !user) {
+    setUploadStatus("❌ " + (t?.('select_challenge_first') || "Please select a challenge first!"));
+    return;
+  }
+
+  if (!code.trim()) {
+    setUploadStatus("❌ " + (t?.('code_empty') || "Code cannot be empty!"));
+    return;
+  }
+
+  try {
+    const challenge = challenges.find(c => c.id === selectedChallengeId);
+    if (!challenge) {
+      setUploadStatus("❌ " + (t?.('challenge_not_found') || "Challenge not found!"));
       return;
     }
 
-    if (!code.trim()) {
-      setUploadStatus("❌ " + (t?.('code_empty') || "Code cannot be empty!"));
+    const hasJoined = challenge.submissions?.some(s => s.studentId === user.uid);
+    if (!hasJoined) {
+      setUploadStatus("❌ " + (t?.('challenge_not_joined') || "You must join the challenge first!"));
       return;
     }
 
-    try {
-      const challenge = challenges.find(c => c.id === selectedChallengeId);
-      if (!challenge) {
-        setUploadStatus("❌ " + (t?.('challenge_not_found') || "Challenge not found!"));
-        return;
-      }
+    const solutionsQuery = query(
+      collection(db, "challengeSolutions"),
+      where("challengeId", "==", selectedChallengeId),
+      where("studentId", "==", user.uid)
+    );
 
-      const hasJoined = challenge.submissions?.some(s => s.studentId === user.uid);
-      if (!hasJoined) {
-        setUploadStatus("❌ " + (t?.('challenge_not_joined') || "You must join the challenge first!"));
-        return;
-      }
-
-      const solutionsQuery = query(
-        collection(db, "challengeSolutions"),
-        where("challengeId", "==", selectedChallengeId),
-        where("studentId", "==", user.uid)
-      );
-
-      const solutionsSnapshot = await getDocs(solutionsQuery);
+    const solutionsSnapshot = await getDocs(solutionsQuery);
+    let solutionRef;
+    
+    if (solutionsSnapshot.empty) {
+      solutionRef = doc(collection(db, 'challengeSolutions'));
       
-      if (solutionsSnapshot.empty) {
-        const solutionRef = doc(collection(db, 'challengeSolutions'));
-        
-        await setDoc(solutionRef, {
-          id: solutionRef.id,
-          challengeId: selectedChallengeId,
+      await setDoc(solutionRef, {
+        id: solutionRef.id,
+        challengeId: selectedChallengeId,
+        studentId: user.uid,
+        studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+        solutionCode: code,
+        submittedAt: serverTimestamp(),
+        status: 'submitted',
+        challengeTitle: challenge.title,
+        challengeDescription: challenge.description,
+        createdAt: serverTimestamp()
+      });
+    } else {
+      const solutionDoc = solutionsSnapshot.docs[0];
+      solutionRef = solutionDoc.ref;
+      await updateDoc(solutionDoc.ref, {
+        solutionCode: code,
+        status: 'submitted',
+        submittedAt: serverTimestamp()
+      });
+    }
+
+    const challengeRef = doc(db, 'challenges', selectedChallengeId);
+    const challengeDoc = await getDoc(challengeRef);
+    
+    if (challengeDoc.exists()) {
+      const challengeData = challengeDoc.data();
+      const submissions = challengeData.submissions || [];
+      
+      // 🔥 ВАЖНО: Не използваме serverTimestamp() в arrayUnion
+      const updatedSubmissions = submissions.map((sub: any) => {
+        if (sub.studentId === user.uid) {
+          return {
+            ...sub,
+            status: 'submitted',
+            solutionCode: code,
+            submittedAt: new Date().toISOString() // Използваме ISO string вместо serverTimestamp
+          };
+        }
+        return sub;
+      });
+      
+      // Ако няма запис за студента, добавяме нов (но той вече трябва да съществува от handleJoinChallenge)
+      if (!updatedSubmissions.some((s: any) => s.studentId === user.uid)) {
+        updatedSubmissions.push({
           studentId: user.uid,
-          studentName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+          submittedAt: new Date().toISOString(), // ISO string
           solutionCode: code,
-          submittedAt: serverTimestamp(),
-          status: 'submitted',
+          status: 'submitted'
+        });
+      }
+      
+      await updateDoc(challengeRef, {
+        submissions: updatedSubmissions
+      });
+    }
+
+    await addDoc(collection(db, "activityLogs"), {
+      userId: user.uid,
+      userName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
+      action: t?.('submitted_challenge_solution') || "Submitted Challenge Solution",
+      details: `${t?.('challenge') || "Challenge"}: ${challenge.title}`,
+      target: `Challenge_${selectedChallengeId}`,
+      actionType: "challenge_submission",
+      timestamp: serverTimestamp()
+    });
+
+    // 🔥 ИЗПРАТЕТЕ НОТИФИКАЦИЯ ДО УЧИТЕЛЯ ЗА РЕШЕНО ПРЕДИЗВИКАТЕЛСТВО
+    const community = communities.find(c => c.id === challenge.targetCommunityId);
+    if (community) {
+      const notificationRef = doc(collection(db, 'notifications'));
+      await setDoc(notificationRef, {
+        userId: community.teacherId,
+        type: 'challenge_submission',
+        title: t?.('challenge_solved') || '🎯 Решено предизвикателство',
+        message: `${t?.('student') || 'Ученик'} ${userData?.fullName || user?.email?.split('@')[0]} ${t?.('solved_challenge') || 'реши предизвикателство'}: "${challenge.title}"`,
+        timestamp: serverTimestamp(),
+        read: false,
+        data: {
+          challengeId: challenge.id,
           challengeTitle: challenge.title,
-          challengeDescription: challenge.description,
-          createdAt: serverTimestamp()
+          studentId: user.uid,
+          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+          communityId: community.id,
+          communityName: community.name,
+          solutionId: solutionRef.id
+        },
+        actionUrl: '/dashboard/teacher?tab=challenges'
+      });
+      console.log("✅ Challenge submission notification sent to teacher");
+    }
+
+    setUploadStatus("✅ " + (t?.('challenge_submitted') || "Challenge solution submitted successfully!"));
+    setCode("");
+    
+    await loadChallenges();
+    await loadActivityLogs();
+  } catch (error) {
+    console.error("Error submitting challenge solution:", error);
+    setUploadStatus("❌ " + (t?.('challenge_submission_error') || "Error submitting challenge solution!"));
+  }
+};
+
+  // 🔥 НОВО: Маркиране на урок като прочетен
+  const markLessonAsRead = async (lesson: Lesson) => {
+    if (!user) return;
+    
+    try {
+      // Проверяваме дали вече има прогрес за този урок
+      const progressQuery = query(
+        collection(db, "lessonProgress"),
+        where("studentId", "==", user.uid),
+        where("lessonId", "==", lesson.id)
+      );
+      
+      const progressSnapshot = await getDocs(progressQuery);
+      
+      if (progressSnapshot.empty) {
+        // Създаваме нов запис за прогрес
+        await addDoc(collection(db, "lessonProgress"), {
+          studentId: user.uid,
+          studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          completed: true,
+          progress: 100,
+          lastRead: serverTimestamp(),
+          communityId: lesson.communityId,
+          teacherId: lesson.teacherId,
+          readAt: serverTimestamp()
         });
       } else {
-        const solutionDoc = solutionsSnapshot.docs[0];
-        await updateDoc(solutionDoc.ref, {
-          solutionCode: code,
-          status: 'submitted',
-          submittedAt: serverTimestamp()
+        // Актуализираме съществуващия запис
+        const progressDoc = progressSnapshot.docs[0];
+        await updateDoc(progressDoc.ref, {
+          completed: true,
+          progress: 100,
+          lastRead: serverTimestamp()
         });
       }
-
-      const challengeRef = doc(db, 'challenges', selectedChallengeId);
-      const challengeDoc = await getDoc(challengeRef);
       
-      if (challengeDoc.exists()) {
-        const challengeData = challengeDoc.data();
-        const submissions = challengeData.submissions || [];
-        
-        const updatedSubmissions = submissions.map((sub: any) => {
-          if (sub.studentId === user.uid) {
-            return {
-              ...sub,
-              status: 'submitted',
-              solutionCode: code,
-              submittedAt: serverTimestamp()
-            };
-          }
-          return sub;
-        });
-        
-        await updateDoc(challengeRef, {
-          submissions: updatedSubmissions
-        });
-      }
-
+      // Актуализираме локалния списък с уроци
+      setLessons(prev => 
+        prev.map(l => 
+          l.id === lesson.id 
+            ? { ...l, completed: true, progress: 100, lastRead: Timestamp.now() } 
+            : l
+        )
+      );
+      
+      // Актуализираме статистиките
+      setStats(prev => ({
+        ...prev,
+        completedLessons: prev.completedLessons + 1,
+        pendingLessons: prev.pendingLessons - 1
+      }));
+      
+      // Добавяме активност в лога
       await addDoc(collection(db, "activityLogs"), {
         userId: user.uid,
-        userName: userData?.fullName || user?.email?.split('@')[0] || t?.('student') || "Student",
-        action: t?.('submitted_challenge_solution') || "Submitted Challenge Solution",
-        details: `${t?.('challenge') || "Challenge"}: ${challenge.title}`,
-        target: `Challenge_${selectedChallengeId}`,
-        actionType: "challenge_submission",
+        userName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+        action: t?.('lesson_completed') || "Completed Lesson",
+        details: `${t?.('completed_lesson') || "Completed lesson"}: ${lesson.title}`,
+        target: `Lesson_${lesson.id}`,
+        actionType: "lesson_completion",
         timestamp: serverTimestamp()
       });
-
-      setUploadStatus("✅ " + (t?.('challenge_submitted') || "Challenge solution submitted successfully!"));
-      setCode("");
       
-      await loadChallenges();
-      await loadActivityLogs();
+      console.log("✅ Lesson marked as completed:", lesson.title);
     } catch (error) {
-      console.error("Error submitting challenge solution:", error);
-      setUploadStatus("❌ " + (t?.('challenge_submission_error') || "Error submitting challenge solution!"));
+      console.error("Error marking lesson as read:", error);
     }
   };
 
@@ -1591,6 +1749,12 @@ Requirements:
       badge: communities.length
     },
     { 
+      id: "lessons", 
+      label: t?.('my_lessons') || "My Lessons", 
+      icon: <BookMarked className="w-5 h-5" />,
+      badge: stats.pendingLessons
+    },
+    { 
       id: "challenges", 
       label: t?.('challenges') || "Challenges", 
       icon: <Target className="w-5 h-5" />,
@@ -1601,12 +1765,6 @@ Requirements:
       label: t?.('my_solutions') || "My Solutions", 
       icon: <Trophy className="w-5 h-5" />,
       badge: null
-    },
-    { 
-      id: "courses", 
-      label: t?.('my_courses') || "My Courses", 
-      icon: <BookOpen className="w-5 h-5" />,
-      badge: courses.length
     },
     { 
       id: "assignments", 
@@ -1669,129 +1827,6 @@ Requirements:
       setAssignments(updatedAssignments);
     }
   }, [studentGrades]);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    console.log("📡 Setting up challenge notifications listener...");
-    
-    const challengesQuery = query(
-      collection(db, "messages"),
-      where("receiverId", "==", user.uid),
-      where("type", "==", "challenge"),
-      orderBy("timestamp", "desc"),
-      limit(20)
-    );
-    
-    const unsubscribe = onSnapshot(challengesQuery, (snapshot) => {
-      console.log("📬 Challenge notifications loaded:", snapshot.size);
-      
-      if (snapshot.empty) {
-        console.log("No challenge notifications found");
-        return;
-      }
-      
-      const challengeNotifications: Notification[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log("📨 Challenge notification:", data);
-        
-        challengeNotifications.push({
-          id: doc.id,
-          userId: user.uid,
-          title: data.title || t?.('new_challenge_notification') || "🎯 Ново предизвикателство",
-          message: data.content || (t?.('new_challenge_available') || `Ново challenge: ${data.challengeTitle || "Без име"}`),
-          type: 'challenge',
-          timestamp: data.timestamp,
-          read: data.read || false,
-          link: data.link || '/dashboard/student?tab=challenges',
-          details: data.details || {
-            challengeId: data.challengeId,
-            challengeTitle: data.challengeTitle,
-            teacherName: data.metadata?.teacherName || data.fromTeacherName
-          }
-        });
-      });
-      
-      setNotifications(prev => {
-        const filtered = prev.filter(n => n.type !== 'challenge');
-        const merged = [...challengeNotifications, ...filtered];
-        return merged.sort((a, b) => {
-          const timeA = a.timestamp?.toMillis?.() || 0;
-          const timeB = b.timestamp?.toMillis?.() || 0;
-          return timeB - timeA;
-        });
-      });
-      
-      const unreadChallenges = challengeNotifications.filter(n => !n.read).length;
-      setUnreadNotifications(_prev => {
-        const otherUnread = notifications.filter(n => n.type !== 'challenge' && !n.read).length;
-        return unreadChallenges + otherUnread;
-      });
-      
-    }, (error) => {
-      console.error("❌ Error loading challenge notifications:", error);
-    });
-    
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const q = query(
-      collection(db, "messages"),
-      where("receiverId", "==", user.uid),
-      where("type", "in", ["grade_notification", "direct", "system", "assignment", "challenge"]),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log("✅ All notifications loaded:", snapshot.size);
-      
-      const notificationsData: Notification[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        
-        let notificationType = data.type;
-        if (notificationType === 'grade_notification') {
-          notificationType = 'grade';
-        }
-        
-        notificationsData.push({
-          id: doc.id,
-          userId: user.uid,
-          title: data.type === 'grade_notification' 
-            ? t?.('grade_received') || "Grade Received"
-            : data.type === 'assignment'
-            ? t?.('new_assignment_notification') || "📚 Ново задание"
-            : data.type === 'challenge'
-            ? t?.('new_challenge_notification') || "🎯 Ново предизвикателство"
-            : data.type === 'direct'
-            ? t?.('new_message') || "New Message"
-            : data.title || t?.('notification') || "Notification",
-          message: data.content || "",
-          type: notificationType,
-          timestamp: data.timestamp,
-          read: data.read || false,
-          link: data.link,
-          details: data.details || {}
-        });
-      });
-      
-      setNotifications(notificationsData);
-      
-      const unreadCount = notificationsData.filter(n => !n.read).length;
-      console.log("🔢 Unread notifications:", unreadCount, "Total:", notificationsData.length);
-      setUnreadNotifications(unreadCount);
-      
-    }, (error) => {
-      console.error("❌ Error loading notifications:", error);
-    });
-    
-    return () => unsubscribe();
-  }, [user, t]);
 
   const handleDeleteMessage = async (messageId: string) => {
     if (!user) return;
@@ -1861,102 +1896,142 @@ Requirements:
   };
 
   const loadStudentGrades = async () => {
-    if (!user?.uid) {
-      setLoadingGrades(false);
-      setLoadingData(prev => ({ ...prev, grades: false }));
-      return;
-    }
+  if (!user?.uid) {
+    setLoadingGrades(false);
+    setLoadingData(prev => ({ ...prev, grades: false }));
+    return;
+  }
+  
+  setLoadingGrades(true);
+  setLoadingData(prev => ({ ...prev, grades: true }));
+  
+  try {
+    const gradesQuery = query(
+      collection(db, "grades"),
+      where("studentId", "==", user.uid),
+      orderBy("gradedAt", "desc")
+    );
     
-    setLoadingGrades(true);
-    setLoadingData(prev => ({ ...prev, grades: true }));
-    
-    try {
-      const gradesQuery = query(
-        collection(db, "grades"),
-        where("studentId", "==", user.uid),
-        orderBy("gradedAt", "desc")
-      );
+    const unsubscribe = onSnapshot(gradesQuery, (snapshot) => {
+      const gradesData: any[] = [];
       
-      const unsubscribe = onSnapshot(gradesQuery, (snapshot) => {
-        const gradesData: any[] = [];
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          gradesData.push({
-            id: doc.id,
-            assignmentId: data.assignmentId || "",
-            assignmentTitle: data.assignmentTitle || t?.('unknown_assignment') || "Unknown Assignment",
-            fileId: data.fileId || "",
-            fileName: data.fileName || data.assignmentTitle || t?.('unknown_file') || "Unknown file",
-            points: data.points || 0,
-            maxPoints: data.maxPoints || 10,
-            feedback: data.feedback || "",
-            gradedAt: data.gradedAt,
-            gradedBy: data.gradedBy || data.teacherName || t?.('teacher') || "Teacher",
-            teacherId: data.teacherId || "",
-            teacherName: data.teacherName,
-            studentId: data.studentId || user.uid,
-            studentName: data.studentName || userData?.fullName || t?.('student') || "Student",
-            type: data.type || 'assignment',
-            gradePercentage: data.gradePercentage,
-            _searchable: `${data.assignmentTitle} ${data.fileName} ${data.studentName}`.toLowerCase()
-          });
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        gradesData.push({
+          id: doc.id,
+          assignmentId: data.assignmentId || "",
+          assignmentTitle: data.assignmentTitle || t?.('unknown_assignment') || "Unknown Assignment",
+          fileId: data.fileId || "",
+          fileName: data.fileName || data.assignmentTitle || t?.('unknown_file') || "Unknown file",
+          points: data.points || 0,
+          maxPoints: data.maxPoints || 10,
+          feedback: data.feedback || "",
+          gradedAt: data.gradedAt,
+          gradedBy: data.gradedBy || data.teacherName || t?.('teacher') || "Teacher",
+          teacherId: data.teacherId || "",
+          teacherName: data.teacherName,
+          studentId: data.studentId || user.uid,
+          studentName: data.studentName || userData?.fullName || t?.('student') || "Student",
+          type: data.type || 'assignment',
+          gradePercentage: data.gradePercentage,
+          _searchable: `${data.assignmentTitle} ${data.fileName} ${data.studentName}`.toLowerCase()
         });
-        
-        setStudentGrades(gradesData);
-        
-        const avgScore = gradesData.length > 0 
-          ? Math.round(gradesData.reduce((sum, g) => sum + (g.points || 0), 0) / gradesData.length) 
-          : 0;
-        
-        setStats(prev => ({
-          ...prev,
-          averageScore: avgScore
-        }));
-        
-        setLoadingGrades(false);
-        setLoadingData(prev => ({ ...prev, grades: false }));
       });
       
-      return unsubscribe;
+      setStudentGrades(gradesData);
       
-    } catch (error: any) {
-      console.error("Error loading student grades:", error);
+      const avgScore = gradesData.length > 0 
+        ? Math.round(gradesData.reduce((sum, g) => sum + (g.points || 0), 0) / gradesData.length) 
+        : 0;
       
-      if (studentGrades.length === 0) {
-        const mockGrades = [
-          {
-            id: "mock_grade_1",
-            assignmentId: "mock_assignment_1",
-            assignmentTitle: t?.('introduction_to_prolog') || "Introduction to Prolog",
-            points: 9,
-            maxPoints: 10,
-            feedback: t?.('excellent_work_prolog') || "Excellent work! Your understanding of Prolog basics is solid.",
-            gradedAt: new Date(),
-            gradedBy: "Prof. Smith",
-            studentId: user.uid,
-            studentName: userData?.fullName || t?.('student') || "Student",
-            type: "assignment"
-          },
-          {
-            id: "mock_grade_2",
-            assignmentId: "mock_assignment_2",
-            assignmentTitle: t?.('expert_systems_design') || "Expert Systems Design",
-            points: 8,
-            maxPoints: 10,
-            feedback: t?.('good_work_detailed_rules') || "Good work, but could use more detailed rules.",
-            gradedAt: new Date(Date.now() - 86400000),
-            gradedBy: "Prof. Johnson",
-            studentId: user.uid,
-            studentName: userData?.fullName || t?.('student') || "Student",
-            type: "assignment"
-          }
-        ];
-        setStudentGrades(mockGrades);
-      }
+      setStats(prev => ({
+        ...prev,
+        averageScore: avgScore
+      }));
       
       setLoadingGrades(false);
+      setLoadingData(prev => ({ ...prev, grades: false })); // ← ТОВА Е ЕДИНСТВЕНОТО МЯСТО
+    }, (error) => {
+      console.error("Error in grades snapshot:", error);
+      setLoadingGrades(false);
       setLoadingData(prev => ({ ...prev, grades: false }));
+    });
+    
+    return unsubscribe;
+     
+  } catch (error: any) {
+    console.error("Error loading student grades:", error);
+    
+    // Само ако нямаме данни, показваме mock данни
+    if (studentGrades.length === 0) {
+      const mockGrades = [
+        {
+          id: "mock_grade_1",
+          assignmentId: "mock_assignment_1",
+          assignmentTitle: t?.('introduction_to_prolog') || "Introduction to Prolog",
+          points: 9,
+          maxPoints: 10,
+          feedback: t?.('excellent_work_prolog') || "Excellent work! Your understanding of Prolog basics is solid.",
+          gradedAt: new Date(),
+          gradedBy: "Prof. Smith",
+          studentId: user.uid,
+          studentName: userData?.fullName || t?.('student') || "Student",
+          type: "assignment"
+        },
+        {
+          id: "mock_grade_2",
+          assignmentId: "mock_assignment_2",
+          assignmentTitle: t?.('expert_systems_design') || "Expert Systems Design",
+          points: 8,
+          maxPoints: 10,
+          feedback: t?.('good_work_detailed_rules') || "Good work, but could use more detailed rules.",
+          gradedAt: new Date(Date.now() - 86400000),
+          gradedBy: "Prof. Johnson",
+          studentId: user.uid,
+          studentName: userData?.fullName || t?.('student') || "Student",
+          type: "assignment"
+        }
+      ];
+      setStudentGrades(mockGrades);
+    }
+    
+    setLoadingGrades(false);
+    setLoadingData(prev => ({ ...prev, grades: false }));
+  }
+};
+
+  const loadSubmissions = async () => {
+    if (!user) return;
+    
+    try {
+      // Зареждаме от prologCodes колекцията
+      const q = query(
+        collection(db, "prologCodes"),
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc"),
+        limit(20)
+      );
+      
+      const snapshot = await getDocs(q);
+      const submissionsData: Submission[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        submissionsData.push({
+          id: doc.id,
+          name: data.title || "Untitled Submission",
+          date: data.createdAt?.toDate ? new Date(data.createdAt.toDate()).toLocaleString() : new Date().toLocaleString(),
+          status: data.status || "pending",
+          code: data.code,
+          assignmentId: data.assignmentId,
+          assignmentTitle: data.assignmentTitle,
+          grade: data.grade
+        });
+      });
+      
+      setSubmissions(submissionsData);
+    } catch (error) {
+      console.error("Error loading submissions:", error);
     }
   };
 
@@ -1968,6 +2043,7 @@ Requirements:
       loadActivityLogs();
       loadStudentGrades();
       loadChallengeSolutions();
+      loadSubmissions();
     }
   }, [user]);
 
@@ -1976,6 +2052,8 @@ Requirements:
       loadChallenges();
       loadAssignments();
       loadChallengeSolutions();
+      // 🔥 НОВО: Зареждаме уроците, когато общностите се заредят
+      loadLessons();
     }
   }, [communities, loadingData.communities]);
 
@@ -2016,7 +2094,225 @@ Requirements:
         loadStudentGrades();
       }
     }
+    
+    // 🔥 НОВО: Зареждаме уроците при избор на таб lessons
+    if (selectedTab === "lessons") {
+      if (!loadingData.lessons) {
+        loadLessons();
+      }
+    }
   }, [selectedTab]);
+
+  const loadAllUsers = async () => {
+  try {
+    const usersQuery = query(collection(db, "users"));
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    const usersData: UserData[] = [];
+    
+    usersSnapshot.forEach((doc) => {
+      const userData = doc.data();
+      usersData.push({
+        uid: doc.id,
+        username: userData.fullName || userData.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
+        email: userData.email || "",
+        role: userData.role || 'student',
+        teacherId: userData.teacherId,
+        fullName: userData.fullName
+      });
+    });
+    
+    setAllUsers(usersData);
+    setLoadingData(prev => ({ ...prev, users: false })); // ← ДОБАВЕТЕ ТОВА
+  } catch (error) {
+    console.error("Error loading all users:", error);
+    setLoadingData(prev => ({ ...prev, users: false })); // ← И ТУК
+  }
+};
+
+  const loadCommunities = async () => {
+  if (!user) {
+    setLoadingData(prev => ({ ...prev, communities: false }));
+    return;
+  }
+  
+  try {
+    const q = query(
+      collection(db, "communities"),
+      where("studentIds", "array-contains", user.uid)
+    );
+    
+    const snapshot = await getDocs(q);
+    const communitiesData: Community[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      communitiesData.push({
+        id: doc.id,
+        name: data.name || "Unnamed Community",
+        description: data.description || "No description",
+        teacherId: data.teacherId || "",
+        institution: data.institution || "Unknown",
+        gradeLevel: data.gradeLevel,
+        subject: data.subject,
+        memberCount: data.memberCount || data.studentIds?.length || 0,
+        studentIds: data.studentIds || [],
+        pendingRequests: data.pendingRequests || [],
+        createdAt: data.createdAt,
+        isPublic: data.isPublic || false,
+        inviteCode: data.inviteCode || "N/A",
+        challenges: data.challenges || [],
+        settings: data.settings || {
+          allowStudentChallenges: false,
+          allowInterCommunityChallenges: true,
+          allowStudentMessages: true,
+          autoApproveStudents: false,
+          privacy: "private"
+        }
+      });
+    });
+    
+    setCommunities(communitiesData);
+    
+    setStats(prev => ({
+      ...prev,
+      communityMembers: communitiesData.reduce((sum, c) => sum + c.memberCount, 0)
+    }));
+    
+    if (communitiesData.length > 0 && !activeCommunity) {
+      setActiveCommunity(communitiesData[0]);
+    }
+    
+  } catch (error) {
+    console.error("Error loading communities:", error);
+  } finally {
+    setLoadingData(prev => ({ ...prev, communities: false }));
+  }
+};
+
+  const loadChallenges = async () => {
+    if (!user || communities.length === 0) {
+      setLoadingData(prev => ({ ...prev, challenges: false }));
+      return;
+    }
+    
+    try {
+      const userCommunityIds = communities.map(c => c.id);
+      
+      if (userCommunityIds.length === 0) {
+        setChallenges([]);
+        setLoadingData(prev => ({ ...prev, challenges: false }));
+        return;
+      }
+      
+      const q = query(
+        collection(db, "challenges"),
+        where("targetCommunityId", "in", userCommunityIds),
+        orderBy("createdAt", "desc")
+      );
+      
+      const snapshot = await getDocs(q);
+      const challengesData: Challenge[] = [];
+      
+      const gradesQuery = query(
+        collection(db, "grades"),
+        where("studentId", "==", user.uid),
+        where("type", "==", "challenge")
+      );
+      
+      const gradesSnapshot = await getDocs(gradesQuery);
+      const gradesMap = new Map();
+      
+      gradesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.challengeId) {
+          gradesMap.set(data.challengeId, {
+            score: data.points * 10,
+            feedback: data.feedback,
+            gradedAt: data.gradedAt
+          });
+        }
+      });
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const challengeId = doc.id;
+        
+        const studentGrade = gradesMap.get(challengeId);
+        
+        challengesData.push({
+          id: challengeId,
+          title: data.title || t?.('untitled_challenge') || "Untitled Challenge",
+          description: data.description || t?.('no_description') || "No description",
+          creatorCommunityId: data.creatorCommunityId,
+          targetCommunityId: data.targetCommunityId,
+          createdBy: data.createdBy || t?.('unknown') || "Unknown",
+          status: data.status || 'pending',
+          dueDate: data.dueDate,
+          category: data.category || t?.('general') || "General",
+          difficulty: data.difficulty || 'medium',
+          points: data.points || 50,
+          submissions: data.submissions || [],
+          createdAt: data.createdAt,
+          studentGrade: studentGrade
+        });
+      });
+      
+      setChallenges(challengesData);
+      
+      const activeChallengesCount = challengesData.filter(c => 
+        c.status === 'accepted' || c.status === 'pending'
+      ).length;
+      
+      setStats(prev => ({
+        ...prev,
+        activeChallenges: activeChallengesCount
+      }));
+      
+      setLoadingData(prev => ({ ...prev, challenges: false }));
+    } catch (error) {
+      console.error("Error loading challenges:", error);
+      setLoadingData(prev => ({ ...prev, challenges: false }));
+    }
+  };
+
+  const loadMessages = async () => {
+    if (!user) return;
+    
+    try {
+      const q = query(
+        collection(db, "messages"),
+        where("receiverId", "==", user.uid),
+        where("type", "==", "direct"),
+        orderBy("timestamp", "desc"),
+        limit(20)
+      );
+      
+      const snapshot = await getDocs(q);
+      const messagesData: Message[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.type === 'direct' || data.type === 'community') {
+          messagesData.push({
+            id: doc.id,
+            senderId: data.senderId,
+            senderName: data.senderName,
+            receiverId: data.receiverId,
+            receiverName: data.receiverName,
+            content: data.content,
+            timestamp: data.timestamp,
+            read: data.read || false,
+            type: data.type || 'direct'
+          });
+        }
+      });
+      
+      setMessages(messagesData);
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  };
 
   const handleUpload = async () => {
     if (!code.trim() || !user) {
@@ -2036,6 +2332,35 @@ Requirements:
       
       try {
         await submitChallengeSolution();
+        
+        // 🔥 ИЗПРАТЕТЕ НОТИФИКАЦИЯ ДО УЧИТЕЛЯ ЗА РЕШЕНО ПРЕДИЗВИКАТЕЛСТВО
+        const challenge = challenges.find(c => c.id === selectedChallengeId);
+        if (challenge) {
+          // Намерете учителя на общността
+          const community = communities.find(c => c.id === challenge.targetCommunityId);
+          if (community) {
+            const notificationRef = doc(collection(db, 'notifications'));
+            await setDoc(notificationRef, {
+              userId: community.teacherId, // Получател - учителят
+              type: 'challenge_submission',
+              title: t?.('challenge_solved') || '🎯 Решено предизвикателство',
+              message: `${t?.('student') || 'Ученик'} ${userData?.fullName || user?.email?.split('@')[0]} ${t?.('solved_challenge') || 'реши предизвикателство'}: "${challenge.title}"`,
+              timestamp: serverTimestamp(),
+              read: false,
+              data: {
+                challengeId: challenge.id,
+                challengeTitle: challenge.title,
+                studentId: user.uid,
+                studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+                communityId: community.id,
+                communityName: community.name
+              },
+              actionUrl: '/dashboard/teacher?tab=challenges'
+            });
+            console.log("✅ Challenge submission notification sent to teacher");
+          }
+        }
+        
         setSelectedTab("mySolutions");
         window.scrollTo(0, 0);
       } catch (error) {
@@ -2057,7 +2382,7 @@ Requirements:
       }
       
       try {
-        await addDoc(collection(db, "prologCodes"), {
+        const docRef = await addDoc(collection(db, "prologCodes"), {
           userId: user.uid,
           title: `${t?.('prolog_submission') || "Prolog Submission"} - ${assignment.title}`,
           code: finalCode,
@@ -2082,6 +2407,30 @@ Requirements:
           actionType: "submission",
           timestamp: serverTimestamp()
         });
+
+        // 🔥 ИЗПРАТЕТЕ НОТИФИКАЦИЯ ДО УЧИТЕЛЯ ЗА ПРЕДАДЕНО ЗАДАНИЕ
+        const teacherId = assignment.teacherId;
+        if (teacherId) {
+          const notificationRef = doc(collection(db, 'notifications'));
+          await setDoc(notificationRef, {
+            userId: teacherId, // Получател - учителят
+            type: 'assignment_submission',
+            title: t?.('new_submission') || '📥 Ново предадено задание',
+            message: `${t?.('student') || 'Ученик'} ${userData?.fullName || user?.email?.split('@')[0]} ${t?.('submitted_assignment') || 'предаде задание'}: "${assignment.title}"`,
+            timestamp: serverTimestamp(),
+            read: false,
+            data: {
+              assignmentId: assignment.id,
+              assignmentTitle: assignment.title,
+              studentId: user.uid,
+              studentName: userData?.fullName || user?.email?.split('@')[0] || "Student",
+              submissionId: docRef.id,
+              points: assignment.points
+            },
+            actionUrl: '/dashboard/teacher?tab=assignments'
+          });
+          console.log("✅ Assignment submission notification sent to teacher");
+        }
 
         setCode("");
         setCodeMetadata({
@@ -2132,12 +2481,12 @@ Requirements:
       description: t?.('learning_communities') || "Learning communities"
     },
     {
-      title: t?.('active_challenges') || "Active Challenges",
-      value: stats.activeChallenges,
-      icon: <Target className="w-6 h-6" />,
+      title: t?.('my_lessons') || "My Lessons",
+      value: stats.totalLessons,
+      icon: <BookMarked className="w-6 h-6" />,
       color: "from-green-500 to-emerald-500",
-      change: `${challenges.filter(c => c.status === 'accepted').length} ${t?.('accepted') || "accepted"}`,
-      description: t?.('challenges_in_progress') || "Challenges in progress"
+      change: `${stats.completedLessons}/${stats.totalLessons} ${t?.('completed') || "completed"}`,
+      description: t?.('lessons_to_read') || "Lessons to read"
     }
   ];
 
@@ -2293,6 +2642,254 @@ Requirements:
     element.click();
     document.body.removeChild(element);
   };
+
+  // 🔥 НОВО: Функция за маркиране на конкретна нотификация като прочетена
+  // Функция за маркиране на конкретна нотификация като прочетена
+const handleMarkNotificationAsRead = async (notificationId: string) => {
+  if (!user) return;
+  
+  try {
+    const notificationRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notificationRef, { 
+      read: true, 
+      readAt: serverTimestamp() 
+    });
+    
+    // НЕ актуализираме локалния state тук - onSnapshot ще го направи автоматично
+    console.log(`✅ Notification ${notificationId} marked as read`);
+    
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+  }
+};
+console.log(handleMarkNotificationAsRead)
+  // 🔥 НОВО: Функция за клик върху нотификация
+ const handleNotificationClick = async (notification: Notification) => {
+  console.log('🔍 Clicked notification:', { 
+    id: notification.id, 
+    currentRead: notification.read 
+  });
+  
+  // Маркирай като прочетена само ако не е прочетена
+  if (!notification.read && user) {
+    try {
+      const notificationRef = doc(db, 'notifications', notification.id);
+      
+      // Направо update - без да чакаме getDoc
+      await updateDoc(notificationRef, { 
+        read: true, 
+        readAt: serverTimestamp() 
+      });
+      
+      console.log(`✅ Notification ${notification.id} marked as read`);
+      
+      // Локално обновяваме веднага за по-бърз UX
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notification.id ? { ...n, read: true } : n
+        )
+      );
+      
+      setUnreadNotifications(prev => Math.max(0, prev - 1));
+      
+    } catch (error) {
+      console.error("❌ Error marking notification as read:", error);
+    }
+  }
+  
+  // Затвори падащото меню
+  setShowNotifications(false);
+  
+  // Навигиране според типа нотификация
+  if (notification.type === 'grade' || notification.type === 'submission_evaluated') {
+  setSelectedTab("grades");
+} else if (notification.type === 'assignment' || notification.type === 'assignment_submission' as any) {
+  setSelectedTab("assignments");
+  } else if (notification.type === 'challenge' || 
+             notification.type === 'challenge_accepted' || 
+             notification.type === 'challenge_rejected' ||
+             notification.type === 'challenge_completed' ||
+             notification.type === 'challenge_response' ||
+             notification.type === 'challenge_submission') {
+    setSelectedTab("challenges");
+  } else if (notification.type === 'message' || notification.type === 'direct') {
+    setSelectedTab("messages");
+  } else if (notification.type === 'lesson') {
+    setSelectedTab("lessons");
+    if (notification.details?.lessonId) {
+      const lesson = lessons.find(l => l.id === notification.details.lessonId);
+      if (lesson) {
+        setSelectedLesson(lesson);
+        setShowLessonModal(true);
+      }
+    }
+  }
+};
+  // 🔥 НОВО: Рендиране на изглед за уроците
+  const renderLessonsView = () => (
+    <div className="space-y-6">
+      <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <BookMarked className="w-5 h-5" /> {t?.('my_lessons') || "My Lessons"} ({lessons.length})
+        </h3>
+        
+        {loadingLessons ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          </div>
+        ) : lessons.length === 0 ? (
+          <div className="text-center py-12">
+            <BookMarked className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-bold mb-2">
+              {t?.('no_lessons_yet') || "No lessons yet"}
+            </h4>
+            <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              {t?.('no_lessons_description') || "Join a community to access lessons"}
+            </p>
+            <button
+              onClick={() => setSelectedTab("communities")}
+              className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+            >
+              {t?.('browse_communities') || "Browse Communities"}
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {lessons.map((lesson) => {
+              const community = communities.find(c => c.id === lesson.communityId);
+              
+              return (
+                <motion.div
+                  key={lesson.id}
+                  whileHover={{ scale: 1.02 }}
+                  className={`p-6 rounded-xl border ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+                      : 'bg-white border-gray-200'
+                  } ${lesson.completed ? 'ring-2 ring-green-500/30' : ''}`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        lesson.completed 
+                          ? 'bg-green-500/20 text-green-500' 
+                          : 'bg-blue-500/20 text-blue-500'
+                      }`}>
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold">{lesson.title}</h4>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {community?.name || lesson.communityName || t?.('community') || "Community"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      lesson.difficulty === 'beginner' ? 'bg-green-500/20 text-green-500' :
+                      lesson.difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-500' :
+                      'bg-red-500/20 text-red-500'
+                    }`}>
+                      {lesson.difficulty}
+                    </span>
+                  </div>
+                  
+                  <p className={`mb-4 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {lesson.description}
+                  </p>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        {lesson.estimatedTime}
+                      </span>
+                    </div>
+                    
+                    {lesson.learningObjectives && lesson.learningObjectives.length > 0 && (
+                      <div className="flex items-start gap-2 text-sm">
+                        <Target className={`w-4 h-4 mt-0.5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
+                        <div>
+                          <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                            {t?.('objectives') || "Objectives"}: 
+                          </span>
+                          <ul className="mt-1 space-y-1">
+                            {lesson.learningObjectives.slice(0, 2).map((obj, idx) => (
+                              <li key={idx} className="text-xs flex items-start gap-1">
+                                <span className="text-blue-500">•</span>
+                                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                                  {obj.length > 30 ? obj.substring(0, 30) + '...' : obj}
+                                </span>
+                              </li>
+                            ))}
+                            {lesson.learningObjectives.length > 2 && (
+                              <li className="text-xs text-blue-500">
+                                +{lesson.learningObjectives.length - 2} {t?.('more') || "more"}
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {lesson.completed ? (
+                    <div className="flex items-center justify-between">
+                      <span className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                        theme === 'dark' 
+                          ? 'bg-green-500/20 text-green-400' 
+                          : 'bg-green-100 text-green-600'
+                      }`}>
+                        <CheckCircle className="w-4 h-4 inline mr-1" />
+                        {t?.('completed') || "Completed"}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedLesson(lesson);
+                          setShowLessonModal(true);
+                        }}
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium text-sm"
+                      >
+                        {t?.('review') || "Review"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {lesson.progress ? (
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>{t?.('progress') || "Progress"}</span>
+                            <span>{lesson.progress}%</span>
+                          </div>
+                          <div className={`h-1.5 rounded-full overflow-hidden ${
+                            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: `${lesson.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                      
+                      <button
+                        onClick={() => {
+                          setSelectedLesson(lesson);
+                          setShowLessonModal(true);
+                        }}
+                        className="w-full py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium text-sm"
+                      >
+                        {t?.('read_lesson') || "Read Lesson"}
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   const renderCommunitiesView = () => (
     <div className="space-y-6">
@@ -3019,7 +3616,7 @@ Requirements:
               )}
             </div>
 
-            {/* Бутон за нотификации */}
+            {/* 🔥 ОБНОВЕНО: Бутон за нотификации с подобрен dropdown като при учителя */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
@@ -3031,242 +3628,133 @@ Requirements:
               >
                 <Bell className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} />
                 {unreadNotifications > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                     {unreadNotifications > 9 ? '9+' : unreadNotifications}
                   </span>
                 )}
               </button>
-
-              {/* Dropdown за нотификации */}
-              {showNotifications && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className={`absolute right-0 top-12 w-80 rounded-xl shadow-xl z-50 ${
+              
+              {/* Подобрен dropdown за нотификации като при учителя */}
+              {/* Подобрен dropdown за нотификации с празно състояние */}
+{showNotifications && (
+  <motion.div
+    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+    className={`absolute right-0 top-12 w-96 rounded-xl border shadow-xl z-50 ${
+      theme === 'dark' 
+        ? 'bg-gray-900 border-gray-700' 
+        : 'bg-white border-gray-200'
+    }`}
+  >
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-bold">{t?.('notifications') || "Notifications"}</h4>
+        <button 
+          onClick={() => setShowNotifications(false)}
+          className={`p-1 rounded ${
+            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+          }`}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      
+      <div className="max-h-96 overflow-y-auto">
+        {notifications.filter(n => !n.read).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+            }`}>
+              <Bell className={`w-8 h-8 ${
+                theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+              }`} />
+            </div>
+            <p className={`text-center font-medium mb-1 ${
+              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              {t?.('no_notifications') || "No notifications"}
+            </p>
+            <p className={`text-center text-sm ${
+              theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+            }`}>
+              {t?.('no_notifications_description') || "You're all caught up!"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {notifications
+              .filter(n => !n.read)
+              .slice(0, 10)
+              .map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
                     theme === 'dark' 
-                      ? 'bg-gray-900 border border-gray-700 shadow-gray-900/50' 
-                      : 'bg-white border border-gray-200 shadow-gray-200/50'
+                      ? 'hover:bg-white/5 border-white/10' 
+                      : 'hover:bg-gray-50 border-gray-200'
                   }`}
-                  style={{ maxHeight: '400px', overflowY: 'auto' }}
+                  onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className={`p-4 border-b ${
-                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                  }`}>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <Bell className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'}`} />
-                        <h3 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {t?.('notifications') || "Notifications"}
-                        </h3>
-                        {unreadNotifications > 0 && (
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${notification.color || 'bg-blue-500/20 text-blue-500'}`}>
+                      {notification.icon || <Bell className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="font-medium text-sm">
+                          {notification.title}
+                        </div>
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                      </div>
+                      <div className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {notification.message}
+                      </div>
+                      <div className="text-xs opacity-70">
+                        {notification.timestamp?.toDate
+                          ? new Date(notification.timestamp.toDate()).toLocaleString()
+                          : t?.('recently') || "Recently"}
+                      </div>
+                      {notification.details?.points && (
+                        <div className="mt-1">
+                          <span className={`px-2 py-0.5 rounded text-xs ${
                             theme === 'dark' 
-                              ? 'bg-blue-500/20 text-blue-400' 
-                              : 'bg-blue-100 text-blue-600'
+                              ? 'bg-green-500/20 text-green-400' 
+                              : 'bg-green-100 text-green-600'
                           }`}>
-                            {unreadNotifications} {t?.('new') || "new"}
+                            {notification.details.points}
                           </span>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        {unreadNotifications > 0 && (
-                          <button
-                            onClick={markAllNotificationsAsRead}
-                            className={`p-1.5 rounded-lg text-sm ${
-                              theme === 'dark' 
-                                ? 'hover:bg-white/10 text-blue-400' 
-                                : 'hover:bg-gray-100 text-blue-600'
-                            } transition-colors`}
-                            title={t?.('mark_all_as_read') || "Mark all as read"}
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setShowNotifications(false)}
-                          className={`p-1.5 rounded-lg ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 text-gray-400' 
-                              : 'hover:bg-gray-100 text-gray-600'
-                          } transition-colors`}
-                          title={t?.('close') || "Close"}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  <div>
-                    {notifications.length === 0 ? (
-                      <div className={`p-6 text-center ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                      }`}>
-                        <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                        <p className="mb-2">{t?.('no_notifications') || "No notifications"}</p>
-                        <p className="text-sm opacity-70">{t?.('new_notifications_will_appear_here') || "New notifications will appear here"}</p>
-                      </div>
-                    ) : (
-                      <AnimatePresence>
-                        {notifications.map((notification) => (
-                          <motion.div
-                            key={notification.id}
-                            initial={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -50, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className={`relative group ${
-                              theme === 'dark' 
-                                ? 'hover:bg-gray-800/50' 
-                                : 'hover:bg-gray-50'
-                            } ${
-                              !notification.read
-                                ? theme === 'dark' 
-                                  ? 'bg-blue-900/10' 
-                                  : 'bg-blue-50/70'
-                                : ''
-                            }`}
-                          >
-                            <div
-                              className="p-4 cursor-pointer"
-                              onClick={() => handleNotificationClick(notification)}
-                            >
-                              <div className="flex gap-3">
-                                <div className="flex-shrink-0">
-                                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                                    notification.type === 'grade'
-                                      ? theme === 'dark' 
-                                        ? 'bg-green-500/20 text-green-400' 
-                                        : 'bg-green-100 text-green-600'
-                                      : notification.type === 'assignment'
-                                      ? theme === 'dark' 
-                                        ? 'bg-blue-500/20 text-blue-400' 
-                                        : 'bg-blue-100 text-blue-600'
-                                      : notification.type === 'challenge'
-                                      ? theme === 'dark' 
-                                        ? 'bg-purple-500/20 text-purple-400' 
-                                        : 'bg-purple-100 text-purple-600'
-                                      : notification.type === 'direct'
-                                      ? theme === 'dark' 
-                                        ? 'bg-yellow-500/20 text-yellow-400' 
-                                        : 'bg-yellow-100 text-yellow-600'
-                                      : theme === 'dark' 
-                                        ? 'bg-gray-500/20 text-gray-400' 
-                                        : 'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {notification.type === 'grade' ? (
-                                      <Award className="w-4 h-4" />
-                                    ) : notification.type === 'assignment' ? (
-                                      <FileText className="w-4 h-4" />
-                                    ) : notification.type === 'challenge' ? (
-                                      <Target className="w-4 h-4" />
-                                    ) : notification.type === 'direct' ? (
-                                      <MessageCircle className="w-4 h-4" />
-                                    ) : (
-                                      <Bell className="w-4 h-4" />
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <div className="flex-1 min-w-0 pr-6">
-                                  <div className="flex justify-between items-start mb-1">
-                                    <div className={`font-medium truncate ${
-                                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                    }`}>
-                                      {notification.title}
-                                      {!notification.read && (
-                                        <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                                      )}
-                                    </div>
-                                    <div className={`text-xs ${
-                                      theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                    }`}>
-                                      {notification.timestamp?.toDate
-                                        ? new Date(notification.timestamp.toDate()).toLocaleTimeString([], { 
-                                            hour: '2-digit', 
-                                            minute: '2-digit' 
-                                          })
-                                        : t?.('recently') || "Now"}
-                                    </div>
-                                  </div>
-                                  
-                                  <p className={`text-sm mb-1 line-clamp-2 ${
-                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                                  }`}>
-                                    {notification.message}
-                                  </p>
-                                  
-                                  <div className={`text-xs flex items-center gap-2 ${
-                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                  }`}>
-                                    <span>
-                                      {notification.timestamp?.toDate
-                                        ? new Date(notification.timestamp.toDate()).toLocaleDateString()
-                                        : t?.('today') || "Today"}
-                                    </span>
-                                    {notification.details?.points && (
-                                      <span className={`px-1.5 py-0.5 rounded ${
-                                        theme === 'dark' 
-                                          ? 'bg-green-500/20 text-green-400' 
-                                          : 'bg-green-100 text-green-600'
-                                      } text-xs`}>
-                                        {notification.details.points}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteNotification(notification.id);
-                              }}
-                              className={`absolute top-3 right-3 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all ${
-                                theme === 'dark' 
-                                  ? 'hover:bg-red-500/30 bg-red-500/20 text-red-400' 
-                                  : 'hover:bg-red-100 bg-red-50 text-red-500'
-                              }`}
-                              title={t?.('delete_notification') || "Delete notification"}
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                            
-                            <div className={`border-b ${
-                              theme === 'dark' ? 'border-gray-800' : 'border-gray-100'
-                            }`} />
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    )}
-                  </div>
-                  
-                  {notifications.length > 0 && (
-                    <div className={`p-3 border-t ${
-                      theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                    }`}>
-                      <div className="flex justify-between items-center">
-                        <button
-                          onClick={() => {
-                            if (window.confirm(t?.('delete_all_notifications_confirm') || 'Are you sure you want to delete all notifications?')) {
-                              handleDeleteAllNotifications();
-                            }
-                          }}
-                          className={`text-sm flex items-center gap-1.5 ${
-                            theme === 'dark' 
-                              ? 'text-red-400 hover:text-red-300' 
-                              : 'text-red-600 hover:text-red-700'
-                          } transition-colors`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          {t?.('delete_all') || "Delete all"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
+                </div>
+              ))}
+              
+            {notifications.filter(n => !n.read).length > 10 && (
+              <div className="text-center pt-2">
+                <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                  +{notifications.filter(n => !n.read).length - 10} {t?.('more') || 'more'}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {unreadNotifications > 0 && (
+        <div className={`mt-4 pt-4 ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
+          <button
+            onClick={handleMarkAllNotificationsAsRead}
+            className="w-full py-2 text-sm text-blue-500 hover:text-blue-600 text-center flex items-center justify-center gap-2"
+          >
+            <CheckCircle className="w-4 h-4" />
+            {t?.('mark_all_as_read') || "Mark all as read"} ({unreadNotifications})
+          </button>
+        </div>
+      )}
+    </div>
+  </motion.div>
               )}
             </div>
           </div>
@@ -3583,87 +4071,9 @@ Requirements:
         )}
 
         {selectedTab === "communities" && renderCommunitiesView()}
+        {selectedTab === "lessons" && renderLessonsView()}
         {selectedTab === "challenges" && renderChallengesView()}
-
-        {selectedTab === "courses" && (
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">{t?.('my_courses') || "My Courses"}</h2>
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>{t?.('continue_learning') || "Continue your learning journey"}</p>
-              </div>
-              <button className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                {t?.('browse_courses') || "Browse Courses"}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((course) => (
-                <motion.div
-                  key={course.id}
-                  whileHover={{ scale: 1.02, translateY: -5 }}
-                  className={`rounded-2xl p-6 border ${
-                    theme === 'dark'
-                      ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                      : 'bg-white border-gray-200'
-                  } backdrop-blur-xl`}
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: `${course.color}20`, color: course.color }}
-                    >
-                      {course.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-bold">{course.title}</h3>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {course.description}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>{t?.('progress') || "Progress"}</span>
-                      <span>{course.progress}%</span>
-                    </div>
-                    <div className={`h-2 rounded-full overflow-hidden ${
-                      theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
-                    }`}>
-                      <motion.div
-                        className="h-full rounded-full"
-                        style={{ backgroundColor: course.color }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${course.progress}%` }}
-                        transition={{ duration: 1.5, delay: 0.2 }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors`}>
-                      {t?.('view_course') || "View Course"}
-                    </button>
-                    <button className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                      theme === 'dark' 
-                        ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
-                        : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
-                    } transition-colors`}>
-                      {t?.('continue') || "Continue"}
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
+        
         {selectedTab === "mySolutions" && (
           <div className="space-y-6">
             <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
@@ -3745,7 +4155,7 @@ Requirements:
             </div>
           </div>
         )}
-
+        
         {selectedTab === "assignments" && (
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -3876,44 +4286,44 @@ Requirements:
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
-  {isCompleted ? (
-    <button
-      onClick={() => {
-        const submission = submissions.find(sub => sub.assignmentId === assignment.id);
-        if (submission) {
-          handleShowGrade(submission);
-        } else {
-          const fakeSubmission: Submission = {
-            id: `assignment_${assignment.id}`,
-            name: assignment.title,
-            date: new Date().toLocaleString(),
-            status: "completed",
-            assignmentId: assignment.id,
-            assignmentTitle: assignment.title
-          };
-          handleShowGrade(fakeSubmission);
-        }
-      }}
-      className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
-        theme === 'dark' 
-          ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' 
-          : 'bg-green-100 hover:bg-green-200 text-green-600'
-      }`}
-    >
-      <CheckCircle className="w-4 h-4" /> 
-      {assignment.studentProgress?.grade?.score ? 
-        `${t?.('view_grade') || 'View Grade'} (${assignment.studentProgress.grade.score}%)` : 
-        t?.('completed') || "Completed"}
-    </button>
-  ) : (
-    <button
-      onClick={() => openTaskDetails(assignment.id)}
-      className="flex-1 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium text-sm flex items-center justify-center gap-2"
-    >
-      <Play className="w-4 h-4" /> {t?.('start') || "Start"}
-    </button>
-  )}
-</div>
+                        {isCompleted ? (
+                          <button
+                            onClick={() => {
+                              const submission = submissions.find(sub => sub.assignmentId === assignment.id);
+                              if (submission) {
+                                handleShowGrade(submission);
+                              } else {
+                                const fakeSubmission: Submission = {
+                                  id: `assignment_${assignment.id}`,
+                                  name: assignment.title,
+                                  date: new Date().toLocaleString(),
+                                  status: "completed",
+                                  assignmentId: assignment.id,
+                                  assignmentTitle: assignment.title
+                                };
+                                handleShowGrade(fakeSubmission);
+                              }
+                            }}
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
+                              theme === 'dark' 
+                                ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' 
+                                : 'bg-green-100 hover:bg-green-200 text-green-600'
+                            }`}
+                          >
+                            <CheckCircle className="w-4 h-4" /> 
+                            {assignment.studentProgress?.grade?.score ? 
+                              `${t?.('view_grade') || 'View Grade'} (${assignment.studentProgress.grade.score}%)` : 
+                              t?.('completed') || "Completed"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openTaskDetails(assignment.id)}
+                            className="flex-1 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium text-sm flex items-center justify-center gap-2"
+                          >
+                            <Play className="w-4 h-4" /> {t?.('start') || "Start"}
+                          </button>
+                        )}
+                      </div>
                     </motion.div>
                   );
                 })}
@@ -5173,20 +5583,201 @@ Requirements:
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 🔥 НОВО: Модален прозорец за преглед на урок */}
+        <AnimatePresence>
+          {showLessonModal && selectedLesson && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              onClick={() => setShowLessonModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
+                  theme === 'dark' 
+                    ? 'bg-gray-900 border-white/10' 
+                    : 'bg-white border-gray-200'
+                }`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                        <BookOpen className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold">{selectedLesson.title}</h3>
+                        <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                          {selectedLesson.communityName || t?.('lesson') || "Lesson"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowLessonModal(false)}
+                      className={`p-2 rounded-lg ${
+                        theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Мета информация */}
+                  <div className={`mb-6 p-4 rounded-lg ${
+                    theme === 'dark' ? 'bg-white/5' : 'bg-gray-50'
+                  }`}>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm">{selectedLesson.estimatedTime}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-green-500" />
+                        <span className={`text-sm capitalize ${
+                          selectedLesson.difficulty === 'beginner' ? 'text-green-500' :
+                          selectedLesson.difficulty === 'intermediate' ? 'text-yellow-500' :
+                          'text-red-500'
+                        }`}>
+                          {selectedLesson.difficulty}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-purple-500" />
+                        <span className="text-sm">{selectedLesson.category}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-orange-500" />
+                        <span className="text-sm">{selectedLesson.teacherName}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Описание */}
+                  {selectedLesson.description && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-semibold mb-2">{t?.('description') || "Description"}</h4>
+                      <p className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                        {selectedLesson.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Цели на обучението */}
+                  {selectedLesson.learningObjectives && selectedLesson.learningObjectives.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <Target className="w-5 h-5 text-blue-500" />
+                        {t?.('learning_objectives') || "Learning Objectives"}
+                      </h4>
+                      <ul className="space-y-2">
+                        {selectedLesson.learningObjectives.map((obj, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-green-500 mt-1">•</span>
+                            <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{obj}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Предпоставки */}
+                  {selectedLesson.prerequisites && selectedLesson.prerequisites.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <GraduationCap className="w-5 h-5 text-orange-500" />
+                        {t?.('prerequisites') || "Prerequisites"}
+                      </h4>
+                      <ul className="space-y-2">
+                        {selectedLesson.prerequisites.map((prereq, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-yellow-500 mt-1">•</span>
+                            <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{prereq}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Съдържание на урока */}
+                  <div className="mb-8">
+                    <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-green-500" />
+                      {t?.('lesson_content') || "Lesson Content"}
+                    </h4>
+                    <div className={`prose max-w-none ${
+                      theme === 'dark' ? 'prose-invert' : ''
+                    }`}>
+                      <div dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
+                    </div>
+                  </div>
+
+                  {/* Тагове */}
+                  {selectedLesson.tags && selectedLesson.tags.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium mb-2">{t?.('tags') || "Tags"}</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedLesson.tags.map(tag => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-500 text-sm"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Бутони за действие */}
+                  <div className="flex gap-3 pt-4 border-t border-white/10">
+                    {!selectedLesson.completed && (
+                      <button
+                        onClick={async () => {
+                          await markLessonAsRead(selectedLesson);
+                          setShowLessonModal(false);
+                        }}
+                        className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        {t?.('mark_as_completed') || "Mark as Completed"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowLessonModal(false)}
+                      className={`flex-1 py-3 rounded-xl ${
+                        theme === 'dark' 
+                          ? 'bg-white/5 hover:bg-white/10' 
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {t?.('close') || "Close"}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {selectedAssignmentDetails && (
+            <AssignmentDetailsModal
+              assignment={selectedAssignmentDetails}
+              onClose={() => setSelectedAssignmentDetails(null)}
+              onStart={(id) => {
+                setSelectedAssignmentDetails(null);
+                startTask(id);
+              }}
+            />
+          )}
+        </AnimatePresence>
       </div> 
-      
-      <AnimatePresence>
-        {selectedAssignmentDetails && (
-          <AssignmentDetailsModal
-            assignment={selectedAssignmentDetails}
-            onClose={() => setSelectedAssignmentDetails(null)}
-            onStart={(id) => {
-              setSelectedAssignmentDetails(null);
-              startTask(id);
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

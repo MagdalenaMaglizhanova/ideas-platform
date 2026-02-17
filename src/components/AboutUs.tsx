@@ -73,9 +73,9 @@ export default function AboutUs({
       description: "Veneta Tabakova-Komsalova is an Associate Professor at the Faculty of Mathematics and Informatics at Paisii Hilendarski University of Plovdiv. She defended her PhD dissertation in the field of Informatics at the same university. She collaborates with the Institute of Information and Communication Technologies at the Bulgarian Academy of Sciences. She has many years of pedagogical experience as a teacher and expert in secondary education. Her research interests include artificial intelligence, logic programming and Prolog programming, expert systems, and virtual-physical social spaces. She has authored more than 50 scientific articles and textbooks.",
       image: pic1,
       social: {
-        linkedin: "https://linkedin.com/in/alexjohnson",
-        github: "https://github.com/alexjohnson",
-        twitter: "https://twitter.com/alexj_dev"
+        linkedin: "https://www.linkedin.com/in/veneta-tabakova-komsalova-1571284b",
+        github: "https://github.com",
+        email: "v.komsalova@uni-plovdiv.bg"
       },
       skills: ["Prolog", "C#"]
     },
@@ -86,9 +86,9 @@ export default function AboutUs({
       description: "Stanimir Stoyanov is a professor at the Faculty of Mathematics and Informatics at Paisii Hilendarski University of Plovdiv. He holds doctoral degrees from Humboldt University in Berlin, Germany, and De Montfort University in Leicester, United Kingdom. He collaborates with the Institute of Information and Communication Technologies at the Bulgarian Academy of Sciences. He has been a visiting professor at De Montfort University in Leicester, United Kingdom, and at Siberian Federal University in Krasnoyarsk, Russia. He has extensive practical experience in the development of information systems. His research interests include artificial intelligence, intelligent agents and multi-agent systems, virtual-physical social spaces, and logic programming. He has authored more than 300 scientific articles, books, and textbooks in Bulgarian, Russian, English, and German.",
       image: pic2,
       social: {
-        linkedin: "https://linkedin.com/in/mariachen",
-        github: "https://github.com/mariadesign",
-        twitter: "https://twitter.com/maria_ux"
+        linkedin: "https://linkedin.com/",
+        github: "https://github.com/",
+        email: "stani@uni-plovdiv.bg"
       },
       skills: ["Prolog", "C#"]
     },
@@ -99,9 +99,9 @@ export default function AboutUs({
       description: "Magdalena Maglizhanova is a PhD student at Paisii Hilendarski University of Plovdiv. She has 15 years of experience in software development and computer graphics design. Throughout her professional career, she has held various positions, including software tester, web designer, and print media designer. She worked for the American company Digital River, where she further developed her expertise in software testing. Prior to her current teaching position, she was employed as a print media designer in the PR department of the prestigious German company ATLAS. She is currently teaching Object-Oriented Programming at the Vocational High School of Electronics and Electrical Engineering in Plovdiv. Over the past year, she has actively participated in the development of the first STEM guide at her educational institution, in close collaboration with her colleagues.",
       image: pic3,
       social: {
-        linkedin: "https://linkedin.com/in/davidsmith",
-        github: "https://github.com/dsmithdev",
-        email: "david@example.com"
+        linkedin: "https://www.linkedin.com/in/magdalena-maglizhanova/",
+        github: "https://github.com",
+        email: "magdalenamaglijanova@uni-plovdiv.bg"
       },
       skills: ["React", "TypeScript", "Node.js", "Prolog"]
     }
