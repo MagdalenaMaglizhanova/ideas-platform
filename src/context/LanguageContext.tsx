@@ -258,6 +258,13 @@ delete_notification: string;
   grade_received: string;
   system: string;
   no_notifications: string;
+  created_new_challenge: string;
+has_been_accepted: string;
+challenge_response: string;
+responded_to: string;
+has_been_completed: string;
+challenge_notification_sent: string;
+sent_notifications: string;
 
   good_logic: string;
 improve_comments: string;
@@ -2831,7 +2838,13 @@ code_editor: "Code Editor",
   community_join_info: 'After joining communities from dashboard',
   community_creation_note: 'After approval, you can create a community',
   community_creation_help: "You'll be able to create a learning community, invite students, and organize challenges",
-    
+    created_new_challenge: "Created new challenge",
+has_been_accepted: "Has been accepted",
+challenge_response: "Challenge response",
+responded_to: "Responded to",
+has_been_completed: "Has been completed",
+challenge_notification_sent: "Challenge notification sent",
+sent_notifications: "Sent notifications",
     // НОВИ КЛЮЧОВЕ ОТ ПОСЛЕДНИЯ АНАЛИЗ:
     teacher_dashboard: 'Teacher Dashboard',
     student_dashboard: 'Student Dashboard',
@@ -2883,6 +2896,13 @@ code_editor: "Code Editor",
   access_dashboard: "Ще получите достъп до всички учителски функции",
   your_information: "Вашата информация",
   full_name: "Име",
+  created_new_challenge: "Създаде ново предизвикателство",
+has_been_accepted: "Беше прието",
+challenge_response: "Отговор на предизвикателство",
+responded_to: "Отговори на",
+has_been_completed: "Беше завършено",
+challenge_notification_sent: "Известие за предизвикателството е изпратено",
+sent_notifications: "Изпратени известия",
   email: "Имейл",
   institution: "Училище/Институция",
   status: "Статус",
@@ -4623,6 +4643,13 @@ create_first_lesson: "Crear la primera lección",
     no_code_preview: 'No hay vista previa del código disponible...',
     view_details: 'Ver Detalles',
     run_again: 'Ejecutar Otra Vez',
+    created_new_challenge: "Creó un nuevo desafío",
+has_been_accepted: "Ha sido aceptado",
+challenge_response: "Respuesta al desafío",
+responded_to: "Respondió a",
+has_been_completed: "Ha sido completado",
+challenge_notification_sent: "Notificación de desafío enviada",
+sent_notifications: "Notificaciones enviadas",
     what_to_teach: "¿Qué quieres enseñar hoy?",
 all_time_submissions: "Todas las entregas",
 completed_submissions: "Entregas completadas",
