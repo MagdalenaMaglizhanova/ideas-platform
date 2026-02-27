@@ -8,6 +8,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import Features from './components/Features';
 import Dashboard from './components/Dashboard';
+import DigitalBulgariaInitiative from './components/DigitalBulgariaInitiative'; // Импортиране на новия компонент
 import Footer from './components/Footer';
 import Background from './components/Background';
 import TeacherDashboard from './components/TeacherDashboard';
@@ -57,6 +58,7 @@ const HomePage = () => {
       <Background mousePosition={mousePosition} />
       <main className="relative z-10 pt-16">
         <Hero />
+        <DigitalBulgariaInitiative />
         <Features />
         <div className="px-6 lg:px-12">
           <Dashboard isFullscreen={isFullscreen} setIsFullscreen={setIsFullscreen} />
@@ -155,7 +157,7 @@ const AppContent = () => {
           </ProtectedRoute>
         } />
         
-        {/* Защитен маршрут за уроковете */}
+        {/* Защитен маршрут за уроците */}
         <Route path="/lessons" element={
           <ProtectedRoute requiredRole="teacher">
             <LessonPlanner />

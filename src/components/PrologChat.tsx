@@ -6,6 +6,7 @@ import { db } from "../services/firebase";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
+import logoShevici from '../../public/images/logo_shevici.jpg';
 
 // Icons import
 import {
@@ -717,11 +718,15 @@ console.log(language)
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pt-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                <Terminal className="w-6 h-6 text-blue-400" />
-              </div>
-              <span>Prolog Assistant</span>
-            </h1>
+  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-lg shadow-blue-500/20">
+    <img 
+      src={logoShevici} 
+      alt="Logo" 
+      className="w-full h-full object-cover"
+    />
+  </div>
+  <span>Prolog Assistant</span>
+</h1>
             <p className={`mt-2 ${currentTheme.textSecondary}`}>
               {t('domain_based_knowledge') || "Multi-user Prolog environment"}
             </p>
@@ -1037,9 +1042,13 @@ console.log(language)
                   <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                          <MessageSquare className="w-5 h-5 text-green-400" />
-                        </div>
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-lg shadow-blue-500/20">
+    <img 
+      src={logoShevici} 
+      alt="Logo" 
+      className="w-full h-full object-cover"
+    />
+  </div>
                         <h3 className="text-xl font-bold">Chat Assistant</h3>
                       </div>
                       <button
