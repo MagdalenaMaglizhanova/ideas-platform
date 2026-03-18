@@ -58,7 +58,6 @@ import {
   getDoc,
   writeBatch,
   Timestamp,
-  increment,
   arrayRemove
 } from "firebase/firestore";
 

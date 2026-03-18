@@ -1524,6 +1524,7 @@ messages_processed: string;
   save_changes: string;
   create_articles: string;
   draft: string;
+  bookmark: string;
   archived: string;
   edit: string;
   delete: string;
@@ -2317,7 +2318,7 @@ evaluation: "Evaluation",
     prolog_lists_title: "Working with Lists",
     prolog_lists_desc: "List Manipulation in Prolog",
     prolog_lists_expl: "Lists are fundamental data structures in Prolog. They use head-tail notation for recursive processing.",
-    
+    bookmark: "Bookmark",
     // Уроци
     tutorial_structure_title: "Program Structure",
     tutorial_structure_content: "Every Prolog program consists of three main parts: facts, rules, and queries. Facts are unconditional truths, rules define logical relationships, and queries ask questions.",
@@ -3751,6 +3752,7 @@ example_code_hint: "Подсказка за примерен код",
   active_challenge: "Активно предизвикателство",
   all_grades: "Всички оценки",
 evaluation: "Оценяване",
+bookmark: "Отметка",
   
   // Грешки
   error_loading_challenges: "❌ Грешка при зареждане на предизвикателства! Вероятно липсва Firebase индекс.",
@@ -5597,6 +5599,7 @@ evaluation: "Evaluación",
   dashboard_description: "Resumen de tus actividades de aprendizaje y progreso",
   recent_grades: "Calificaciones Recientes",
   no_recent_grades: "No hay calificaciones recientes",
+  bookmark: "Marcador",
     
     assignment_evaluation: "Evaluación de tarea",
     
