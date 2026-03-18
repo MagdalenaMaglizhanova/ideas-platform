@@ -252,7 +252,7 @@ is_animal(X) :- animal(X).
     }
   }, [messages]);
 
-  // System commands
+  // System commands - само със синьо
   const systemCommands = [
     { 
       label: 'Help', 
@@ -265,35 +265,35 @@ is_animal(X) :- animal(X).
       label: 'Load Test', 
       query: "load_all", 
       icon: <Download className="w-4 h-4" />,
-      gradient: "from-emerald-500 to-green-500",
+      gradient: "from-blue-500 to-cyan-500", // Променено
       tooltip: 'Load all Prolog files from test domain'
     },
     { 
       label: 'List Files', 
       query: "list_files", 
       icon: <List className="w-4 h-4" />,
-      gradient: "from-rose-500 to-pink-500",
+      gradient: "from-blue-500 to-cyan-500", // Променено
       tooltip: 'List all loaded files'
     },
     { 
       label: 'Clear Facts', 
       query: "clear_all_facts", 
       icon: <Trash2 className="w-4 h-4" />,
-      gradient: "from-red-500 to-rose-500",
+      gradient: "from-orange-500 to-amber-500", // Променено на оранжево
       tooltip: 'Clear all loaded facts'
     },
     { 
       label: 'Current File', 
       query: "current_file", 
       icon: <FileCode className="w-4 h-4" />,
-      gradient: "from-purple-500 to-violet-500",
+      gradient: "from-blue-500 to-cyan-500", // Променено
       tooltip: 'Show current active file'
     },
     { 
       label: 'List Predicates', 
       query: "list_predicates", 
       icon: <CodeIcon className="w-4 h-4" />,
-      gradient: "from-cyan-500 to-teal-500",
+      gradient: "from-blue-500 to-cyan-500", // Променено
       tooltip: 'List all available predicates'
     },
   ];
@@ -310,7 +310,7 @@ is_animal(X) :- animal(X).
       label: 'Reconsult File', 
       query: `reconsult_file('${fileNameInput}')`, 
       icon: <RefreshCw className="w-4 h-4" />,
-      gradient: "from-purple-500 to-violet-500"
+      gradient: "from-orange-500 to-amber-500" // Променено на оранжево
     },
   ];
 
@@ -543,7 +543,7 @@ is_animal(X) :- animal(X).
       .split("\n")
       .map(line => {
         if (line.trim().startsWith("%")) return `<span class="text-green-600 dark:text-green-400">${line}</span>`;
-        if (line.includes(":-")) return `<span class="text-purple-600 dark:text-purple-400">${line}</span>`;
+        if (line.includes(":-")) return `<span class="text-orange-600 dark:text-orange-400">${line}</span>`; // Променено на оранжево
         if (line.trim().endsWith(".")) return `<span class="text-blue-600 dark:text-blue-400">${line}</span>`;
         if (line.includes("?-")) return `<span class="text-orange-600 dark:text-orange-400">${line}</span>`;
         return line;
@@ -626,12 +626,12 @@ is_animal(X) :- animal(X).
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
               <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-lg shadow-blue-500/20">
-    <img 
-      src={logoShevici} 
-      alt="Logo" 
-      className="w-full h-full object-cover"
-    />
-  </div>
+                <img 
+                  src={logoShevici} 
+                  alt="Logo" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <span>Prolog Test Assistant</span>
             </h1>
             <p className={`mt-2 ${currentTheme.textSecondary}`}>
@@ -666,7 +666,7 @@ is_animal(X) :- animal(X).
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs - само със синьо за активен */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2">
             {[
@@ -678,7 +678,7 @@ is_animal(X) :- animal(X).
                 onClick={() => setActiveTab(item.id as "chat" | "code")}
                 className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
                   activeTab === item.id
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' // Променено на синьо
                     : theme === 'dark'
                     ? 'bg-white/5 hover:bg-white/10'
                     : 'bg-gray-100 hover:bg-gray-200'
@@ -691,9 +691,9 @@ is_animal(X) :- animal(X).
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - опростени до 2 цвята */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Card 1: Total Queries */}
+          {/* Card 1: Total Queries - СИНЬО */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -714,7 +714,7 @@ is_animal(X) :- animal(X).
             <div className={currentTheme.textSecondary}>Your Queries</div>
           </motion.div>
 
-          {/* Card 2: System Messages */}
+          {/* Card 2: System Messages - СИНЬО */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -722,8 +722,8 @@ is_animal(X) :- animal(X).
             className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center`}>
-                <Terminal className="w-6 h-6 text-purple-400" />
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center`}> {/* Променено */}
+                <Terminal className="w-6 h-6 text-blue-400" /> {/* Променено */}
               </div>
               <span className={`text-sm px-2 py-1 rounded-lg ${
                 theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
@@ -735,7 +735,7 @@ is_animal(X) :- animal(X).
             <div className={currentTheme.textSecondary}>System Messages</div>
           </motion.div>
 
-          {/* Card 3: Loaded Files */}
+          {/* Card 3: Loaded Files - ОРАНЖЕВО */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -743,8 +743,8 @@ is_animal(X) :- animal(X).
             className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 flex items-center justify-center`}>
-                <FileText className="w-6 h-6 text-amber-400" />
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-orange-500/20 to-amber-500/20 flex items-center justify-center`}> {/* Променено */}
+                <FileText className="w-6 h-6 text-orange-400" /> {/* Променено */}
               </div>
               <span className={`text-sm px-2 py-1 rounded-lg ${
                 theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
@@ -756,22 +756,26 @@ is_animal(X) :- animal(X).
             <div className={currentTheme.textSecondary}>Loaded Files</div>
           </motion.div>
 
-          {/* Card 4: Test Domain Button */}
+          {/* Card 4: Test Domain Button - СИНЬО за активен, ОРАНЖЕВО за неактивен */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card} cursor-pointer hover:scale-[1.02] transition-transform duration-300 ${
-              selectedDomain === "test" ? 'ring-2 ring-green-500/50' : ''
+              selectedDomain === "test" ? 'ring-2 ring-blue-500/50' : '' // Променено на синьо
             }`}
             onClick={loadDomain}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center`}>
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${
+                selectedDomain === "test" 
+                  ? 'from-blue-500/20 to-cyan-500/20' // Синьо за активен
+                  : 'from-orange-500/20 to-amber-500/20' // Оранжево за неактивен
+              } flex items-center justify-center`}>
                 {selectedDomain === "test" ? (
-                  <CheckCircle className="w-6 h-6 text-green-400" />
+                  <CheckCircle className="w-6 h-6 text-blue-400" /> // Променено на синьо
                 ) : (
-                  <Globe className="w-6 h-6 text-green-400" />
+                  <Globe className="w-6 h-6 text-orange-400" /> // Променено на оранжево
                 )}
               </div>
               <span className={`text-sm px-2 py-1 rounded-lg ${
@@ -787,13 +791,13 @@ is_animal(X) :- animal(X).
                   Loading...
                 </span>
               ) : (
-                selectedDomain === "test" ? "Test Domain" : "Test Domain"
+                "Test Domain"
               )}
             </div>
             <div className={`flex items-center gap-2 ${currentTheme.textSecondary}`}>
               {selectedDomain === "test" ? (
                 <>
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div> {/* Променено на синьо */}
                   <span>Ready for queries</span>
                 </>
               ) : (
@@ -816,7 +820,7 @@ is_animal(X) :- animal(X).
               className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center"> {/* Променено */}
                   <FolderOpen className="w-5 h-5 text-blue-400" />
                 </div>
                 <h3 className="text-xl font-bold">Loaded Files</h3>
@@ -840,7 +844,7 @@ is_animal(X) :- animal(X).
                           {file.name}
                         </button>
                         {currentFileName === file.name && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500 flex-shrink-0 ml-auto">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 flex-shrink-0 ml-auto"> {/* Променено на синьо */}
                             active
                           </span>
                         )}
@@ -917,8 +921,8 @@ is_animal(X) :- animal(X).
                   {/* File Commands */}
                   <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                        <FileCode className="w-4 h-4 text-purple-400" />
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center"> {/* Променено */}
+                        <FileCode className="w-4 h-4 text-blue-400" /> {/* Променено */}
                       </div>
                       <h4 className="font-bold">File Commands</h4>
                     </div>
@@ -974,8 +978,8 @@ is_animal(X) :- animal(X).
                   <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                          <MessageSquare className="w-5 h-5 text-green-400" />
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center"> {/* Променено */}
+                          <MessageSquare className="w-5 h-5 text-blue-400" /> {/* Променено */}
                         </div>
                         <div>
                           <h3 className="text-xl font-bold">Test Chat Assistant</h3>
@@ -1006,7 +1010,7 @@ is_animal(X) :- animal(X).
                       <div className="h-full flex flex-col items-center justify-center text-center py-12">
                         {!selectedDomain ? (
                           <>
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4"> {/* Променено */}
                               <Globe className="w-8 h-8 text-blue-500" />
                             </div>
                             <h3 className="text-xl font-bold mb-2">Connect to Test Domain</h3>
@@ -1018,8 +1022,8 @@ is_animal(X) :- animal(X).
                               disabled={isLoadingDomain}
                               className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 ${
                                 theme === 'dark'
-                                  ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400'
-                                  : 'bg-green-100 hover:bg-green-200 text-green-700'
+                                  ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' // Променено на синьо
+                                  : 'bg-blue-100 hover:bg-blue-200 text-blue-700' // Променено на синьо
                               } disabled:opacity-50`}
                             >
                               <Globe className="w-5 h-5" />
@@ -1028,8 +1032,8 @@ is_animal(X) :- animal(X).
                           </>
                         ) : (
                           <>
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center mb-4">
-                              <MessageSquare className="w-8 h-8 text-green-500" />
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4"> {/* Променено */}
+                              <MessageSquare className="w-8 h-8 text-blue-500" /> {/* Променено */}
                             </div>
                             <h3 className="text-xl font-bold mb-2">Start Testing</h3>
                             <p className={`mb-6 ${currentTheme.textSecondary}`}>
@@ -1067,7 +1071,7 @@ is_animal(X) :- animal(X).
                             <div className={`max-w-[80%] ${msg.user ? 'ml-auto' : ''}`}>
                               <div className={`rounded-2xl p-4 ${
                                 msg.user
-                                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' // Променено на синьо
                                   : theme === 'dark' 
                                     ? 'bg-gray-800/50 border border-gray-700'
                                     : 'bg-gray-50 border border-gray-200'
@@ -1154,7 +1158,7 @@ is_animal(X) :- animal(X).
                         className={`absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 rounded-xl flex items-center gap-2 transition-all ${
                           isLoading || isLoadingDomain || !query.trim() || !selectedDomain
                             ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg text-white'
+                            : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:shadow-lg text-white' // Променено на синьо
                         }`}
                       >
                         {isLoading ? (
@@ -1177,7 +1181,7 @@ is_animal(X) :- animal(X).
                           <span>•</span>
                           <div className="flex items-center gap-1">
                             <Database className="w-3 h-3" />
-                            <span>Connected to: <span className="font-bold">test</span></span>
+                            <span>Connected to: <span className="font-bold text-blue-400">test</span></span> {/* Променено */}
                           </div>
                         </>
                       )}
@@ -1210,8 +1214,8 @@ is_animal(X) :- animal(X).
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                        <FileCode className="w-5 h-5 text-purple-400" />
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center"> {/* Променено */}
+                        <FileCode className="w-5 h-5 text-blue-400" /> {/* Променено */}
                       </div>
                       <div>
                         <h3 className="text-xl font-bold">
@@ -1256,7 +1260,7 @@ is_animal(X) :- animal(X).
                           <>
                             <button
                               onClick={handleSaveCode}
-                              className={`px-4 py-2 rounded-lg flex items-center gap-2 bg-green-500 text-white hover:bg-green-600 transition-colors`}
+                              className={`px-4 py-2 rounded-lg flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg transition-colors`} // Променено
                               title="Save changes"
                             >
                               <Save className="w-4 h-4" />
@@ -1289,7 +1293,7 @@ is_animal(X) :- animal(X).
                       </div>
                       <div className="flex items-center gap-1">
                         <Database className="w-4 h-4" />
-                        <span>test</span>
+                        <span className="text-blue-400">test</span> {/* Променено */}
                       </div>
                       <div className="flex items-center gap-1">
                         <CodeIcon className="w-4 h-4" />
@@ -1316,8 +1320,8 @@ is_animal(X) :- animal(X).
                         onClick={() => sendQuery(`consult_file('${currentFileName}')`)}
                         className={`text-xs flex items-center gap-1 px-3 py-1 rounded-lg ${
                           theme === 'dark' 
-                            ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' 
-                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                            ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' // Променено
+                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200' // Променено
                         } transition-colors`}
                       >
                         <RefreshCw className="w-3 h-3" />
@@ -1346,7 +1350,7 @@ is_animal(X) :- animal(X).
                         </p>
                         <button
                           onClick={() => setActiveTab("chat")}
-                          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:shadow-lg`}
+                          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg`} // Променено
                         >
                           <MessageSquare className="w-4 h-4" />
                           Go to Chat

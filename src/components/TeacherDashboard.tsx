@@ -1,24 +1,41 @@
-import { useEffect, useState, type JSX } from "react";
-import { motion } from "framer-motion";
+// src/pages/TeacherDashboard.tsx
+import React, { useEffect, useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Target,
-  Brain, Users as GroupIcon, Coffee, 
-  Sparkles, ChevronRight,
+   Users as GroupIcon, Coffee, 
+   ChevronRight,
   BarChart3, X,
   BookOpen, Calendar,
-  Upload, FileCode, FileText,
-  Folder, Search, Download, Eye,
-  Edit, Trash2,
+  Upload, FileCode, 
+  Folder,  Download, Eye,
   GraduationCap, FolderOpen,
-  Plus, RefreshCw, FileUp,
+  Plus, RefreshCw,
   Activity,
-  Bell,
   MessageCircle,
   Send,
-  UserPlus,
+  Star,
+  Home,
+  Mail,
+  Users2,
+  Award,
+  BookMarked,
+  FileCheck,
+  UserCircle,
+  Inbox,
+  LogOut,
+  CheckCircle,
+  TrendingUp,
+  Clock,
+  Trophy,
+  Zap,
+  Globe,
+  Book,
+  LineChart,
   Hash,
-  Star
+  UserPlus
 } from "lucide-react";
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -34,24 +51,25 @@ import {
   getDocs,
   doc,
   updateDoc,
-  deleteDoc,
   limit,
   setDoc,
   arrayUnion,
   arrayRemove,
   getDoc,
-  writeBatch
+  writeBatch,
+  deleteDoc
 } from "firebase/firestore";
 import { supabase } from "../services/supabase";
 import MessagesTab from "../components/MessagesTab";
 import AssignmentGradingModal from "./AssignmentGradingModal";
-import LessonViewModal from "../components/LessonViewModal";
-import LessonFormModal from "../components/LessonFormModal";
 import TeacherChallenges from './TeacherChallenges';
 import type { ChallengeNotification } from './TeacherChallenges';
 import TeacherAssignments from './TeacherAssignments';
+import TeacherLessons from './TeacherLessons';
+import Header from "../components/Header";
+import StatsChart from "../components/StatsChart";
 
-// Общност
+// Интерфейси
 interface Community {
   id: string;
   name: string;
@@ -76,7 +94,6 @@ interface Community {
   };
 }
 
-//Уроци
 export interface Lesson {
   id: string;
   title: string;
@@ -111,7 +128,6 @@ export interface Lesson {
   totalRatings?: number;
 }
 
-// интерфейс за съобщения
 interface Message {
   id: string;
   senderId: string;
@@ -122,7 +138,17 @@ interface Message {
   content: string;
   timestamp: any;
   read: boolean;
-  type: 'direct' | 'community' | 'broadcast' | string; // Добавете | string
+  type: 'direct' | 'community' | 'broadcast' | string;
+  status?: 'starred' | 'important' | 'read' | 'unread' | 'draft' | 'sent' | 'archived';
+  subject?: string;
+  attachments?: Array<{
+    name: string;
+    url: string;
+    size: number;
+    type: string;
+  }>;
+  labels?: string[];
+  pinned?: boolean;
 }
 
 interface StudentFile {
@@ -142,7 +168,6 @@ interface StudentFile {
   feedback?: string;
 }
 
-//Ученици
 interface Student {
   username: string;
   files: StudentFile[];
@@ -171,29 +196,69 @@ interface ActivityLog {
   status?: string;
 }
 
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  teacherId: string;
+  teacherName: string;
+  communityId?: string;
+  communityName?: string;
+  createdAt: any;
+  deadline?: any;
+  points: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  status: 'active' | 'completed' | 'expired';
+  participants: number;
+  submissions: number;
+  completedBy: string[];
+  type: 'individual' | 'team' | 'community';
+  category: string;
+  instructions: string;
+  starterCode?: string;
+  testCases?: Array<{ input: string; output: string }>;
+  hints?: string[];
+}
+
+interface Grade {
+  id: string;
+  studentId: string;
+  studentName: string;
+  assignmentId: string;
+  assignmentTitle: string;
+  points: number;
+  maxPoints: number;
+  feedback: string;
+  gradedAt: any;
+  gradedBy: string;
+  teacherName: string;
+}
+
+interface UserData {
+  uid: string;
+  username: string;
+  email: string;
+  role: string;
+  fullName?: string;
+  avatar?: string;
+  communityId?: string;
+  communityStatus?: string;
+  lastSeen?: any;
+  online?: boolean;
+}
+
 const folders = ["animals", "geography", "history", "mineralwater", "balkan"];
-const courses = [
-  { id: 1, title: "Prolog Basics", description: "Introduction to Prolog programming", progress: 70, color: "#FF6B8B", icon: "💻" },
-  { id: 2, title: "Expert Systems", description: "Build intelligent systems", progress: 45, color: "#36D1DC", icon: "🧠" },
-  { id: 3, title: "Logical Rules", description: "Advanced logic programming", progress: 85, color: "#FFD166", icon: "⚡" },
-  { id: 4, title: "AI Fundamentals", description: "Artificial Intelligence basics", progress: 30, color: "#9D4EDD", icon: "🤖" },
-  { id: 5, title: "Data Structures", description: "Prolog data organization", progress: 60, color: "#4CC9F0", icon: "🗂️" },
-  { id: 6, title: "Problem Solving", description: "Solve real-world problems", progress: 25, color: "#FF9E6D", icon: "🎯" },
-];
 
 export default function TeacherDashboard() {
-  const { user: _currentUser, userData } = useAuth();
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   // State променливи
-  const [allUsers, setAllUsers] = useState<Array<{
-    uid: string;
-    username: string;
-    email: string;
-    role: string;
-  }>>([]);
+  const [sidebarOpen, _setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [allUsers, setAllUsers] = useState<UserData[]>([]);
 
   const [assignmentStats, setAssignmentStats] = useState({ total: 0, active: 0 });
   const [activeThread, setActiveThread] = useState<string | null>(null);
@@ -205,17 +270,7 @@ export default function TeacherDashboard() {
   const [showMessaging, setShowMessaging] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [newMessage, setNewMessage] = useState("");
-  const [showNotifications, setShowNotifications] = useState(false); 
-  const [allSystemUsers, setAllSystemUsers] = useState<Array<{
-    uid: string;
-    username: string;
-    email: string;
-    role: string;
-    fullName?: string;
-    class?: string;
-    communityId?: string;
-    communityStatus?: string;
-  }>>([]);
+  const [allSystemUsers, setAllSystemUsers] = useState<UserData[]>([]);
   
   // Community form state
   const [communityForm, setCommunityForm] = useState({
@@ -230,7 +285,7 @@ export default function TeacherDashboard() {
     allowInterCommunityChallenges: true
   });
   
-  // state променливи
+  // Основни state променливи
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState("general");
   const [uploadStatus, setUploadStatus] = useState("");
@@ -241,513 +296,146 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [viewingStudentFiles, setViewingStudentFiles] = useState<string | null>(null);
-  const [newLesson, setNewLesson] = useState({ title: '', description: '' });
   const [_activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [challengeNotifications, setChallengeNotifications] = useState<ChallengeNotification[]>([]);
-  // States for lessons
-const [lessons, setLessons] = useState<Lesson[]>([]);
-const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
-const [showLessonForm, setShowLessonForm] = useState(false);
-const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
-const [lessonSearch, setLessonSearch] = useState('');
-const [lessonFilter, setLessonFilter] = useState('all'); 
-const [notifications, setNotifications] = useState<any[]>([]);
-const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-
-useEffect(() => {
-  if (!user) return;
+  const [_challengeNotifications, setChallengeNotifications] = useState<ChallengeNotification[]>([]);
   
-  const notificationsQuery = query(
-    collection(db, "notifications"),
-    where("userId", "==", user.uid),
-    orderBy("timestamp", "desc"),
-    limit(50)
-  );
-  
-  const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
-    const notificationsData: any[] = [];
-    
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      notificationsData.push({
-        id: doc.id,
-        ...data
-      });
-    });
-    
-    setNotifications(notificationsData);
-    setUnreadNotificationsCount(notificationsData.filter(n => !n.read).length);
-  });
-  
-  return () => unsubscribe();
-}, [user]);
-
-// Зареждане на уроците
-const loadLessons = async () => {
-  if (!user) return;
-  
-  try {
-    const q = query(
-      collection(db, "lessons"),
-      where("teacherId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-    
-    const snapshot = await getDocs(q);
-    const lessonsData: Lesson[] = [];
-    
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      lessonsData.push({
-        id: doc.id,
-        title: data.title,
-        description: data.description,
-        content: data.content || "",
-        teacherId: data.teacherId,
-        teacherName: data.teacherName,
-        teacherAvatar: data.teacherAvatar,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-        category: data.category || t?.('programming') || "Programming",
-        color: data.color || "#3B82F6",
-        icon: data.icon || "📚",
-        status: data.status || 'draft',
-        tags: data.tags || [],
-        attachments: data.attachments || [],
-        estimatedTime: data.estimatedTime || '1 hour',
-        difficulty: data.difficulty || 'beginner',
-        visibility: data.visibility || 'private',
-        language: data.language || 'en',
-        prerequisites: data.prerequisites || [],
-        learningObjectives: data.learningObjectives || [],
-        views: data.views || 0,
-        likes: data.likes || [],
-        students: data.students || [],
-        rating: data.rating || 0,
-        totalRatings: data.totalRatings || 0
-      });
-    });
-    
-    setLessons(lessonsData);
-  } catch (error) {
-    console.error("Error loading lessons:", error);
-  }
-};
-
-// Запазване на урок
-const handleSaveLesson = async (lessonData: any) => {
-  if (!user) return;
-
-  try {
-    if (editingLesson) {
-      await updateDoc(doc(db, "lessons", editingLesson.id), {
-        ...lessonData,
-        updatedAt: serverTimestamp()
-      });
-      setUploadStatus("✅ " + (t?.('lesson_updated') || "Lesson updated successfully!"));
-    } else {
-      await addDoc(collection(db, "lessons"), {
-        ...lessonData,
-        teacherId: user.uid,
-        teacherName: userData?.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
-        teacherAvatar: userData?.avatar || "",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        views: 0,
-        likes: [],
-        students: [],
-        rating: 0,
-        totalRatings: 0
-      });
-      setUploadStatus("✅ " + (t?.('lesson_created') || "Lesson created successfully!"));
-    }
-    
-    loadLessons();
-  } catch (error) {
-    console.error("Error saving lesson:", error);
-    setUploadStatus("❌ " + (t?.('error_saving_lesson') || "Error saving lesson!"));
-  }
-};
-
-// Изтриване на урок
-const handleDeleteLesson = async (lessonId: string) => {
-  if (!window.confirm(t?.('confirm_delete_lesson') || "Are you sure you want to delete this lesson?")) return;
-  
-  try {
-    await deleteDoc(doc(db, "lessons", lessonId));
-    setUploadStatus("✅ " + (t?.('lesson_deleted') || "Lesson deleted successfully!"));
-    loadLessons();
-    setViewingLesson(null);
-  } catch (error) {
-    console.error("Error deleting lesson:", error);
-    setUploadStatus("❌ " + (t?.('error_deleting_lesson') || "Error deleting lesson!"));
-  }
-};
-
-// Филтриране на уроци
-const filteredLessons = lessons.filter(lesson => {
-  const matchesSearch = lessonSearch === '' || 
-    lesson.title.toLowerCase().includes(lessonSearch.toLowerCase()) ||
-    lesson.description.toLowerCase().includes(lessonSearch.toLowerCase()) ||
-    lesson.tags.some(tag => tag.toLowerCase().includes(lessonSearch.toLowerCase()));
-  
-  const matchesFilter = lessonFilter === 'all' || lesson.status === lessonFilter;
-  
-  return matchesSearch && matchesFilter;
-});
-
-useEffect(() => {
-  if (selectedTab === "courses" && user) {
-    loadLessons();
-  }
-}, [selectedTab, user]);
-
-  // Grading states
-  const [_selectedPoints, setSelectedPoints] = useState<{[key: string]: number}>({});
-  const [_feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
-
-
-const [gradingModal, setGradingModal] = useState<{
-  isOpen: boolean;
-  studentName: string;
-  studentId: string;
-  files: StudentFile[];
-  assignmentId?: string;
-}>({
-  isOpen: false,
-  studentName: '',
-  studentId: '',
-  files: [],
-  assignmentId: undefined
-});
-
-// Нова функция за запазване на оценката
-// Нова функция за запазване на оценката
-const handleSaveGrade = async (gradingData: {
-  points: number;
-  feedback: string;
-  assignmentId: string;
-  fileId: string;
-  studentId: string;
-}): Promise<void> => {
-  try {
-    console.log("Saving grade...", gradingData);
-
-    const serverTime = serverTimestamp();
-
-    const fileDoc = await getDoc(doc(db, "prologCodes", gradingData.fileId));
-    const fileData = fileDoc.exists() ? fileDoc.data() : null;
-    
-    const studentDoc = await getDoc(doc(db, "users", gradingData.studentId));
-    const studentData = studentDoc.exists() ? studentDoc.data() : null;
-    
-    const assignmentDoc = await getDoc(doc(db, "assignments", gradingData.assignmentId));
-    const assignmentData = assignmentDoc.exists() ? assignmentDoc.data() : null;
-
-    const fileRef = doc(db, "prologCodes", gradingData.fileId);
-    await updateDoc(fileRef, {
-      points: gradingData.points,
-      feedback: gradingData.feedback,
-      gradedAt: serverTime,
-      gradedBy: user?.uid,
-      status: 'graded',
-      teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"
-    });
-
-    const gradeRef = doc(collection(db, "grades"));
-    
-    const gradeData = {
-      ...gradingData,
-      fileName: fileData?.originalFileName || fileData?.title || t?.('unknown_file') || "Unknown file",
-      fileCreatedAt: fileData?.createdAt,
-      fileFolder: fileData?.folder || "general",
-      studentName: studentData?.fullName || 
-                  studentData?.email?.split('@')[0] || 
-                  t?.('unknown_student') || "Unknown Student",
-      studentEmail: studentData?.email || "",
-      studentClass: studentData?.class || "N/A",
-      assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment",
-      assignmentDescription: assignmentData?.description || t?.('no_description') || "No description",
-      assignmentDifficulty: assignmentData?.difficulty || "medium",
-      assignmentPoints: assignmentData?.points || 100,
-      teacherId: user?.uid,
-      teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher",
-      teacherInstitution: userData?.institution || "Unknown",
-      gradedAt: serverTime,
-      createdAt: serverTime,
-      maxPoints: 10,
-      gradePercentage: (gradingData.points / 10) * 100,
-      status: 'graded',
-      category: assignmentData?.category || fileData?.folder || "general",
-      subject: assignmentData?.subject || "prolog"
-    };
-
-    await setDoc(gradeRef, gradeData);
-
-    const userRef = doc(db, "users", gradingData.studentId);
-    const userDocSnap = await getDoc(userRef);
-    
-    if (userDocSnap.exists()) {
-      const currentUser = userDocSnap.data();
-      const currentGrades = currentUser.grades || [];
-      
-      const newGrade = {
-        points: gradingData.points,
-        feedback: gradingData.feedback,
-        assignmentId: gradingData.assignmentId,
-        assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment",
-        fileId: gradingData.fileId,
-        fileName: fileData?.originalFileName || t?.('unknown_file') || "Unknown file",
-        gradedAt: new Date().toISOString(),
-        gradedBy: user?.uid,
-        teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher",
-        maxPoints: 10,
-        gradeId: gradeRef.id
-      };
-      
-      const existingGradeIndex = currentGrades.findIndex((g: any) => 
-        g.fileId === gradingData.fileId && g.assignmentId === gradingData.assignmentId
-      );
-      
-      if (existingGradeIndex >= 0) {
-        currentGrades[existingGradeIndex] = newGrade;
-      } else {
-        currentGrades.push(newGrade);
-      }
-      
-      await updateDoc(userRef, {
-        grades: currentGrades,
-        lastGraded: serverTime,
-        totalGrades: currentGrades.length,
-        averageGrade: currentGrades.length > 0 
-          ? currentGrades.reduce((sum: number, grade: any) => sum + (grade.points || 0), 0) / currentGrades.length
-          : 0
-      });
-    }
-
-    setStudents(prev => prev.map(student => {
-      if (student.uid === gradingData.studentId) {
-        const updatedFiles = student.files.map(file => 
-          file.id === gradingData.fileId 
-            ? { 
-                ...file, 
-                points: gradingData.points, 
-                feedback: gradingData.feedback,
-                gradedAt: new Date(),
-                gradedBy: user?.uid,
-                teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"
-              }
-            : file
-        );
-        
-        const newAveragePoints = updatedFiles.length > 0 
-          ? updatedFiles.reduce((sum, file) => sum + (file.points || 0), 0) / updatedFiles.length
-          : 0;
-        
-        return {
-          ...student,
-          files: updatedFiles,
-          averagePoints: newAveragePoints,
-          status: newAveragePoints >= 7 ? 'active' : 
-                  newAveragePoints >= 5 ? 'warning' : 'inactive'
-        };
-      }
-      return student;
-    }));
-
-    // 🔥 АКТУАЛИЗИРАНА ЧАСТ: Изпращане на нотификация в НОВАТА КОЛЕКЦИЯ "notifications"
-    try {
-      // Създайте нотификация в НОВАТА КОЛЕКЦИЯ "notifications"
-      const notificationRef = doc(collection(db, 'notifications'));
-      await setDoc(notificationRef, {
-        userId: gradingData.studentId,
-        type: 'grade',
-        title: t?.('grade_received') || '📊 Получена оценка',
-        message: (t?.('grade_notification') || 'Your work "{file}" has been graded. Points: {points}/10. Feedback: {feedback}')
-          .replace('{file}', fileData?.originalFileName || 'file')
-          .replace('{points}', gradingData.points.toString())
-          .replace('{feedback}', gradingData.feedback.substring(0, 50) + (gradingData.feedback.length > 50 ? '...' : '')),
-        timestamp: serverTime,
-        read: false,
-        data: {
-          gradeId: gradeRef.id,
-          assignmentId: gradingData.assignmentId,
-          assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment",
-          fileId: gradingData.fileId,
-          fileName: fileData?.originalFileName || 'file',
-          points: gradingData.points,
-          maxPoints: 10,
-          teacherId: user?.uid,
-          teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"
-        },
-        actionUrl: '/dashboard/student?tab=grades'
-      });
-      
-      console.log("✅ Grade notification sent to student via notifications collection");
-    } catch (notificationError) {
-      console.error("❌ Error sending grade notification:", notificationError);
-    }
-
-    // Запазете и в activityLogs за проследяване (това остава в messages)
-    try {
-      await addDoc(collection(db, "activityLogs"), {
-        userId: gradingData.studentId,
-        userName: studentData?.fullName || studentData?.email?.split('@')[0] || t?.('student') || "Student",
-        teacherId: user?.uid,
-        teacherName: userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher",
-        action: t?.('grade_assigned') || "Grade Assigned",
-        details: (t?.('grade_assigned_details') || 'Assigned {points}/10 points for "{file}"')
-          .replace('{points}', gradingData.points.toString())
-          .replace('{file}', fileData?.originalFileName || 'file'),
-        target: `grade_${gradeRef.id}`,
-        actionType: "grading",
-        timestamp: serverTime,
-        metadata: {
-          points: gradingData.points,
-          assignmentId: gradingData.assignmentId,
-          fileId: gradingData.fileId,
-          assignmentTitle: assignmentData?.title || t?.('general_assignment') || "General Assignment"
-        }
-      });
-    } catch (logError) {
-      console.error("Error adding activity log:", logError);
-    }
-    
-    setUploadStatus("✅ " + (t?.('grade_saved') || "Grade saved successfully! Student has been notified."));
-    return;
-    
-  } catch (error) {
-    console.error("Error saving grade:", error);
-    
-    const errorDetails = error instanceof Error ? {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    } : String(error);
-    console.error("Error details:", errorDetails);
-    setUploadStatus("❌ " + (t?.('error_saving_grade') || "Error saving grade! Check console for details."));
-    throw new Error(`Failed to save grade: ${errorDetails}`);
-  }
-};
-
-// Helper функция за изчисляване на средна оценка
-const calculateAveragePoints = (grades: any[]): number => {
-  if (grades.length === 0) return 0;
-  
-  const sum = grades.reduce((total, grade) => {
-    return total + (grade.points || grade.grade || 0);
-  }, 0);
-  
-  return parseFloat((sum / grades.length).toFixed(1));
-};
-console.log(calculateAveragePoints)
-// Функция за отваряне на модала за оценяване
-const openGradingModal = (student: Student, assignmentId?: string) => {
-  setGradingModal({
-    isOpen: true,
-    studentName: student.username,
-    studentId: student.uid || '',
-    files: student.files,
-    assignmentId
-  });
-};
-
   // UI states
   const [activeRecommendation, setActiveRecommendation] = useState<number | null>(null);
   
-  // Statistics states
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    activeStudents: 0,
-    pendingApprovals: 0,
-    totalSubmissions: 0,
-    averagePoints: 0,
-    successRate: 0,
-    lessonProgress: 0,
-    communityMembers: 0,
-    activeChallenges: 0
-  });
+  // Нови state за началния изглед
+  const [recentChallenges, setRecentChallenges] = useState<Challenge[]>([]);
+  const [topStudents, setTopStudents] = useState<Array<Student & { totalPoints: number }>>([]);
+  const [recentLessons, setRecentLessons] = useState<Lesson[]>([]);
+  const [recentGrades, setRecentGrades] = useState<Grade[]>([]);
+  const [recentMessages, setRecentMessages] = useState<Message[]>([]);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
   
-  const handleMarkNotificationAsRead = async (notificationId: string) => {
-  try {
-    const notificationRef = doc(db, 'notifications', notificationId);
-    await updateDoc(notificationRef, { 
-      read: true,
-      readAt: serverTimestamp() 
-    });
-    
-    // Локално обновяване на state-а
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, read: true } : n
-      )
-    );
-    setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
-    
-  } catch (error) {
-    console.error("Error marking notification as read:", error);
-  }
-};
+  // States за уроци
+  const [lessonStats, setLessonStats] = useState({ total: 0, published: 0, draft: 0 });
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [challengeStats, setChallengeStats] = useState({ total: 0, active: 0, completed: 0 });
+  const [communityActivity, setCommunityActivity] = useState<Array<{
+    communityId: string;
+    communityName: string;
+    activity: number;
+    submissions: number;
+  }>>([]);
 
-  // Theme classes
-  const themeClasses = {
+  // Grading states
+  const [_selectedPoints, _setSelectedPoints] = useState<{[key: string]: number}>({});
+  const [_feedbackText, _setFeedbackText] = useState<{[key: string]: string}>({});
+
+  const [gradingModal, setGradingModal] = useState<{
+    isOpen: boolean;
+    studentName: string;
+    studentId: string;
+    files: StudentFile[];
+    assignmentId?: string;
+  }>({
+    isOpen: false,
+    studentName: '',
+    studentId: '',
+    files: [],
+    assignmentId: undefined
+  });
+
+  // Refs за проследяване на зареждането
+  const isDataLoaded = useRef({
+    communities: false,
+    students: false,
+    challenges: false,
+    lessons: false,
+    grades: false,
+    activity: false,
+    assignments: false
+  });
+
+  // ОПТИМИЗИРАНА ЦВЕТОВА ПАЛИТРА
+  const colorScheme = {
+    primary: "#3B82F6",    // синьо (основен за бутони)
+    secondary: "#F97316",  // оранжево (вторичен за акценти)
+    accent: "#22C55E",     // зелено (акцент за успех)
+    danger: "#EF4444",     // червено (само за грешки)
+    purple: "#A855F7",     // лилаво
+    pink: "#EC4899",       // розово
+    teal: "#14B8A6",       // тюркоазено
     light: {
-      background: "bg-gray-50",
+      bg: "bg-gray-50",
       text: "text-gray-900",
-      sidebar: "bg-white border-gray-200",
-      card: "bg-white border-gray-200",
-      input: "bg-white border-gray-300",
-      hover: "hover:bg-gray-100",
+      card: "bg-white",
+      border: "border-gray-200",
+      hover: "hover:bg-gray-100"
     },
     dark: {
-      background: "bg-gray-900",
+      bg: "bg-gray-900",
       text: "text-white",
-      sidebar: "bg-gray-800 border-gray-700",
-      card: "bg-gray-800 border-gray-700",
-      input: "bg-gray-700 border-gray-600",
-      hover: "hover:bg-gray-700",
+      card: "bg-gray-800",
+      border: "border-gray-700",
+      hover: "hover:bg-gray-700"
     }
   };
 
-  const currentTheme = themeClasses[theme];
-  
-  // Зареждане на всички потребители
-  const loadAllUsers = async () => {
-    try {
-      const usersQuery = query(collection(db, "users"));
-      const usersSnapshot = await getDocs(usersQuery);
+  const currentTheme = theme === 'dark' ? colorScheme.dark : colorScheme.light;
+
+  // ⭐ СИНХРОНИЗИРАНЕ НА TAB С URL ПАРАМЕТРИ ⭐
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab && ['dashboard', 'students', 'communities', 'courses', 'assignments', 'challenges', 'submissions', 'file-upload', 'messages'].includes(tab)) {
+      setSelectedTab(tab);
+    }
+  }, [location.search]);
+
+  // СЛУШАТЕЛ ЗА НОТИФИКАЦИИ
+  useEffect(() => {
+    if (!user) return;
+    
+    const notificationsQuery = query(
+      collection(db, "notifications"),
+      where("userId", "==", user.uid),
+      orderBy("timestamp", "desc"),
+      limit(50)
+    );
+    
+    const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+      const notificationsData: any[] = [];
       
-      const usersData: Array<{
-        uid: string;
-        username: string;
-        email: string;
-        role: string;
-      }> = [];
-      
-      usersSnapshot.forEach((doc) => {
-        const user = doc.data();
-        usersData.push({
-          uid: doc.id,
-          username: user.fullName || user.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
-          email: user.email || "",
-          role: user.role || 'student'
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        notificationsData.push({
+          id: doc.id,
+          ...data
         });
       });
       
-      setAllUsers(usersData);
+      setNotifications(notificationsData);
+      setUnreadNotificationsCount(notificationsData.filter(n => !n.read).length);
+    });
+    
+    return () => unsubscribe();
+  }, [user]);
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      const { signOut } = await import('firebase/auth');
+      const { auth } = await import('../services/firebase');
+      await signOut(auth);
     } catch (error) {
-      console.error("Error loading all users:", error);
+      console.error(t('logout_failed') || 'Logout failed:', error);
     }
   };
 
-  // Зареждане на съобщенията
+  // СЛУШАТЕЛ ЗА СЪОБЩЕНИЯ
   useEffect(() => {
     if (!user) return;
     
     const messagesQuery = query(
       collection(db, "messages"),
       where("receiverId", "==", user.uid),
-      orderBy("timestamp", "desc")
+      orderBy("timestamp", "desc"),
+      limit(5)
     );
     
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
@@ -764,76 +452,56 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
           content: data.content,
           timestamp: data.timestamp,
           read: data.read || false,
-          type: data.type || 'direct'
+          type: data.type || 'direct',
+          subject: data.subject,
+          attachments: data.attachments,
+          labels: data.labels || [],
+          pinned: data.pinned || false
         });
       });
       
       setMessages(messagesData);
+      setRecentMessages(messagesData.slice(0, 3));
     });
     
     return () => unsubscribe();
   }, [user]);
-  
-  // Зареждане на общностите
-  useEffect(() => {
-    if (!user) return;
-    
-    const communitiesQuery = query(
-      collection(db, "communities"),
-      where("teacherId", "==", user.uid)
-    );
-    
-    const unsubscribe = onSnapshot(communitiesQuery, (snapshot) => {
-      const communitiesData: Community[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        communitiesData.push({
-          id: doc.id,
-          name: data.name,
-          description: data.description,
-          teacherId: data.teacherId,
-          institution: data.institution || userData?.institution || "Unknown",
-          gradeLevel: data.gradeLevel,
-          subject: data.subject,
-          memberCount: data.memberCount || 0,
-          studentIds: data.studentIds || [],
-          pendingRequests: data.pendingRequests || [],
-          createdAt: data.createdAt,
-          isPublic: data.isPublic || false,
-          inviteCode: data.inviteCode,
-          challenges: data.challenges || [],
-          settings: data.settings || {
-            allowStudentChallenges: false,
-            allowInterCommunityChallenges: true,
-            allowStudentMessages: true,
-            autoApproveStudents: false,
-            privacy: "private"
-          }
-        });
-      });
-      
-      setCommunities(communitiesData);
-      if (communitiesData.length > 0 && !selectedCommunity) {
-        setSelectedCommunity(communitiesData[0].id);
-      }
-      console.log("DEBUG: onSnapshot - communities updated:", {
-        count: communitiesData.length,
-        selectedCommunity
-      });
-    });
-    return () => unsubscribe();
-  }, [user, userData]);
 
-  // Зареждане на общности, предизвикателства и потребители
+  // Зареждане на общности
   useEffect(() => {
     if (userData?.role === 'teacher' && user) {
       loadCommunities();
       loadAllSystemUsers();
+    } else {
+      setCommunities([]);
+      isDataLoaded.current.communities = false;
     }
   }, [user, userData]);
 
-  // Зареждане на всички потребители в системата
+  // Зареждане на assignment stats
+  useEffect(() => {
+    if (user && communities.length > 0) {
+      loadAssignmentStats();
+    }
+  }, [user, communities]);
+
+  // Зареждане на challenge stats
+  useEffect(() => {
+    if (user) {
+      loadChallengeStats();
+    }
+  }, [user]);
+
+  // Зареждане на dashboard данни
+  useEffect(() => {
+    if (user && communities.length > 0) {
+      loadDashboardData();
+    } else if (user && communities.length === 0 && isDataLoaded.current.communities) {
+      setLoadingDashboard(false);
+    }
+  }, [communities, user]);
+
+  // Зареждане на всички потребители
   useEffect(() => {
     if (user) {
       loadAllUsers();
@@ -865,6 +533,7 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
     return () => unsub();
   }, [user]);
 
+  // Зареждане на ученици
   useEffect(() => {
     if (
       (selectedTab === "dashboard" || selectedTab === "students") &&
@@ -874,7 +543,478 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
       loadAllStudentsData();
       loadActivityLogs();
     }
-  }, [selectedTab, userData?.role, communities]);
+  }, [selectedTab, userData?.role, communities, language]);
+
+  // Функция за зареждане на assignment stats
+  const loadAssignmentStats = async () => {
+    if (!user) return;
+    
+    try {
+      const assignmentsQuery = query(
+        collection(db, "assignments"),
+        where("teacherId", "==", user.uid)
+      );
+      
+      const snapshot = await getDocs(assignmentsQuery);
+      let total = 0;
+      let active = 0;
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        total++;
+        if (data.status === 'active') active++;
+      });
+      
+      setAssignmentStats({ total, active });
+      isDataLoaded.current.assignments = true;
+      
+    } catch (error) {
+      console.error("Error loading assignment stats:", error);
+    }
+  };
+
+  // Зареждане на dashboard данни
+  const loadDashboardData = async () => {
+  if (!user) return;
+  
+  setLoadingDashboard(true);
+  
+  try {
+    console.log("📊 Зареждане на dashboard данни...");
+    
+    // Първо се увери, че communities са заредени
+    if (communities.length === 0) {
+      await loadCommunities();
+    }
+    
+    // Зареждане на всички данни паралелно
+    await Promise.all([
+      loadRecentChallenges(),
+      loadRecentLessons(),
+      loadRecentGrades(),
+      loadCommunityActivity(),
+      loadAssignmentStats()
+    ]);
+    
+    // Challenge stats трябва да се зареди след като communities са готови
+    await loadChallengeStats();
+    
+    // Зареждане на учениците
+    await loadAllStudentsData();
+    
+    console.log("✅ Dashboard данните са заредени", {
+      challenges: recentChallenges.length,
+      challengeStats,
+      assignments: assignmentStats,
+      communityActivity: communityActivity.length,
+      students: students.length,
+      lessons: lessonStats.total
+    });
+    
+  } catch (error) {
+    console.error("Error loading dashboard data:", error);
+  } finally {
+    setLoadingDashboard(false);
+  }
+};
+
+  // Зареждане на последните challenge-и
+  const loadRecentChallenges = async () => {
+    try {
+      let challengesQuery = query(
+        collection(db, "challenges"),
+        where("teacherId", "==", user?.uid),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      );
+      
+      let snapshot = await getDocs(challengesQuery);
+      
+      if (snapshot.empty) {
+        challengesQuery = query(
+          collection(db, "challenges"),
+          orderBy("createdAt", "desc"),
+          limit(5)
+        );
+        snapshot = await getDocs(challengesQuery);
+      }
+      
+      const challengesData: Challenge[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        challengesData.push({
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          teacherId: data.teacherId,
+          teacherName: data.teacherName,
+          communityId: data.communityId,
+          communityName: data.communityName,
+          createdAt: data.createdAt,
+          deadline: data.deadline,
+          points: data.points || 100,
+          difficulty: data.difficulty || 'medium',
+          status: data.status || 'active',
+          participants: data.participants || 0,
+          submissions: data.submissions || 0,
+          completedBy: data.completedBy || [],
+          type: data.type || 'individual',
+          category: data.category || 'programming',
+          instructions: data.instructions,
+          starterCode: data.starterCode,
+          testCases: data.testCases,
+          hints: data.hints
+        });
+      });
+      
+      setRecentChallenges(challengesData);
+      
+    } catch (error) {
+      console.error(t('error_loading_challenges') || "Error loading recent challenges:", error);
+      try {
+        const fallbackQuery = query(
+          collection(db, "challenges"),
+          where("teacherId", "==", user?.uid),
+          limit(5)
+        );
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        const challengesData: Challenge[] = [];
+        
+        fallbackSnapshot.forEach((doc) => {
+          const data = doc.data();
+          challengesData.push({
+            id: doc.id,
+            title: data.title,
+            description: data.description,
+            teacherId: data.teacherId,
+            teacherName: data.teacherName,
+            communityId: data.communityId,
+            communityName: data.communityName,
+            createdAt: data.createdAt,
+            deadline: data.deadline,
+            points: data.points || 100,
+            difficulty: data.difficulty || 'medium',
+            status: data.status || 'active',
+            participants: data.participants || 0,
+            submissions: data.submissions || 0,
+            completedBy: data.completedBy || [],
+            type: data.type || 'individual',
+            category: data.category || 'programming',
+            instructions: data.instructions,
+            starterCode: data.starterCode,
+            testCases: data.testCases,
+            hints: data.hints
+          });
+        });
+        
+        setRecentChallenges(challengesData);
+      } catch (fallbackError) {
+        console.error("Fallback също неуспешен:", fallbackError);
+      }
+    }
+  };
+
+  // Зареждане на последните уроци
+  const loadRecentLessons = async () => {
+    try {
+      let lessonsQuery = query(
+        collection(db, "lessons"),
+        where("teacherId", "==", user?.uid),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      );
+      
+      let snapshot = await getDocs(lessonsQuery);
+      
+      if (snapshot.empty) {
+        lessonsQuery = query(
+          collection(db, "lessons"),
+          orderBy("createdAt", "desc"),
+          limit(5)
+        );
+        snapshot = await getDocs(lessonsQuery);
+      }
+      
+      const lessonsData: Lesson[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        lessonsData.push({
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          content: data.content,
+          teacherId: data.teacherId,
+          teacherName: data.teacherName,
+          teacherAvatar: data.teacherAvatar,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          category: data.category || 'general',
+          color: data.color,
+          icon: data.icon,
+          status: data.status || 'published',
+          tags: data.tags || [],
+          attachments: data.attachments,
+          estimatedTime: data.estimatedTime || '30 min',
+          difficulty: data.difficulty || 'beginner',
+          visibility: data.visibility || 'public',
+          language: data.language,
+          prerequisites: data.prerequisites,
+          learningObjectives: data.learningObjectives,
+          views: data.views || 0,
+          likes: data.likes || [],
+          students: data.students || [],
+          rating: data.rating,
+          totalRatings: data.totalRatings
+        });
+      });
+      
+      setRecentLessons(lessonsData);
+      
+      const allLessonsQuery = query(
+        collection(db, "lessons"),
+        where("teacherId", "==", user?.uid)
+      );
+      const allSnapshot = await getDocs(allLessonsQuery);
+      
+      let total = 0;
+      let published = 0;
+      let draft = 0;
+      
+      allSnapshot.forEach((doc) => {
+        const data = doc.data();
+        total++;
+        if (data.status === 'published') published++;
+        if (data.status === 'draft') draft++;
+      });
+      
+      setLessonStats({ total, published, draft });
+      
+    } catch (error) {
+      console.error(t('error_loading_lessons') || "Error loading recent lessons:", error);
+      
+      try {
+        const fallbackQuery = query(
+          collection(db, "lessons"),
+          where("teacherId", "==", user?.uid)
+        );
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        
+        let total = 0;
+        let published = 0;
+        let draft = 0;
+        
+        fallbackSnapshot.forEach((doc) => {
+          const data = doc.data();
+          total++;
+          if (data.status === 'published') published++;
+          if (data.status === 'draft') draft++;
+        });
+        
+        setLessonStats({ total, published, draft });
+        
+        const recentData: Lesson[] = [];
+        fallbackSnapshot.forEach((doc) => {
+          const data = doc.data();
+          recentData.push({
+            id: doc.id,
+            title: data.title,
+            description: data.description,
+            content: data.content,
+            teacherId: data.teacherId,
+            teacherName: data.teacherName,
+            teacherAvatar: data.teacherAvatar,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            category: data.category || 'general',
+            color: data.color,
+            icon: data.icon,
+            status: data.status || 'published',
+            tags: data.tags || [],
+            attachments: data.attachments,
+            estimatedTime: data.estimatedTime || '30 min',
+            difficulty: data.difficulty || 'beginner',
+            visibility: data.visibility || 'public',
+            language: data.language,
+            prerequisites: data.prerequisites,
+            learningObjectives: data.learningObjectives,
+            views: data.views || 0,
+            likes: data.likes || [],
+            students: data.students || [],
+            rating: data.rating,
+            totalRatings: data.totalRatings
+          });
+        });
+        
+        recentData.sort((a, b) => {
+          const dateA = a.createdAt?.toDate?.() || new Date(0);
+          const dateB = b.createdAt?.toDate?.() || new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
+        
+        setRecentLessons(recentData.slice(0, 5));
+        
+      } catch (fallbackError) {
+        console.error("Fallback също неуспешен:", fallbackError);
+      }
+    }
+  };
+
+  // Зареждане на последните оценки
+  const loadRecentGrades = async () => {
+    try {
+      const gradesQuery = query(
+        collection(db, "grades"),
+        where("teacherId", "==", user?.uid),
+        orderBy("gradedAt", "desc"),
+        limit(5)
+      );
+      
+      const snapshot = await getDocs(gradesQuery);
+      const gradesData: Grade[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        gradesData.push({
+          id: doc.id,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          assignmentId: data.assignmentId,
+          assignmentTitle: data.assignmentTitle,
+          points: data.points,
+          maxPoints: data.maxPoints || 10,
+          feedback: data.feedback,
+          gradedAt: data.gradedAt,
+          gradedBy: data.gradedBy,
+          teacherName: data.teacherName
+        });
+      });
+      
+      setRecentGrades(gradesData);
+    } catch (error) {
+      console.error(t('error_loading_grades') || "Error loading recent grades:", error);
+    }
+  };
+
+  // Зареждане на статистики за challenge-и
+  // Зареждане на статистики за challenge-и
+const loadChallengeStats = async () => {
+  try {
+    console.log("🏆 Зареждане на challenge stats...");
+    
+    // Трябва да заредим challenge-ите, свързани с общностите на учителя
+    if (communities.length === 0) {
+      setChallengeStats({ total: 0, active: 0, completed: 0 });
+      return;
+    }
+    
+    const communityIds = communities.map(c => c.id);
+    
+    // Зареждане на challenge-ите, които са target към тези общности
+    const challengesQuery = query(
+      collection(db, "challenges"),
+      where("targetCommunityId", "in", communityIds)
+    );
+    
+    const snapshot = await getDocs(challengesQuery);
+    let total = 0;
+    let active = 0;
+    let completed = 0;
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      total++;
+      
+      if (data.status === 'active') active++;
+      else if (data.status === 'completed') completed++;
+    });
+    
+    console.log(`🏆 Challenge stats: total=${total}, active=${active}, completed=${completed}`);
+    setChallengeStats({ total, active, completed });
+    
+  } catch (error) {
+    console.error(t('error_loading_challenge_stats') || "Error loading challenge stats:", error);
+  }
+};
+
+  // Зареждане на активност в общностите
+  const loadCommunityActivity = async () => {
+    try {
+      if (communities.length === 0) {
+        setCommunityActivity([]);
+        return;
+      }
+      
+      const activity: Array<{
+        communityId: string;
+        communityName: string;
+        activity: number;
+        submissions: number;
+      }> = [];
+      
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      
+      for (const community of communities) {
+        const participants = community.studentIds?.length || 0;
+        const pendingCount = community.pendingRequests?.length || 0;
+        let submissionsCount = 0;
+        
+        if (community.studentIds && community.studentIds.length > 0) {
+          const allCodesQuery = query(
+            collection(db, "prologCodes"),
+            where("createdAt", ">=", oneWeekAgo)
+          );
+          
+          const snapshot = await getDocs(allCodesQuery);
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (community.studentIds.includes(data.userId)) {
+              submissionsCount++;
+            }
+          });
+        }
+        
+        let challengesCount = 0;
+        const challengesQuery = query(
+          collection(db, "challenges"),
+          where("communityId", "==", community.id),
+          where("status", "==", "active")
+        );
+        const challengesSnapshot = await getDocs(challengesQuery);
+        challengesCount = challengesSnapshot.size;
+        
+        const totalActivity = participants + pendingCount + submissionsCount + challengesCount;
+        
+        activity.push({
+          communityId: community.id,
+          communityName: community.name,
+          activity: totalActivity,
+          submissions: submissionsCount
+        });
+      }
+      
+      setCommunityActivity(activity);
+      
+    } catch (error) {
+      console.error("❌ Error loading community activity:", error);
+    }
+  };
+
+  // Намиране на топ ученици
+  const calculateTopStudents = (studentsList: Student[]) => {
+    const studentsWithPoints = studentsList
+      .filter(s => s.files && s.files.length > 0)
+      .map(s => ({
+        ...s,
+        totalPoints: s.files.reduce((sum, file) => sum + (file.points || 0), 0)
+      }))
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .slice(0, 3);
+    
+    setTopStudents(studentsWithPoints);
+  };
 
   const loadCommunities = async () => {
     if (!user) return;
@@ -895,7 +1035,7 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
           name: data.name,
           description: data.description,
           teacherId: data.teacherId,
-          institution: data.institution || userData?.institution || "Unknown",
+          institution: data.institution || userData?.institution || t('unknown') || "Unknown",
           gradeLevel: data.gradeLevel,
           subject: data.subject,
           memberCount: data.memberCount || 0,
@@ -914,18 +1054,16 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
           }
         });
       });
+      
       setCommunities(communitiesData);
+      isDataLoaded.current.communities = true;
+      
       if (communitiesData.length > 0 && !selectedCommunity) {
         setSelectedCommunity(communitiesData[0].id);
       }
-      console.log("DEBUG: Loaded communities:", {
-        count: communitiesData.length,
-        communities: communitiesData.map(c => ({ id: c.id, name: c.name })),
-        selectedCommunity
-      });
       
     } catch (error) {
-      console.error("Error loading communities:", error);
+      console.error(t('error_loading_communities') || "Error loading communities:", error);
     }
   };
 
@@ -934,35 +1072,27 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
       const usersQuery = query(collection(db, "users"));
       const usersSnapshot = await getDocs(usersQuery);
       
-      const usersData: Array<{
-        uid: string;
-        username: string;
-        email: string;
-        role: string;
-        fullName?: string;
-        class?: string;
-        communityId?: string;
-        communityStatus?: string;
-      }> = [];
+      const usersData: UserData[] = [];
       
       usersSnapshot.forEach((doc) => {
         const user = doc.data();
         usersData.push({
           uid: doc.id,
-          username: user.fullName || user.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
+          username: user.fullName || user.email?.split('@')[0] || t('user_prefix') + doc.id.substring(0, 6),
           fullName: user.fullName,
           email: user.email || "",
           role: user.role || 'student',
-          class: user.class || 'N/A',
+          avatar: user.avatar,
           communityId: user.communityId || null,
-          communityStatus: user.communityStatus || null
+          communityStatus: user.communityStatus || null,
+          online: user.online || false,
+          lastSeen: user.lastSeen
         });
       });
       
       setAllSystemUsers(usersData);
-      console.log("📋 Loaded all system users:", usersData.length);
     } catch (error) {
-      console.error("Error loading all system users:", error);
+      console.error(t('error_loading_users') || "Error loading all system users:", error);
     }
   };
 
@@ -971,9 +1101,15 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
       await updateDoc(doc(db, 'messages', messageId), {
         read: true
       });
-      loadMessages();
+      
+      setMessages(prev => 
+        prev.map(m => 
+          m.id === messageId ? { ...m, read: true } : m
+        )
+      );
+      
     } catch (error) {
-      console.error("Error marking message as read:", error);
+      console.error(t('error_marking_read') || "Error marking message as read:", error);
     }
   };
 
@@ -981,212 +1117,23 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
     try {
       const unreadMessages = messages.filter(m => !m.read && m.receiverId === user?.uid);
       
+      const batch = writeBatch(db);
       for (const msg of unreadMessages) {
-        await updateDoc(doc(db, 'messages', msg.id), {
-          read: true
-        });
+        const messageRef = doc(db, 'messages', msg.id);
+        batch.update(messageRef, { read: true });
       }
       
-      loadMessages();
-      setUploadStatus("✅ " + (t?.('all_messages_read') || "All messages marked as read!"));
-    } catch (error) {
-      console.error("Error marking all messages as read:", error);
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!window.confirm(t?.('confirm_delete_message') || "Are you sure you want to delete this message?")) return;
-    
-    try {
-      await deleteDoc(doc(db, 'messages', messageId));
-      loadMessages();
-      setUploadStatus("✅ " + (t?.('message_deleted') || "Message deleted!"));
-    } catch (error) {
-      console.error("Error deleting message:", error);
-    }
-  };
-
-  const loadMessages = async () => {
-    if (!user) return;
-    
-    try {
-      const receivedQ = query(
-        collection(db, "messages"),
-        where("receiverId", "==", user.uid),
-        orderBy("timestamp", "desc"),
-        limit(50)
+      await batch.commit();
+      
+      setMessages(prev => 
+        prev.map(m => 
+          !m.read && m.receiverId === user?.uid ? { ...m, read: true } : m
+        )
       );
       
-      const sentQ = query(
-        collection(db, "messages"),
-        where("senderId", "==", user.uid),
-        orderBy("timestamp", "desc"),
-        limit(50)
-      );
-      
-      const [receivedSnapshot, sentSnapshot] = await Promise.all([
-        getDocs(receivedQ),
-        getDocs(sentQ)
-      ]);
-      
-      const allMessages: Message[] = [];
-      
-      receivedSnapshot.forEach((doc) => {
-        const data = doc.data();
-        allMessages.push({
-          id: doc.id,
-          senderId: data.senderId,
-          senderName: data.senderName,
-          receiverId: data.receiverId,
-          receiverName: data.receiverName,
-          content: data.content,
-          timestamp: data.timestamp,
-          read: data.read || false,
-          type: data.type || 'direct'
-        });
-      });
-      
-      sentSnapshot.forEach((doc) => {
-        const data = doc.data();
-        allMessages.push({
-          id: doc.id,
-          senderId: data.senderId,
-          senderName: data.senderName,
-          receiverId: data.receiverId,
-          receiverName: data.receiverName,
-          content: data.content,
-          timestamp: data.timestamp,
-          read: true,
-          type: data.type || 'direct'
-        });
-      });
-      
-      allMessages.sort((a, b) => 
-        (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
-      );
-      
-      setMessages(allMessages);
-      
+      setUploadStatus("✅ " + (t('all_messages_read') || "All messages marked as read!"));
     } catch (error) {
-      console.error("Error loading messages:", error);
-    }
-  };
-
-  const handleCreateCommunity = async () => {
-    if (!user || !userData) {
-      alert(t?.('login_as_teacher') || "Please login as a teacher!");
-      return;
-    }
-
-    try {
-      const communityRef = doc(collection(db, 'communities'));
-      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      const newCommunity: Community = {
-        id: communityRef.id,
-        name: communityForm.name,
-        description: communityForm.description,
-        teacherId: user.uid,
-        institution: userData.institution || "Unknown",
-        gradeLevel: communityForm.gradeLevel,
-        subject: communityForm.subject,
-        memberCount: 1,
-        studentIds: [],
-        pendingRequests: [],
-        createdAt: serverTimestamp(),
-        isPublic: communityForm.privacy === 'public',
-        inviteCode,
-        challenges: [],
-        settings: {
-          allowStudentChallenges: communityForm.allowStudentChallenges,
-          allowInterCommunityChallenges: communityForm.allowInterCommunityChallenges,
-          allowStudentMessages: communityForm.allowStudentMessages,
-          autoApproveStudents: communityForm.autoApprove,
-          privacy: communityForm.privacy
-        }
-      };
-      
-      await setDoc(communityRef, newCommunity);
-      
-      await updateDoc(doc(db, 'users', user.uid), {
-        communityId: communityRef.id,
-        createdCommunities: arrayUnion(communityRef.id)
-      });
-      
-      setUploadStatus("✅ " + (t?.('community_created') || "Community created successfully!"));
-      setShowCommunityForm(false);
-      
-      await loadCommunities();
-      setSelectedCommunity(communityRef.id);
-      
-      setCommunityForm({
-        name: "",
-        description: "",
-        gradeLevel: "",
-        subject: "",
-        privacy: "private",
-        autoApprove: false,
-        allowStudentMessages: true,
-        allowStudentChallenges: false,
-        allowInterCommunityChallenges: true
-      });
-      
-      console.log("DEBUG: Created new community:", {
-        id: communityRef.id,
-        name: newCommunity.name,
-        selectedCommunity: communityRef.id
-      });
-      
-    } catch (error) {
-      console.error("Error creating community:", error);
-      setUploadStatus("❌ " + (t?.('error_creating_community') || "Error creating community!"));
-    }
-  };
-
-  const handleSendMessage = async (type: 'direct' | 'community' | 'broadcast' = 'direct') => {
-    if (!user || !newMessage.trim()) return;
-
-    try {
-      let receivers: string[] = [];
-      
-      if (type === 'direct' && selectedStudent) {
-        receivers = [selectedStudent.uid!];
-      } else if (type === 'community' && selectedCommunity) {
-        const community = getCurrentCommunity();
-        receivers = community?.studentIds || [];
-      } else if (type === 'broadcast') {
-        receivers = allUsers.map(u => u.uid).filter(Boolean);
-      }
-      
-      for (const receiverId of receivers) {
-        const messageRef = doc(collection(db, 'messages'));
-        
-        const receiver = allUsers.find(u => u.uid === receiverId) || 
-                        students.find(s => s.uid === receiverId) || 
-                        { username: t?.('unknown_user') || "Unknown User", email: "" };
-        
-        const newMessageData: Message = {
-          id: messageRef.id,
-          senderId: user.uid,
-          senderName: userData?.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
-          receiverId: receiverId,
-          receiverName: receiver.username,
-          content: newMessage,
-          timestamp: serverTimestamp(),
-          read: false,
-          type: type
-        };
-        
-        await setDoc(messageRef, newMessageData);
-      }
-      
-      setNewMessage("");
-      setUploadStatus(`✅ ${receivers.length} ` + (t?.('messages_sent') || "message(s) sent successfully!"));
-      loadMessages();
-      
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setUploadStatus("❌ " + (t?.('error_sending_message') || "Error sending message!"));
+      console.error(t('error_marking_all_read') || "Error marking all messages as read:", error);
     }
   };
 
@@ -1224,7 +1171,11 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
           content: data.content,
           timestamp: data.timestamp,
           read: data.read || false,
-          type: data.type || 'direct'
+          type: data.type || 'direct',
+          subject: data.subject,
+          attachments: data.attachments,
+          labels: data.labels || [],
+          pinned: data.pinned || false
         });
       });
       
@@ -1239,7 +1190,11 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
           content: data.content,
           timestamp: data.timestamp,
           read: true,
-          type: data.type || 'direct'
+          type: data.type || 'direct',
+          subject: data.subject,
+          attachments: data.attachments,
+          labels: data.labels || [],
+          pinned: data.pinned || false
         });
       });
       
@@ -1253,108 +1208,294 @@ const openGradingModal = (student: Student, assignmentId?: string) => {
       console.error("Error loading all messages:", error);
     }
   };
-const handleMarkAllNotificationsAsRead = async () => {
-  if (!user || unreadNotificationsCount === 0) return;
-  
-  try {
-    const batch = writeBatch(db);
-    const unreadNotifications = notifications.filter(n => !n.read);
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm(t('confirm_delete_message') || "Delete this message?")) return;
     
-    for (const notification of unreadNotifications) {
-      const notificationRef = doc(db, 'notifications', notification.id);
-      batch.update(notificationRef, { read: true, readAt: serverTimestamp() });
-    }
-    
-    await batch.commit();
-    
-    // Актуализирайте локалното състояние
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadNotificationsCount(0);
-    
-  } catch (error) {
-    console.error("Error marking notifications as read:", error);
-  }
-};
-  const handleApproveRequest = async (studentId: string, communityId: string) => {
     try {
-      const communityRef = doc(db, 'communities', communityId);
+      const messageRef = doc(db, 'messages', messageId);
+      const message = messages.find(m => m.id === messageId);
       
-      await updateDoc(communityRef, {
-        studentIds: arrayUnion(studentId),
-        pendingRequests: arrayRemove(studentId),
-        memberCount: (communities.find(c => c.id === communityId)?.memberCount || 0) + 1
-      });
+      if (!message) return;
       
-      await updateDoc(doc(db, 'users', studentId), {
-        communityId: communityId,
-        communityStatus: 'member'
-      });
+      if (message.senderId !== user?.uid && message.receiverId !== user?.uid) {
+        alert(t('no_permission_delete') || "You don't have permission to delete this message!");
+        return;
+      }
       
-      setUploadStatus("✅ " + (t?.('student_approved') || "Student approved successfully!"));
-      loadCommunities();
+      if (message.receiverId === user?.uid) {
+        const newLabels = [...(message.labels || []), 'trash'];
+        await updateDoc(messageRef, {
+          labels: newLabels
+        });
+        
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId ? { ...msg, labels: newLabels } : msg
+        ));
+        
+        alert("✅ " + (t('message_moved_to_trash') || "Message moved to trash!"));
+      } else if (message.senderId === user?.uid) {
+        await deleteDoc(messageRef);
+        
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        
+        alert("✅ " + (t('message_deleted') || "Message deleted!"));
+      }
       
     } catch (error) {
-      console.error("Error approving student:", error);
-      setUploadStatus("❌ " + (t?.('error_approving_student') || "Error approving student!"));
+      console.error(t('error_deleting_message') || "Error deleting message:", error);
     }
   };
 
-  const handleRejectRequest = async (studentId: string, communityId: string) => {
+  const handlePinMessage = async (messageId: string, pinned: boolean) => {
     try {
-      const communityRef = doc(db, 'communities', communityId);
-      
-      await updateDoc(communityRef, {
-        pendingRequests: arrayRemove(studentId)
+      await updateDoc(doc(db, 'messages', messageId), {
+        pinned
       });
       
-      setUploadStatus("✅ " + (t?.('request_rejected') || "Request rejected!"));
-      loadCommunities();
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, pinned } : msg
+      ));
+    } catch (error) {
+      console.error(t('error_pinning_message') || "Error pinning message:", error);
+    }
+  };
+
+  const handleStarMessage = async (messageId: string, starred: boolean) => {
+    try {
+      const status = starred ? 'starred' : 'sent';
+      await updateDoc(doc(db, 'messages', messageId), {
+        status
+      });
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, status } : msg
+      ));
+    } catch (error) {
+      console.error(t('error_starring_message') || "Error starring message:", error);
+    }
+  };
+
+  const handleArchiveMessage = async (messageId: string, archive: boolean) => {
+    try {
+      const message = messages.find(m => m.id === messageId);
+      if (!message) return;
+      
+      const newLabels = archive 
+        ? [...(message.labels || []), 'archived']
+        : (message.labels || []).filter(l => l !== 'archived');
+      
+      await updateDoc(doc(db, 'messages', messageId), {
+        labels: newLabels
+      });
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, labels: newLabels } : msg
+      ));
+    } catch (error) {
+      console.error(t('error_archiving_message') || "Error archiving message:", error);
+    }
+  };
+console.log(handleDeleteMessage, handlePinMessage, handleStarMessage, handleArchiveMessage);
+  const loadAllUsers = async () => {
+    try {
+      const usersQuery = query(collection(db, "users"));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      const usersData: UserData[] = [];
+      
+      usersSnapshot.forEach((doc) => {
+        const user = doc.data();
+        usersData.push({
+          uid: doc.id,
+          username: user.fullName || user.email?.split('@')[0] || t('user_prefix') + doc.id.substring(0, 6),
+          email: user.email || "",
+          role: user.role || 'student',
+          fullName: user.fullName,
+          avatar: user.avatar,
+          communityId: user.communityId,
+          online: user.online || false,
+          lastSeen: user.lastSeen
+        });
+      });
+      
+      setAllUsers(usersData);
+    } catch (error) {
+      console.error(t('error_loading_users') || "Error loading all users:", error);
+    }
+  };
+
+  const handleCreateCommunity = async () => {
+    if (!user || !userData) {
+      alert(t('login_as_teacher') || "Please login as a teacher!");
+      return;
+    }
+
+    try {
+      const communityRef = doc(collection(db, 'communities'));
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const newCommunity: Community = {
+        id: communityRef.id,
+        name: communityForm.name,
+        description: communityForm.description,
+        teacherId: user.uid,
+        institution: userData.institution || t('unknown') || "Unknown",
+        gradeLevel: communityForm.gradeLevel,
+        subject: communityForm.subject,
+        memberCount: 1,
+        studentIds: [],
+        pendingRequests: [],
+        createdAt: serverTimestamp(),
+        isPublic: communityForm.privacy === 'public',
+        inviteCode,
+        challenges: [],
+        settings: {
+          allowStudentChallenges: communityForm.allowStudentChallenges,
+          allowInterCommunityChallenges: communityForm.allowInterCommunityChallenges,
+          allowStudentMessages: communityForm.allowStudentMessages,
+          autoApproveStudents: communityForm.autoApprove,
+          privacy: communityForm.privacy
+        }
+      };
+      
+      await setDoc(communityRef, newCommunity);
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        communityId: communityRef.id,
+        createdCommunities: arrayUnion(communityRef.id)
+      });
+      
+      setUploadStatus("✅ " + (t('community_created') || "Community created successfully!"));
+      setShowCommunityForm(false);
+      
+      await loadCommunities();
+      setSelectedCommunity(communityRef.id);
+      
+      setCommunityForm({
+        name: "",
+        description: "",
+        gradeLevel: "",
+        subject: "",
+        privacy: "private",
+        autoApprove: false,
+        allowStudentMessages: true,
+        allowStudentChallenges: false,
+        allowInterCommunityChallenges: true
+      });
       
     } catch (error) {
-      console.error("Error rejecting request:", error);
-      setUploadStatus("❌ " + (t?.('error_rejecting_request') || "Error rejecting request!"));
+      console.error(t('error_creating_community') || "Error creating community:", error);
+      setUploadStatus("❌ " + (t('error_creating_community') || "Error creating community!"));
+    }
+  };
+
+  const handleSendMessage = async (recipientId?: string, content?: string) => {
+    const messageToSend = content || newMessage;
+    if (!user || !messageToSend.trim()) return;
+
+    try {
+      let receivers: string[] = [];
+      let messageType: 'direct' | 'community' | 'broadcast' = 'direct';
+      
+      if (recipientId === 'all') {
+        receivers = allUsers.map(u => u.uid).filter(Boolean);
+        messageType = 'broadcast';
+      } else if (recipientId === 'community' && selectedCommunity) {
+        const community = getCurrentCommunity();
+        receivers = community?.studentIds || [];
+        messageType = 'community';
+      } else if (recipientId && (selectedStudent?.uid === recipientId)) {
+        receivers = [recipientId];
+        messageType = 'direct';
+      } else if (selectedStudent) {
+        receivers = [selectedStudent.uid!];
+        messageType = 'direct';
+      } else if (selectedCommunity) {
+        const community = getCurrentCommunity();
+        receivers = community?.studentIds || [];
+        messageType = 'community';
+      } else {
+        receivers = allUsers.map(u => u.uid).filter(Boolean);
+        messageType = 'broadcast';
+      }
+      
+      const batch = writeBatch(db);
+      
+      for (const receiverId of receivers) {
+        const messageRef = doc(collection(db, 'messages'));
+        
+        const receiver = allUsers.find(u => u.uid === receiverId) || 
+                        students.find(s => s.uid === receiverId) || 
+                        { username: t('unknown_user') || "Unknown User", email: "" };
+        
+        const newMessageData = {
+          senderId: user.uid,
+          senderName: userData?.fullName || user.email?.split('@')[0] || t('teacher') || "Teacher",
+          senderEmail: user.email || "",
+          receiverId: receiverId,
+          receiverName: receiver.username,
+          receiverEmail: receiver.email || "",
+          content: messageToSend,
+          subject: t('new_message') || "New Message",
+          timestamp: serverTimestamp(),
+          read: false,
+          type: messageType,
+          status: 'sent',
+          labels: [],
+          attachments: [],
+          pinned: false
+        };
+        
+        batch.set(messageRef, newMessageData);
+      }
+      
+      await batch.commit();
+      
+      setNewMessage("");
+      setUploadStatus(`✅ ${receivers.length} ` + (t('messages_sent') || "message(s) sent successfully!"));
+      
+    } catch (error) {
+      console.error(t('error_sending_message') || "Error sending message:", error);
+      setUploadStatus("❌ " + (t('error_sending_message') || "Error sending message!"));
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    if (!user || unreadNotificationsCount === 0) return;
+    
+    try {
+      const batch = writeBatch(db);
+      const unreadNotifications = notifications.filter(n => !n.read);
+      
+      for (const notification of unreadNotifications) {
+        const notificationRef = doc(db, 'notifications', notification.id);
+        batch.update(notificationRef, { read: true, readAt: serverTimestamp() });
+      }
+      
+      await batch.commit();
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadNotificationsCount(0);
+      
+    } catch (error) {
+      console.error(t('error_marking_notifications') || "Error marking notifications as read:", error);
     }
   };
 
   // Helper functions
   const getColorByIndex = (index: number): string => {
     const colors = [
-      '#4CAF50', '#2196F3', '#FF9800', '#F44336', 
-      '#9C27B0', '#00BCD4', '#FF5722', '#673AB7',
-      '#3F51B5', '#009688'
+      colorScheme.primary,
+      colorScheme.secondary,
+      colorScheme.accent,
+      colorScheme.purple,
+      colorScheme.pink,
+      colorScheme.teal
     ];
     return colors[index % colors.length];
   };
 
-  const getStatusClass = (points: number): string => {
-    if (points >= 9) return "bg-gradient-to-r from-green-500 to-emerald-500";
-    if (points >= 7) return "bg-gradient-to-r from-blue-500 to-cyan-500";
-    if (points >= 5) return "bg-gradient-to-r from-yellow-500 to-amber-500";
-    if (points >= 3) return "bg-gradient-to-r from-orange-500 to-red-500";
-    return "bg-gradient-to-r from-gray-500 to-gray-700";
-  };
-
-  const getStatusText = (points: number): string => {
-    if (points >= 9) return t?.('excellent') || 'Excellent';
-    if (points >= 7) return t?.('good') || 'Good';
-    if (points >= 5) return t?.('average') || 'Average';
-    if (points >= 3) return t?.('needs_improvement') || 'Needs Improvement';
-    return t?.('poor') || 'Poor';
-  };
-
-  const getFileStatusText = (file: StudentFile): string => {
-    if (file.status) {
-      switch (file.status) {
-        case "success": return t?.('status_success') || "Success";
-        case "error": return t?.('status_error') || "Error";
-        default: return t?.('status_pending') || "Pending";
-      }
-    }
-    if (file.code.includes('ERROR') || file.code.includes('error')) return t?.('status_error') || "Error";
-    if (file.code.length > 1000) return t?.('status_success') || "Success";
-    return t?.('status_pending') || "Pending";
-  };
-console.log(getStatusClass, getFileStatusText, getStatusText)
   const getCurrentCommunity = () => {
     return communities.find(c => c.id === selectedCommunity);
   };
@@ -1384,8 +1525,8 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
         logs.push({
           id: doc.id,
           studentId: data.userId || "",
-          studentName: data.userName || data.user || t?.('unknown_student') || "Unknown Student",
-          action: data.action || t?.('unknown_action') || "Unknown action",
+          studentName: data.userName || data.user || t('unknown_student') || "Unknown Student",
+          action: data.action || t('unknown_action') || "Unknown action",
           timestamp: data.timestamp || serverTimestamp(),
           details: data.details || "",
           file: data.target || "",
@@ -1396,16 +1537,16 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
       setActivityLogs(logs);
       
     } catch (error) {
-      console.error("Error loading activity logs:", error);
+      console.error(t('error_loading_activity') || "Error loading activity logs:", error);
       
       const sampleLogs = [
         {
           id: "1",
           studentId: "student-1",
           studentName: "John Doe",
-          action: t?.('submitted_prolog_code') || "Submitted Prolog code",
+          action: t('submitted_prolog_code') || "Submitted Prolog code",
           timestamp: new Date(),
-          details: t?.('created_expert_system') || "Created expert system for biology project",
+          details: t('created_expert_system') || "Created expert system for biology project",
           file: "expert_system.pl",
           status: 'submitted'
         },
@@ -1413,9 +1554,9 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
           id: "2",
           studentId: "student-2",
           studentName: "Jane Smith",
-          action: t?.('uploaded_assignment') || "Uploaded assignment file",
+          action: t('uploaded_assignment') || "Uploaded assignment file",
           timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          details: t?.('completed_logical_rules') || "Completed assignment on logical rules",
+          details: t('completed_logical_rules') || "Completed assignment on logical rules",
           file: "assignment_1.pl",
           status: 'submitted'
         }
@@ -1424,7 +1565,50 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
     }
   };
 
+  const handleApproveRequest = async (studentId: string, communityId: string) => {
+    try {
+      const communityRef = doc(db, 'communities', communityId);
+      
+      await updateDoc(communityRef, {
+        studentIds: arrayUnion(studentId),
+        pendingRequests: arrayRemove(studentId),
+        memberCount: (communities.find(c => c.id === communityId)?.memberCount || 0) + 1
+      });
+      
+      await updateDoc(doc(db, 'users', studentId), {
+        communityId: communityId,
+        communityStatus: 'member'
+      });
+      
+      setUploadStatus("✅ " + (t('student_approved') || "Student approved successfully!"));
+      loadCommunities();
+      
+    } catch (error) {
+      console.error("Error approving student:", error);
+      setUploadStatus("❌ " + (t('error_approving_student') || "Error approving student!"));
+    }
+  };
+
+  const handleRejectRequest = async (studentId: string, communityId: string) => {
+    try {
+      const communityRef = doc(db, 'communities', communityId);
+      
+      await updateDoc(communityRef, {
+        pendingRequests: arrayRemove(studentId)
+      });
+      
+      setUploadStatus("✅ " + (t('request_rejected') || "Request rejected!"));
+      loadCommunities();
+      
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      setUploadStatus("❌ " + (t('error_rejecting_request') || "Error rejecting request!"));
+    }
+  };
+
   const loadAllStudentsData = async () => {
+    if (loadingStudents) return;
+    
     setLoadingStudents(true);
     try {
       const currentUserRole = userData?.role;
@@ -1441,11 +1625,9 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
         });
       });
 
-      console.log("DEBUG: My communities student IDs:", Array.from(myStudentIds));
-
       if (myStudentIds.size === 0) {
-        console.log("DEBUG: No students found in your communities");
         setStudents([]);
+        setLoadingStudents(false);
         return;
       }
 
@@ -1459,7 +1641,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
         usersData[doc.id] = {
           ...user,
           uid: doc.id,
-          fullName: user.fullName || user.email?.split('@')[0] || `User_${doc.id.substring(0, 6)}`,
+          fullName: user.fullName || user.email?.split('@')[0] || t('user_prefix') + doc.id.substring(0, 6),
           role: user.role || 'student',
           email: user.email || '',
           class: user.class || 'N/A',
@@ -1481,7 +1663,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
           const userData = usersData[userId];
           const studentName = userData.fullName || 
                            userData.email?.split('@')[0] || 
-                           `User_${userId.substring(0, 6)}`;
+                           t('user_prefix') + userId.substring(0, 6);
           
           if (!filesByUserId[userId]) {
             filesByUserId[userId] = [];
@@ -1490,11 +1672,11 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
           filesByUserId[userId].push({
             id: doc.id,
             username: studentName,
-            originalFileName: data.originalFileName || data.title || t?.('untitled') || "Untitled",
+            originalFileName: data.originalFileName || data.title || t('untitled') || "Untitled",
             storedFileName: data.storedFileName || "",
-            code: data.code || t?.('no_code') || "No code",
+            code: data.code || t('no_code') || "No code",
             createdAt: data.createdAt,
-            folder: data.folder || data.domain || t?.('uncategorized') || 'uncategorized',
+            folder: data.folder || data.domain || t('uncategorized') || 'uncategorized',
             fileSize: data.fileSize || (data.code?.length || 0),
             displayName: data.displayName || `${studentName}/${data.title}`,
             userId: userId,
@@ -1527,7 +1709,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
         const lastFile = sortedFiles[0];
         const lastActivity = lastFile ? 
           new Date(lastFile.createdAt?.toMillis?.() || Date.now()).toLocaleDateString() :
-          t?.('no_activity') || "No activity";
+          t('no_activity') || "No activity";
 
         const userObj: Student = {
           username: user.fullName,
@@ -1538,7 +1720,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
           lastUpload: lastActivity,
           role: role,
           averagePoints,
-          status: averagePoints >= 7 ? 'active' : averagePoints >= 5 ? 'warning' : 'inactive',
+          status: averagePoints >= 7 ? 'active' : averagePoints >= 4 ? 'warning' : 'inactive',
           lastActivity,
           pendingApproval: studentFiles.some(f => !f.points && f.status === 'pending'),
           uid: userId,
@@ -1553,41 +1735,13 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
         new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime()
       );
       
-      console.log("📊 DEBUG Loaded MY students:", {
-        myStudentIdsCount: myStudentIds.size,
-        loadedStudentsCount: sortedStudents.length,
-        myStudents: sortedStudents.map(s => ({
-          name: s.username,
-          uid: s.uid,
-          communityId: s.communityId
-        }))
-      });
-      
       setStudents(sortedStudents);
-
-      const totalMyStudents = sortedStudents.length;
-      const activeMyStudents = sortedStudents.filter(s => s.status === 'active').length;
-      const pendingApprovals = sortedStudents.filter(s => s.pendingApproval).length;
-      const totalSubmissions = sortedStudents.reduce((sum, s) => sum + s.totalFiles, 0);
-      const avgPoints = totalMyStudents > 0 ? 
-        sortedStudents.reduce((sum, s) => sum + (s.averagePoints || 0), 0) / totalMyStudents : 0;
+      isDataLoaded.current.students = true;
       
-      setStats(prev => ({
-        ...prev,
-        totalStudents: totalMyStudents,
-        activeStudents: activeMyStudents,
-        pendingApprovals,
-        totalSubmissions,
-        averagePoints: avgPoints,
-        successRate: totalMyStudents > 0 ? Math.round((activeMyStudents / totalMyStudents) * 100) : 0,
-        lessonProgress: assignmentStats.total > 0
-          ? Math.round((assignmentStats.active / assignmentStats.total) * 100) 
-          : 0,
-        communityMembers: communities.reduce((sum, c) => sum + c.memberCount, 0)
-      }));
+      calculateTopStudents(sortedStudents);
       
     } catch (error) {
-      console.error("❌ " + (t?.('load_students_error') || "Error loading students:"), error);
+      console.error("❌ " + (t('load_students_error') || "Error loading students:"), error);
       setStudents([]);
     } finally {
       setLoadingStudents(false);
@@ -1596,14 +1750,12 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
 
   const handleFileUpload = async () => {
     if (!file || !user) {
-      console.error("❌ " + (t?.('no_file_user') || "No file or user:"), { file, user });
-      setUploadStatus("❌ " + (t?.('no_file_user') || "No file selected or user not logged in"));
+      setUploadStatus("❌ " + (t('no_file_user') || "No file selected or user not logged in"));
       return;
     }
 
     if (!file.name.toLowerCase().endsWith('.pl')) {
-      console.error("❌ " + (t?.('not_pl_file') || "Not a .pl file:"), file.name);
-      setUploadStatus("❌ " + (t?.('only_pl_files') || "Only .pl files allowed"));
+      setUploadStatus("❌ " + (t('only_pl_files') || "Only .pl files allowed"));
       return;
     }
 
@@ -1621,7 +1773,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
     let path = `${folder}/${finalFileName}`;
 
     try {
-      const { data: _uploadData, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("prolog-files")
         .upload(path, file, { 
           upsert: false,
@@ -1635,7 +1787,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
           const newFinalFileName = `${username}_${safeFileName}_${shortTimestamp}${newRandomId}.pl`;
           const newPath = `${folder}/${newFinalFileName}`;
           
-          const { data: _retryData, error: retryError } = await supabase.storage
+          const { error: retryError } = await supabase.storage
             .from("prolog-files")
             .upload(newPath, file, { 
               upsert: false,
@@ -1643,14 +1795,14 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
             });
 
           if (retryError) {
-            setUploadStatus("❌ " + (t?.('upload_failed') || "Upload failed:") + " " + retryError.message);
+            setUploadStatus("❌ " + (t('upload_failed') || "Upload failed:") + " " + retryError.message);
             return;
           }
           
           path = newPath;
           finalFileName = newFinalFileName;
         } else {
-          setUploadStatus("❌ " + (t?.('upload_failed') || "Upload failed:") + " " + error.message);
+          setUploadStatus("❌ " + (t('upload_failed') || "Upload failed:") + " " + error.message);
           return;
         }
       }
@@ -1674,16 +1826,15 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
         createdAt: serverTimestamp()
       });
 
-      console.log("✅ " + (t?.('upload_successful') || "Upload successful"));
-      setUploadStatus("✅ " + (t?.('file_upload_success') || `File "${originalName}" uploaded as "${finalFileName}"`));
+      setUploadStatus("✅ " + (t('file_upload_success') || `File "${originalName}" uploaded as "${finalFileName}"`));
       setFile(null);
       
       const fileInput = document.getElementById('fileInput') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
     } catch (err) {
-      console.error("❌ " + (t?.('catch_block_error') || "Catch block error:"), err);
-      setUploadStatus("❌ " + (t?.('unexpected_error') || "An unexpected error occurred"));
+      console.error("❌ " + (t('catch_block_error') || "Catch block error:"), err);
+      setUploadStatus("❌ " + (t('unexpected_error') || "An unexpected error occurred"));
     }
   };
 
@@ -1705,467 +1856,984 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
     if (droppedFile && droppedFile.name.toLowerCase().endsWith('.pl')) {
       setFile(droppedFile);
     } else {
-      setUploadStatus("❌ " + (t?.('only_pl_files') || "Only .pl files allowed"));
+      setUploadStatus("❌ " + (t('only_pl_files') || "Only .pl files allowed"));
     }
   };
 
-  const handleAddLesson = () => {
-    if (!newLesson.title.trim()) {
-      alert(t?.('lesson_title_required') || "Lesson title is required");
-      return;
-    }
-
-    const newCourse = {
-      id: courses.length + 1,
-      title: newLesson.title,
-      description: newLesson.description || t?.('new_lesson_created') || "New lesson created",
-      progress: 0,
-      color: `#${Math.floor(Math.random()*16777215).toString(16)}`,
-      icon: "📚"
-    };
-
-    courses.push(newCourse);
-    setNewLesson({ title: '', description: '' });
-    setShowLessonForm(false);
+  const openGradingModal = (student: Student, assignmentId?: string) => {
+    setGradingModal({
+      isOpen: true,
+      studentName: student.username,
+      studentId: student.uid || '',
+      files: student.files,
+      assignmentId
+    });
   };
 
-  const handleQuickPoints = (studentId: string, points: number) => {
-    setSelectedPoints(prev => ({
-      ...prev,
-      [studentId]: points
-    }));
-  };
-
-  const handleAddFeedbackTag = (studentId: string, tag: string) => {
-    setFeedbackText(prev => ({
-      ...prev,
-      [studentId]: (prev[studentId] || "") + (prev[studentId] ? '\n' : '') + tag
-    }));
-  };
-
-  const downloadFile = (file: StudentFile) => {
-  const element = document.createElement('a');
-  const fileBlob = new Blob([file.code], { type: 'text/plain' });
-  console.log(downloadFile, handleAddFeedbackTag, handleQuickPoints)
-  const fileName = file.originalFileName.endsWith('.pl') 
-    ? file.originalFileName 
-    : `${file.originalFileName}.pl`;
-  
-  element.href = URL.createObjectURL(fileBlob);
-  element.download = fileName;
-  document.body.appendChild(element);
-  element.click();
-  document.body.removeChild(element);
-  
-  URL.revokeObjectURL(element.href);
-};
-
-  const openFileInNewTab = (file: StudentFile) => {
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(`
-        <html>
-          <head>
-            <title>${file.originalFileName}</title>
-            <style>
-              body { 
-                font-family: monospace; 
-                margin: 20px; 
-                background: #1e1e1e; 
-                color: #fff;
-                white-space: pre-wrap;
-              }
-            </style>
-          </head>
-          <body>${file.code}</body>
-        </html>
-      `);
-      newWindow.document.close();
-    }
-  };
-
-  // Компонент за нишка от съобщения
-  const MessageThread = ({ threadId, onClose }: { threadId: string, onClose: () => void }) => {
-  const [threadMessages, setThreadMessages] = useState<Message[]>([]);
-  const [newThreadMessage, setNewThreadMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  
-  useEffect(() => {
-    if (threadId) {
-      loadThreadMessages();
-    }
-  }, [threadId]);
-  
-  const loadThreadMessages = async () => {
+  const handleMarkNotificationAsRead = async (notificationId: string) => {
     if (!user) return;
     
-    setLoading(true);
     try {
-      // Зареждане на съобщенията между текущия потребител и threadId
-      const q = query(
-        collection(db, "messages"),
-        where("senderId", "in", [user.uid, threadId]),
-        where("receiverId", "in", [user.uid, threadId]),
-        orderBy("timestamp", "asc")
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const messagesData: Message[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        messagesData.push({
-          id: doc.id,
-          senderId: data.senderId,
-          senderName: data.senderName || t?.('unknown') || "Unknown",
-          receiverId: data.receiverId,
-          receiverName: data.receiverName || t?.('unknown') || "Unknown",
-          content: data.content,
-          timestamp: data.timestamp,
-          read: data.read || false,
-          type: data.type || 'direct'
-        });
+      const notificationRef = doc(db, 'notifications', notificationId);
+      await updateDoc(notificationRef, { 
+        read: true,
+        readAt: serverTimestamp() 
       });
       
-      setThreadMessages(messagesData);
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId ? { ...n, read: true } : n
+        )
+      );
+      setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
+      
     } catch (error) {
-      console.error("Error loading thread messages:", error);
-    } finally {
-      setLoading(false);
+      console.error('Error marking notification as read:', error);
     }
   };
-  
-  const sendThreadMessage = async () => {
-    if (!user || !threadId || !newThreadMessage.trim()) return;
-    
+
+  const handleSaveGrade = async (gradingData: {
+    points: number;
+    feedback: string;
+    assignmentId: string;
+    fileId: string;
+    studentId: string;
+  }): Promise<void> => {
     try {
-      const messageRef = doc(collection(db, 'messages'));
+      const serverTime = serverTimestamp();
+
+      const fileDoc = await getDoc(doc(db, "prologCodes", gradingData.fileId));
+      const fileData = fileDoc.exists() ? fileDoc.data() : null;
       
-      // Намерете името на получателя
-      let receiverName = t?.('unknown') || "Unknown";
+      const studentDoc = await getDoc(doc(db, "users", gradingData.studentId));
+      const studentData = studentDoc.exists() ? studentDoc.data() : null;
       
-      // Първо проверете в students
-      const student = students.find(s => s.uid === threadId);
-      if (student) {
-        receiverName = student.username;
-      } else {
-        // После проверете в communities
-        const community = communities.find(c => c.id === threadId);
-        if (community) {
-          receiverName = community.name;
+      const assignmentDoc = await getDoc(doc(db, "assignments", gradingData.assignmentId));
+      const assignmentData = assignmentDoc.exists() ? assignmentDoc.data() : null;
+
+      const fileRef = doc(db, "prologCodes", gradingData.fileId);
+      await updateDoc(fileRef, {
+        points: gradingData.points,
+        feedback: gradingData.feedback,
+        gradedAt: serverTime,
+        gradedBy: user?.uid,
+        status: 'graded',
+        teacherName: userData?.fullName || user?.email?.split('@')[0] || t('teacher') || "Teacher"
+      });
+
+      const gradeRef = doc(collection(db, "grades"));
+      
+      const gradeData = {
+        ...gradingData,
+        fileName: fileData?.originalFileName || fileData?.title || t('unknown_file') || "Unknown file",
+        fileCreatedAt: fileData?.createdAt,
+        fileFolder: fileData?.folder || "general",
+        studentName: studentData?.fullName || 
+                    studentData?.email?.split('@')[0] || 
+                    t('unknown_student') || "Unknown Student",
+        studentEmail: studentData?.email || "",
+        studentClass: studentData?.class || "N/A",
+        assignmentTitle: assignmentData?.title || t('general_assignment') || "General Assignment",
+        assignmentDescription: assignmentData?.description || t('no_description') || "No description",
+        assignmentDifficulty: assignmentData?.difficulty || "medium",
+        assignmentPoints: assignmentData?.points || 100,
+        teacherId: user?.uid,
+        teacherName: userData?.fullName || user?.email?.split('@')[0] || t('teacher') || "Teacher",
+        teacherInstitution: userData?.institution || t('unknown') || "Unknown",
+        gradedAt: serverTime,
+        createdAt: serverTime,
+        maxPoints: 10,
+        gradePercentage: (gradingData.points / 10) * 100,
+        status: 'graded',
+        category: assignmentData?.category || fileData?.folder || "general",
+        subject: assignmentData?.subject || "prolog"
+      };
+
+      await setDoc(gradeRef, gradeData);
+
+      const userRef = doc(db, "users", gradingData.studentId);
+      const userDocSnap = await getDoc(userRef);
+      
+      if (userDocSnap.exists()) {
+        const currentUser = userDocSnap.data();
+        const currentGrades = currentUser.grades || [];
+        
+        const newGrade = {
+          points: gradingData.points,
+          feedback: gradingData.feedback,
+          assignmentId: gradingData.assignmentId,
+          assignmentTitle: assignmentData?.title || t('general_assignment') || "General Assignment",
+          fileId: gradingData.fileId,
+          fileName: fileData?.originalFileName || t('unknown_file') || "Unknown file",
+          gradedAt: new Date().toISOString(),
+          gradedBy: user?.uid,
+          teacherName: userData?.fullName || user?.email?.split('@')[0] || t('teacher') || "Teacher",
+          maxPoints: 10,
+          gradeId: gradeRef.id
+        };
+        
+        const existingGradeIndex = currentGrades.findIndex((g: any) => 
+          g.fileId === gradingData.fileId && g.assignmentId === gradingData.assignmentId
+        );
+        
+        if (existingGradeIndex >= 0) {
+          currentGrades[existingGradeIndex] = newGrade;
         } else {
-          // Накрая проверете в allUsers
-          const foundUser = allUsers.find(u => u.uid === threadId);
-          if (foundUser) {
-            receiverName = foundUser.username;
-          }
+          currentGrades.push(newGrade);
         }
+        
+        await updateDoc(userRef, {
+          grades: currentGrades,
+          lastGraded: serverTime,
+          totalGrades: currentGrades.length,
+          averageGrade: currentGrades.length > 0 
+            ? currentGrades.reduce((sum: number, grade: any) => sum + (grade.points || 0), 0) / currentGrades.length
+            : 0
+        });
+      }
+
+      setStudents(prev => prev.map(student => {
+        if (student.uid === gradingData.studentId) {
+          const updatedFiles = student.files.map(file => 
+            file.id === gradingData.fileId 
+              ? { 
+                  ...file, 
+                  points: gradingData.points, 
+                  feedback: gradingData.feedback,
+                  gradedAt: new Date(),
+                  gradedBy: user?.uid,
+                  teacherName: userData?.fullName || user?.email?.split('@')[0] || t('teacher') || "Teacher"
+                }
+              : file
+          );
+          
+          const newAveragePoints = updatedFiles.length > 0 
+            ? updatedFiles.reduce((sum, file) => sum + (file.points || 0), 0) / updatedFiles.length
+            : 0;
+          
+          return {
+            ...student,
+            files: updatedFiles,
+            averagePoints: newAveragePoints,
+            status: newAveragePoints >= 7 ? 'active' : 
+                    newAveragePoints >= 4 ? 'warning' : 'inactive'
+          };
+        }
+        return student;
+      }));
+
+      try {
+        const notificationRef = doc(collection(db, 'notifications'));
+        await setDoc(notificationRef, {
+          userId: gradingData.studentId,
+          type: 'grade',
+          title: t('grade_received') || '📊 Grade Received',
+          message: (t('grade_notification') || 'Your work "{file}" has been graded. Points: {points}/10.')
+            .replace('{file}', fileData?.originalFileName || 'file')
+            .replace('{points}', gradingData.points.toString()),
+          timestamp: serverTime,
+          read: false,
+          data: {
+            type: 'grade',
+            gradeId: gradeRef.id,
+            assignmentId: gradingData.assignmentId,
+            assignmentTitle: assignmentData?.title || t('general_assignment') || "General Assignment",
+            fileId: gradingData.fileId,
+            fileName: fileData?.originalFileName || 'file',
+            points: gradingData.points,
+            maxPoints: 10,
+            teacherId: user?.uid,
+            teacherName: userData?.fullName || user?.email?.split('@')[0] || t('teacher') || "Teacher"
+          },
+          actionUrl: '/teacher-dashboard?tab=students'
+        });
+        
+      } catch (notificationError) {
+        console.error("❌ " + (t('error_sending_notification') || "Error sending grade notification:"), notificationError);
+      }
+
+      try {
+        await addDoc(collection(db, "activityLogs"), {
+          userId: gradingData.studentId,
+          userName: studentData?.fullName || studentData?.email?.split('@')[0] || t('student') || "Student",
+          teacherId: user?.uid,
+          teacherName: userData?.fullName || user?.email?.split('@')[0] || t('teacher') || "Teacher",
+          action: t('grade_assigned') || "Grade Assigned",
+          details: (t('grade_assigned_details') || 'Assigned {points}/10 points for "{file}"')
+            .replace('{points}', gradingData.points.toString())
+            .replace('{file}', fileData?.originalFileName || 'file'),
+          target: `grade_${gradeRef.id}`,
+          actionType: "grading",
+          timestamp: serverTime,
+          metadata: {
+            points: gradingData.points,
+            assignmentId: gradingData.assignmentId,
+            fileId: gradingData.fileId,
+            assignmentTitle: assignmentData?.title || t('general_assignment') || "General Assignment"
+          }
+        });
+      } catch (logError) {
+        console.error(t('error_adding_activity') || "Error adding activity log:", logError);
       }
       
-      const newMessageData = {
-        senderId: user.uid,
-        senderName: userData?.fullName || user.email?.split('@')[0] || t?.('teacher') || "Teacher",
-        receiverId: threadId,
-        receiverName: receiverName,
-        content: newThreadMessage,
-        timestamp: serverTimestamp(),
-        read: false,
-        type: 'direct'
-      };
-      
-      await setDoc(messageRef, newMessageData);
-      
-      // Добавете съобщението локално за по-бързо визуализиране
-      const tempMessage: Message = {
-        id: messageRef.id,
-        ...newMessageData,
-        timestamp: new Date() // временно
-      };
-      
-      setThreadMessages(prev => [...prev, tempMessage]);
-      setNewThreadMessage("");
-      
-      // Презаредете, за да получите правилния timestamp
-      setTimeout(() => loadThreadMessages(), 100);
+      setUploadStatus("✅ " + (t('grade_saved') || "Grade saved successfully!"));
+      return;
       
     } catch (error) {
-      console.error("Error sending message:", error);
-      alert(t?.('error_sending_message') || "Грешка при изпращане на съобщение!");
+      console.error(t('error_saving_grade') || "Error saving grade:", error);
+      setUploadStatus("❌ " + (t('error_saving_grade') || "Error saving grade!"));
+      throw new Error(`Failed to save grade: ${error}`);
     }
   };
-    
-    return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-black/80' : 'bg-black/60'}`}>
-      <div className="absolute inset-0" onClick={onClose} />
-      <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        className={`relative w-full max-w-2xl rounded-2xl border overflow-hidden ${
-          theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-        }`}
-      >
-        <div className="p-6 h-[600px] flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold">
-              {t?.('message_thread') || "Message Thread"} - {
-                students.find(s => s.uid === threadId)?.username ||
-                communities.find(c => c.id === threadId)?.name ||
-                allUsers.find(u => u.uid === threadId)?.username ||
-                threadId.substring(0, 8)
-              }
-            </h3>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          
-          {loading && (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-500"></div>
-            </div>
-          )}
-          
-          <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-2">
-            {threadMessages.length === 0 && !loading ? (
-              <div className="text-center py-8">
-                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                  {t?.('no_messages_yet') || "No messages yet"}
-                </p>
-                <p className="text-sm opacity-70 mt-2">
-                  {t?.('start_conversation') || "Start the conversation by sending a message below"}
-                </p>
-              </div>
-            ) : (
-              threadMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`p-3 rounded-lg ${
-                    msg.senderId === user?.uid
-                      ? theme === 'dark' ? 'bg-blue-500/20 ml-auto' : 'bg-blue-100 ml-auto'
-                      : theme === 'dark' ? 'bg-white/5 mr-auto' : 'bg-gray-100 mr-auto'
-                  } max-w-[80%]`}
-                >
-                  <div className="font-medium text-sm mb-1">
-                    {msg.senderName}
-                    {msg.senderId === user?.uid && ` (${t?.('you') || 'You'})`}
-                  </div>
-                  <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
-                  <div className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {msg.timestamp?.toDate 
-                      ? new Date(msg.timestamp.toDate()).toLocaleString()
-                      : msg.timestamp instanceof Date
-                      ? msg.timestamp.toLocaleString()
-                      : t?.('just_now') || 'Just now'}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newThreadMessage}
-              onChange={(e) => setNewThreadMessage(e.target.value)}
-              placeholder={t?.('type_message') || "Type your message..."}
-              className={`flex-1 p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                theme === 'dark' 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendThreadMessage();
-                }
-              }}
-            />
-            <button
-              onClick={sendThreadMessage}
-              disabled={!newThreadMessage.trim()}
-              className="px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-    );
-};
 
   // Статистики
   const totalSubmissions = submissions.length;
   const successfulSubmissions = submissions.filter(s => s.status === "success").length;
   const successRate = totalSubmissions > 0 ? Math.round((successfulSubmissions / totalSubmissions) * 100) : 0;
-  const activeAssignments = assignmentStats.active; 
-  console.log(successRate, activeAssignments)
+
   const studentActivities = [...students]
-    .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime())
-    .slice(0, 5);
+  .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime())
+  .slice(0, 7) // Вземи последните 7 дни активност
+  .map(student => ({
+    date: student.lastActivity,
+    count: student.totalFiles,
+    name: student.username
+  }));
 
   const recommendations = [
     {
       id: 1,
       icon: <Target className="w-5 h-5" />,
-      title: t?.('visual_examples') || "Visual Examples",
-      description: t?.('visual_examples_desc') || "Students respond very well to graphs and diagrams.",
-      color: "from-purple-500 to-pink-500",
-      action: t?.('apply') || "Apply"
+      title: t('visual_examples') || "Визуални примери",
+      description: t('visual_examples_desc') || "Учениците реагират много добре на графики и диаграми.",
+      color: "from-blue-500 to-green-500",
+      action: t('apply') || "Приложи"
     },
     {
       id: 2,
       icon: <GroupIcon className="w-5 h-5" />,
-      title: t?.('group_work') || "Group Work",
-      description: t?.('group_work_desc') || "Start a group task for the next 15 minutes.",
-      color: "from-blue-500 to-cyan-500",
-      action: t?.('start') || "Start"
+      title: t('group_work') || "Групова работа",
+      description: t('group_work_desc') || "Започнете групова задача за следващите 15 минути.",
+      color: "from-orange-500 to-blue-500",
+      action: t('start') || "Старт"
     },
     {
       id: 3,
       icon: <Coffee className="w-5 h-5" />,
-      title: t?.('short_break') || "Short Break",
-      description: t?.('short_break_desc') || "Attention is waning - a 2-minute break would help.",
-      color: "from-amber-500 to-orange-500",
-      action: t?.('create') || "Create"
+      title: t('short_break') || "Кратка почивка",
+      description: t('short_break_desc') || "Вниманието намалява - 2 минути почивка биха помогнали.",
+      color: "from-green-500 to-orange-500",
+      action: t('create') || "Създай"
     }
   ];
 
-  const statsCards = [
+  // НАВИГАЦИЯ
+  const navSections = [
     {
-      title: t?.('my_students') || "My Students",
-      value: students.filter(s => s.role === 'student').length,
-      icon: <Users className="w-6 h-6" />,
-      color: "from-blue-500 to-cyan-500",
-      change: `${students.filter(s => s.role === 'student' && s.status === 'active').length} ${t?.('active') || 'active'}`,
-      description: t?.('students_in_my_communities') || "Students in my communities"
+      title: t('main') || "Основно",
+      items: [
+        { 
+          id: "dashboard", 
+          label: t('dashboard') || "Табло", 
+          icon: <Home className="w-5 h-5" />, 
+          badge: null 
+        },
+        { 
+          id: "messages", 
+          label: t('messages') || "Съобщения", 
+          icon: <Mail className="w-5 h-5" />, 
+          badge: messages.filter(m => !m.read && m.receiverId === user?.uid && m.type === 'direct').length 
+        },
+        { 
+          id: "communities", 
+          label: t('communities') || "Общности", 
+          icon: <Users2 className="w-5 h-5" />, 
+          badge: communities.length 
+        },
+        { 
+          id: "students", 
+          label: t('students') || "Ученици", 
+          icon: <UserCircle className="w-5 h-5" />, 
+          badge: students.length 
+        }
+      ]
     },
     {
-      title: t?.('my_communities') || "My Communities",
-      value: communities.length,
-      icon: <GroupIcon className="w-6 h-6" />,
-      color: "from-purple-500 to-pink-500",
-      change: `${stats.communityMembers} ${t?.('members') || 'members'}`,
-      description: t?.('learning_communities') || "Learning communities"
+      title: t('learning') || "Обучение",
+      items: [
+        { 
+          id: "courses", 
+          label: t('lessons') || "Уроци", 
+          icon: <BookMarked className="w-5 h-5" />, 
+          badge: lessonStats.total 
+        },
+        { 
+          id: "assignments", 
+          label: t('assignments') || "Задания", 
+          icon: <FileCheck className="w-5 h-5" />, 
+          badge: assignmentStats.total 
+        },
+        { 
+          id: "challenges", 
+          label: t('challenges') || "Предизвикателства", 
+          icon: <Award className="w-5 h-5" />, 
+          badge: challengeStats.active 
+        }
+      ]
     },
     {
-      title: t?.('my_assignments') || "My Assignments",
-      value: assignmentStats.total, 
-      icon: <FileText className="w-6 h-6" />,
-      color: "from-amber-500 to-orange-500",
-      change: `${assignmentStats.active} ${t?.('active') || 'active'}`, 
-      description: t?.('assignments_created_by_me') || "Assignments created by me"
-    },
-    {
-      title: t?.('other_teachers') || "Other Teachers",
-      value: allUsers.filter(u => u.role === 'teacher' && u.uid !== user?.uid).length,
-      icon: <Users className="w-6 h-6" />,
-      color: "from-green-500 to-emerald-500",
-      change: t?.('in_system') || "In system",
-      description: t?.('other_teachers_in_system') || "Other teachers in system"
+      title: t('content') || "Съдържание",
+      items: [
+        { 
+          id: "submissions", 
+          label: t('submissions') || "Предадени", 
+          icon: <Inbox className="w-5 h-5" />, 
+          badge: submissions.length 
+        },
+        { 
+          id: "file-upload", 
+          label: t('upload_file') || "Качване", 
+          icon: <Upload className="w-5 h-5" />, 
+          badge: null 
+        }
+      ]
     }
   ];
 
-  const navItems = [
-    { 
-      id: "dashboard", 
-      label: t?.('dashboard') || "Dashboard", 
-      icon: <BarChart3 className="w-5 h-5" />,
-      badge: null
-    },
-    { 
-      id: "messages", 
-      label: t?.('messages') || "Messages", 
-      icon: <MessageCircle className="w-5 h-5" />,
-      badge: messages.filter(m => !m.read && m.receiverId === user?.uid && m.type === 'direct').length
-    },
-    { 
-      id: "communities", 
-      label: t?.('communities') || "Communities", 
-      icon: <GroupIcon className="w-5 h-5" />,
-      badge: communities.length
-    },
-    { 
-      id: "challenges", 
-      label: t?.('challenges') || "Challenges", 
-      icon: <Target className="w-5 h-5" />,
-      badge: null
-    },
-    { 
-      id: "courses", 
-      label: t?.('my_lessons') || "My Lessons", 
-      icon: <BookOpen className="w-5 h-5" />,
-      badge: courses.length
-    },
-    { 
-      id: "assignments", 
-      label: t?.('all_assignments') || "Assignments", 
-      icon: <FileText className="w-5 h-5" />,
-      badge: assignmentStats.total 
-    },
-    { 
-      id: "students", 
-      label: t?.('students') || "Students", 
-      icon: <Users className="w-5 h-5" />,
-      badge: students.length
-    },
-    { 
-      id: "submissions", 
-      label: t?.('submissions') || "Submissions", 
-      icon: <Folder className="w-5 h-5" />,
-      badge: submissions.length
-    },
-    { 
-      id: "file-upload", 
-      label: t?.('upload_file') || "Upload File", 
-      icon: <FileCode className="w-5 h-5" />,
-      badge: null
-    },
-  ];
+  // Функции за отваряне и сваляне на файлове
+  const openFileInNewTab = async (file: StudentFile) => {
+    try {
+      const { data } = await supabase.storage
+        .from("prolog-files")
+        .getPublicUrl(`${file.folder}/${file.storedFileName}`);
+      
+      window.open(data.publicUrl, '_blank');
+    } catch (error) {
+      console.error(t('error_opening_file') || "Error opening file:", error);
+    }
+  };
+
+  const downloadFile = async (file: StudentFile) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("prolog-files")
+        .download(`${file.folder}/${file.storedFileName}`);
+      
+      if (error) throw error;
+      
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.originalFileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(t('error_downloading_file') || "Error downloading file:", error);
+    }
+  };
+
+  // Debugging useEffect
+  useEffect(() => {
+    console.log("📊 Current stats:", {
+      assignmentStats,
+      challengeStats,
+      lessonStats,
+      students: students.length,
+      communities: communities.length,
+      submissions: submissions.length
+    });
+  }, [assignmentStats, challengeStats, lessonStats, students, communities, submissions]);
+
+  // Рендиране на началния изглед
+  const renderDashboardView = () => (
+    <div className="space-y-8">
+      {loadingDashboard ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2"
+               style={{ borderColor: colorScheme.primary }}></div>
+        </div>
+      ) : (
+        <>
+          {/* СТАТИСТИКИ КАРТИ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Ученици - Синьо */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-xl p-6 border ${currentTheme.card} ${currentTheme.border}`}
+              style={{ borderLeftColor: colorScheme.primary, borderLeftWidth: '4px' }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center"
+                     style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                  <Users className="w-6 h-6" style={{ color: colorScheme.primary }} />
+                </div>
+                <span className="text-sm px-2 py-1 rounded-full" style={{ backgroundColor: `${colorScheme.primary}20`, color: colorScheme.primary }}>
+                  {students.filter(s => s.status === 'active').length} {t('active') || 'активни'}
+                </span>
+              </div>
+              <div className="text-3xl font-bold mb-1">{students.length}</div>
+              <div className="text-sm opacity-70">{t('total_students') || 'Общо ученици'}</div>
+              <div className="mt-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" style={{ color: colorScheme.primary }} />
+                <span className="text-sm">{Math.round((students.filter(s => s.status === 'active').length / (students.length || 1)) * 100)}% {t('activity') || 'активност'}</span>
+              </div>
+            </motion.div>
+
+            {/* Предизвикателства - Оранжево */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className={`rounded-xl p-6 border ${currentTheme.card} ${currentTheme.border}`}
+              style={{ borderLeftColor: colorScheme.secondary, borderLeftWidth: '4px' }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center"
+                     style={{ backgroundColor: `${colorScheme.secondary}20` }}>
+                  <Zap className="w-6 h-6" style={{ color: colorScheme.secondary }} />
+                </div>
+                <span className="text-sm px-2 py-1 rounded-full" style={{ backgroundColor: `${colorScheme.secondary}20`, color: colorScheme.secondary }}>
+                  {challengeStats.active} {t('active') || 'активни'}
+                </span>
+              </div>
+              <div className="text-3xl font-bold mb-1">{challengeStats.total}</div>
+              <div className="text-sm opacity-70">{t('total_challenges') || 'Общо предизвикателства'}</div>
+              <div className="mt-4 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" style={{ color: colorScheme.accent }} />
+                <span className="text-sm">{challengeStats.completed} {t('completed') || 'завършени'}</span>
+              </div>
+            </motion.div>
+
+            {/* Уроци - Зелено */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className={`rounded-xl p-6 border ${currentTheme.card} ${currentTheme.border}`}
+              style={{ borderLeftColor: colorScheme.accent, borderLeftWidth: '4px' }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center"
+                     style={{ backgroundColor: `${colorScheme.accent}20` }}>
+                  <Book className="w-6 h-6" style={{ color: colorScheme.accent }} />
+                </div>
+                <span className="text-sm px-2 py-1 rounded-full" style={{ backgroundColor: `${colorScheme.accent}20`, color: colorScheme.accent }}>
+                  {lessonStats.published} {t('published') || 'публикувани'}
+                </span>
+              </div>
+              <div className="text-3xl font-bold mb-1">{lessonStats.total}</div>
+              <div className="text-sm opacity-70">{t('total_lessons') || 'Общо уроци'}</div>
+              <div className="mt-4 flex items-center gap-2">
+                <Clock className="w-4 h-4" style={{ color: colorScheme.accent }} />
+                <span className="text-sm">{lessonStats.draft} {t('in_draft') || 'в чернова'}</span>
+              </div>
+            </motion.div>
+
+            {/* Общности - Синьо */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className={`rounded-xl p-6 border ${currentTheme.card} ${currentTheme.border}`}
+              style={{ borderLeftColor: colorScheme.primary, borderLeftWidth: '4px' }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center"
+                     style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                  <Globe className="w-6 h-6" style={{ color: colorScheme.primary }} />
+                </div>
+                <span className="text-sm px-2 py-1 rounded-full" style={{ backgroundColor: `${colorScheme.secondary}20`, color: colorScheme.secondary }}>
+                  {communities.reduce((sum, c) => sum + c.memberCount, 0)} {t('members') || 'членове'}
+                </span>
+              </div>
+              <div className="text-3xl font-bold mb-1">{communities.length}</div>
+              <div className="text-sm opacity-70">{t('total_communities') || 'Общо общности'}</div>
+              <div className="mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 rounded-full bg-white/10">
+                    <div className="h-2 rounded-full" style={{ 
+                      width: `${communityActivity.length > 0 ? Math.min(100, communityActivity.reduce((sum, ca) => sum + ca.activity, 0)) : 0}%`,
+                      backgroundColor: colorScheme.primary
+                    }}></div>
+                  </div>
+                  <span className="text-sm">{communityActivity.reduce((sum, ca) => sum + ca.activity, 0)} {t('activities') || 'активности'}</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* ДВЕ СТАТИСТИЧЕСКИ ГРАФИКИ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Графика 1: Активност на учениците */}
+            <motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.4 }}
+  className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}
+>
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="font-bold text-lg flex items-center gap-2">
+      <BarChart3 className="w-5 h-5" style={{ color: colorScheme.primary }} />
+      {t('student_activity_chart') || 'Активност на учениците'}
+    </h3>
+    <div className="flex items-center gap-2">
+      <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: `${colorScheme.primary}20`, color: colorScheme.primary }}>
+        {t('last_7_days') || 'Последни 7 дни'}
+      </span>
+    </div>
+  </div>
+  
+  <div className="h-64">
+    <StatsChart 
+      type="activity"
+      data={studentActivities} // ← Тук трябва да подадеш целия масив, не само totalFiles
+      colorScheme={colorScheme}
+    />
+  </div>
+  
+  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+    <div className={`p-2 rounded-lg ${currentTheme.hover}`}>
+      <div className="text-sm opacity-70">{t('active_students') || 'Активни'}</div>
+      <div className="font-bold text-lg" style={{ color: colorScheme.primary }}>{students.filter(s => s.status === 'active').length}</div>
+    </div>
+    <div className={`p-2 rounded-lg ${currentTheme.hover}`}>
+      <div className="text-sm opacity-70">{t('submissions') || 'Предадени'}</div>
+      <div className="font-bold text-lg" style={{ color: colorScheme.secondary }}>{submissions.length}</div>
+    </div>
+    <div className={`p-2 rounded-lg ${currentTheme.hover}`}>
+      <div className="text-sm opacity-70">{t('success_rate') || 'Успеваемост'}</div>
+      <div className="font-bold text-lg" style={{ color: colorScheme.accent }}>{successRate}%</div>
+    </div>
+  </div>
+</motion.div>
+
+            {/* Графика 2: Тенденция на оценките */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <LineChart className="w-5 h-5" style={{ color: colorScheme.secondary }} />
+                  {t('grades_trend') || 'Тенденция на оценките'}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: `${colorScheme.secondary}20`, color: colorScheme.secondary }}>
+                    {t('last_4_weeks') || 'Последни 4 седмици'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="h-64">
+                <StatsChart 
+                  type="grades"
+                  data={recentGrades}
+                  colorScheme={colorScheme}
+                />
+              </div>
+              
+              <div className="mt-4 flex items-center justify-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colorScheme.secondary }}></div>
+                  <span className="text-sm">{t('average_grade') || 'Среден успех'}</span>
+                </div>
+                <span className="font-bold text-lg" style={{ color: colorScheme.primary }}>
+                  {(recentGrades.reduce((sum, g) => sum + g.points, 0) / (recentGrades.length || 1)).toFixed(1)}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* ТОП УЧЕНИЦИ И АКТИВНОСТ */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Топ ученици */}
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Trophy className="w-5 h-5" style={{ color: colorScheme.secondary }} />
+                  {t('top_students') || 'Топ ученици'}
+                </h3>
+                <button 
+                  onClick={() => setSelectedTab("students")}
+                  className="text-sm px-3 py-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1"
+                >
+                  {t('view_all') || 'Виж всички'} <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {topStudents.length > 0 ? (
+                  topStudents.map((student, index) => (
+                    <div key={student.uid} className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                             style={{ backgroundColor: index === 0 ? colorScheme.accent : index === 1 ? colorScheme.primary : colorScheme.secondary }}>
+                          {student.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center text-xs font-bold"
+                             style={{ color: index === 0 ? colorScheme.accent : index === 1 ? colorScheme.primary : colorScheme.secondary }}>
+                          #{index + 1}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">{student.username}</div>
+                        <div className="text-sm opacity-70">{t('total_points') || 'Общо точки'}: {student.totalPoints}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${colorScheme.accent}20`, color: colorScheme.accent }}>
+                            {t('average') || 'Средно'}: {student.averagePoints?.toFixed(1)}/10
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${colorScheme.primary}20`, color: colorScheme.primary }}>
+                            {student.files.length} {t('files') || 'файла'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => openGradingModal(student)}
+                        className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
+                        title={t('grade') || 'Оцени'}
+                      >
+                        <GraduationCap className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-8 opacity-70">{t('no_student_data') || 'Няма данни за ученици'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Активност в общностите */}
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                {t('community_activity') || 'Активност в общностите'}
+              </h3>
+              
+              <div className="space-y-4">
+                {communityActivity.length > 0 ? (
+                  communityActivity.slice(0, 3).map((ca, idx) => (
+                    <div key={ca.communityId} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{ca.communityName}</span>
+                        <span className="font-medium" style={{ color: getColorByIndex(idx) }}>{ca.submissions} {t('submitted') || 'предадени'}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-white/10">
+                        <div className="h-2 rounded-full" style={{ 
+                          width: `${Math.min(100, ca.activity)}%`,
+                          backgroundColor: getColorByIndex(idx)
+                        }}></div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-8 opacity-70">{t('no_community_activity') || 'Няма активност в общностите'}</p>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{t('total_messages') || 'Общо съобщения'}</span>
+                  <span className="font-medium" style={{ color: colorScheme.primary }}>
+                    {messages.filter(m => 
+                      m.type === 'community' || 
+                      (m.receiverId === user?.uid && m.type === 'direct')
+                    ).length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-2">
+                  <span>{t('pending_requests') || 'Чакащи заявки'}</span>
+                  <span className="font-medium" style={{ color: colorScheme.secondary }}>{communities.reduce((sum, c) => sum + c.pendingRequests.length, 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Скорошни оценки */}
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                <Star className="w-5 h-5" style={{ color: colorScheme.accent }} />
+                {t('recent_grades') || 'Скорошни оценки'}
+              </h3>
+              
+              <div className="space-y-4">
+                {recentGrades.length > 0 ? (
+                  recentGrades.slice(0, 3).map((grade) => (
+                    <div key={grade.id} className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                           style={{ backgroundColor: `${colorScheme.accent}20` }}>
+                        <CheckCircle className="w-4 h-4" style={{ color: colorScheme.accent }} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{grade.studentName}</div>
+                        <div className="text-xs opacity-70 mt-1">{grade.assignmentTitle}</div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${colorScheme.accent}20`, color: colorScheme.accent }}>
+                            {grade.points}/{grade.maxPoints}
+                          </span>
+                          <span className="text-xs opacity-50">
+                            {grade.gradedAt?.toDate ? new Date(grade.gradedAt.toDate()).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-8 opacity-70">{t('no_recent_grades') || 'Няма скорошни оценки'}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ПОСЛЕДНИ ПРЕДИЗВИКАТЕЛСТВА И УРОЦИ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Последни предизвикателства */}
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Zap className="w-5 h-5" style={{ color: colorScheme.secondary }} />
+                  {t('recent_challenges') || 'Последни предизвикателства'}
+                </h3>
+                <button 
+                  onClick={() => setSelectedTab("challenges")}
+                  className="text-sm px-3 py-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1"
+                >
+                  {t('view_all') || 'Виж всички'} <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {recentChallenges.length > 0 ? (
+                  recentChallenges.slice(0, 5).map((challenge) => (
+                    <div key={challenge.id} className={`p-4 rounded-lg border ${currentTheme.border} hover:bg-white/5 transition-colors`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-medium">{challenge.title}</div>
+                          <div className="text-sm opacity-70 line-clamp-1">{challenge.description}</div>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full
+                          ${challenge.difficulty === 'easy' ? 'bg-green-500/20 text-green-500' :
+                            challenge.difficulty === 'medium' ? 'bg-orange-500/20 text-orange-500' :
+                            'bg-blue-500/20 text-blue-500'}`}>
+                          {challenge.difficulty === 'easy' ? t('easy') || 'Лесно' : 
+                           challenge.difficulty === 'medium' ? t('medium') || 'Средно' : t('hard') || 'Трудно'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs opacity-70">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3" /> {challenge.participants} {t('participants') || 'участници'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> {challenge.completedBy.length} {t('completed') || 'завършили'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Award className="w-3 h-3" /> {challenge.points} {t('points') || 'т.'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Zap className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="opacity-70">{t('no_active_challenges') || 'Няма активни предизвикателства'}</p>
+                    <button
+                      onClick={() => setSelectedTab("challenges")}
+                      className="mt-4 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors text-sm"
+                    >
+                      <Plus className="w-4 h-4 inline mr-2" />
+                      {t('create_first') || 'Създай първото'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Последни уроци */}
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                  {t('recent_lessons') || 'Последни уроци'}
+                </h3>
+                <button 
+                  onClick={() => setSelectedTab("courses")}
+                  className="text-sm px-3 py-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1"
+                >
+                  {t('view_all') || 'Виж всички'} <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {recentLessons.length > 0 ? (
+                  recentLessons.slice(0, 5).map((lesson) => (
+                    <div key={lesson.id} className={`p-4 rounded-lg border ${currentTheme.border} hover:bg-white/5 transition-colors`}>
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                             style={{ backgroundColor: `${lesson.color || colorScheme.primary}20` }}>
+                          {lesson.icon ? (
+                            <img src={lesson.icon} alt="" className="w-5 h-5" />
+                          ) : (
+                            <Book className="w-5 h-5" style={{ color: lesson.color || colorScheme.primary }} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{lesson.title}</div>
+                          <div className="text-sm opacity-70 line-clamp-1">{lesson.description}</div>
+                          <div className="flex items-center gap-3 mt-2 text-xs">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {lesson.estimatedTime}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full
+                              ${lesson.difficulty === 'beginner' ? 'bg-green-500/20 text-green-500' :
+                                lesson.difficulty === 'intermediate' ? 'bg-orange-500/20 text-orange-500' :
+                                'bg-blue-500/20 text-blue-500'}`}>
+                              {lesson.difficulty === 'beginner' ? t('beginner') || 'Начинаещ' : 
+                               lesson.difficulty === 'intermediate' ? t('intermediate') || 'Среден' : t('advanced') || 'Напреднал'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="opacity-70">{t('no_lessons') || 'Няма създадени уроци'}</p>
+                    <button
+                      onClick={() => setSelectedTab("courses")}
+                      className="mt-4 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors text-sm"
+                    >
+                      <Plus className="w-4 h-4 inline mr-2" />
+                      {t('create_first_lesson') || 'Създай първия урок'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ПОСЛЕДНИ СЪОБЩЕНИЯ */}
+          <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <MessageCircle className="w-5 h-5" style={{ color: colorScheme.accent }} />
+                {t('recent_messages') || 'Последни съобщения'}
+              </h3>
+              <button 
+                onClick={() => setSelectedTab("messages")}
+                className="text-sm px-3 py-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1"
+              >
+                {t('view_all') || 'Виж всички'} <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {recentMessages.length > 0 ? (
+                recentMessages.slice(0, 3).map((msg) => (
+                  <div key={msg.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                         style={{ backgroundColor: `${colorScheme.accent}20` }}>
+                      <Mail className="w-4 h-4" style={{ color: colorScheme.accent }} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">{msg.senderName}</span>
+                        <span className="text-xs opacity-50">
+                          {msg.timestamp?.toDate ? new Date(msg.timestamp.toDate()).toLocaleDateString() : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm opacity-70 line-clamp-1">{msg.content}</p>
+                    </div>
+                    {!msg.read && msg.receiverId === user?.uid && (
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colorScheme.accent }}></span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-center py-4 opacity-70">{t('no_new_messages') || 'Няма нови съобщения'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ПРЕПОРЪКИ */}
+          <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+              {t('recommendations') || 'Препоръки за днешния час'}
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {recommendations.map((rec) => (
+                <motion.div
+                  key={rec.id}
+                  whileHover={{ scale: 1.02 }}
+                  onHoverStart={() => setActiveRecommendation(rec.id)}
+                  onHoverEnd={() => setActiveRecommendation(null)}
+                  className={`relative overflow-hidden rounded-xl p-5 cursor-pointer transition-all ${
+                    activeRecommendation === rec.id ? 'shadow-lg' : ''
+                  }`}
+                  style={{
+                    background: `linear-gradient(135deg, ${colorScheme.primary}15, ${colorScheme.secondary}15)`,
+                    border: `1px solid ${activeRecommendation === rec.id ? colorScheme.primary + '40' : 'transparent'}`
+                  }}
+                >
+                  <div className={`absolute inset-0 opacity-10 bg-gradient-to-r ${rec.color}`} />
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                         style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                      {rec.icon}
+                    </div>
+                    <h4 className="font-bold mb-1">{rec.title}</h4>
+                    <p className="text-sm opacity-70 mb-3">{rec.description}</p>
+                    <button 
+                      className="text-sm font-medium flex items-center gap-1"
+                      style={{ color: colorScheme.primary }}
+                    >
+                      {rec.action} <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   // Рендиране на общностите
   const renderCommunitiesView = () => (
-    <div className="mb-8">
+    <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold">{t?.('communities') || "Communities"}</h2>
-          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-            {t?.('manage_learning_communities') || "Manage your learning communities"}
-          </p>
+          <h2 className="text-xl font-bold">{t('communities') || "Общности"}</h2>
+          <p className="opacity-70">{t('manage_learning_communities') || "Управление на учебни общности"}</p>
         </div>
         <button
           onClick={() => setShowCommunityForm(true)}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+          className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
-          {t?.('create_community') || "Create Community"}
+          {t('new_community') || "Нова общност"}
         </button>
       </div>
 
       {communities.length === 0 ? (
-        <div className={`rounded-2xl p-12 border text-center ${
-          theme === 'dark'
-            ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-            : 'bg-white border-gray-200'
-        }`}>
-          <GroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold mb-2">
-            {t?.('no_communities_yet') || "No communities yet"}
-          </h3>
-          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            {t?.('create_first_community') || "Create your first learning community to get started"}
-          </p>
+        <div className="text-center py-12">
+          <GroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <h3 className="font-bold mb-2">{t('no_communities') || "Няма общности"}</h3>
+          <p className="opacity-70 mb-4">{t('create_first_community') || "Създайте първата си учебна общност"}</p>
           <button
             onClick={() => setShowCommunityForm(true)}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+            className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
           >
             <Plus className="w-4 h-4 inline mr-2" />
-            {t?.('create_first_community') || "Create First Community"}
+            {t('create_community') || "Създай общност"}
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Табове с общности */}
           <div className="flex gap-3 overflow-x-auto pb-2">
             {communities.map((community) => (
               <button
@@ -2173,7 +2841,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                 onClick={() => setSelectedCommunity(community.id)}
                 className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all ${
                   selectedCommunity === community.id
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white border-transparent'
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-transparent'
                     : theme === 'dark'
                       ? 'bg-white/5 border-white/10 hover:bg-white/10'
                       : 'bg-gray-100 border-gray-200 hover:bg-gray-200'
@@ -2186,7 +2854,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                   <div className="text-left">
                     <div className="font-medium">{community.name}</div>
                     <div className={`text-sm ${selectedCommunity === community.id ? 'text-white/80' : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {community.memberCount} {t?.('members') || 'members'}
+                      {community.memberCount} {t('members') || 'членове'}
                     </div>
                   </div>
                 </div>
@@ -2194,6 +2862,7 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
             ))}
           </div>
 
+          {/* Детайли за избраната общност */}
           {selectedCommunity && getCurrentCommunity() && (
             <div className={`rounded-2xl p-6 border ${
               theme === 'dark'
@@ -2218,13 +2887,16 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                         ? 'bg-green-500/20 text-green-500'
                         : 'bg-blue-500/20 text-blue-500'
                     }`}>
-                      {getCurrentCommunity()?.isPublic ? t?.('public') || 'Public' : t?.('private') || 'Private'}
+                      {getCurrentCommunity()?.isPublic ? t('public') || 'Публична' : t('private') || 'Частна'}
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowMessaging(true)}
+                    onClick={() => {
+                      loadAllMessages();
+                      setShowMessaging(true);
+                    }}
                     className={`px-4 py-2 rounded-lg ${
                       theme === 'dark' 
                         ? 'bg-white/5 hover:bg-white/10' 
@@ -2232,14 +2904,15 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                     } transition-colors flex items-center gap-2`}
                   >
                     <MessageCircle className="w-4 h-4" />
-                    {t?.('message_all') || "Message All"}
+                    {t('message_all') || "Изпрати съобщение"}
                   </button>
                 </div>
               </div>
 
+              {/* Чакащи заявки */}
               {getCurrentCommunity()?.pendingRequests && getCurrentCommunity()!.pendingRequests.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="font-bold mb-3">{t?.('pending_requests') || "Pending Requests"} ({getCurrentCommunity()!.pendingRequests.length})</h4>
+                  <h4 className="font-bold mb-3">{t('pending_requests') || "Чакащи заявки"} ({getCurrentCommunity()!.pendingRequests.length})</h4>
                   <div className="space-y-2">
                     {getCurrentCommunity()!.pendingRequests.map((studentId, index) => {
                       const user = allSystemUsers.find(u => u.uid === studentId);
@@ -2264,13 +2937,13 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                               onClick={() => handleApproveRequest(studentId, selectedCommunity!)}
                               className="px-3 py-1 rounded-lg bg-green-500 text-white text-sm hover:bg-green-600 transition-colors"
                             >
-                              {t?.('approve') || "Approve"}
+                              {t('approve') || "Одобри"}
                             </button>
                             <button
                               onClick={() => handleRejectRequest(studentId, selectedCommunity!)}
                               className="px-3 py-1 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600 transition-colors"
                             >
-                              {t?.('reject') || "Reject"}
+                              {t('reject') || "Отхвърли"}
                             </button>
                           </div>
                         </div>
@@ -2283,9 +2956,9 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                               <UserPlus className="w-4 h-4 text-gray-400" />
                             </div>
                             <div>
-                              <div className="font-medium">{t?.('unknown_user') || "Unknown User"}</div>
+                              <div className="font-medium">{t('unknown_user') || "Неизвестен потребител"}</div>
                               <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {t?.('id') || "ID"}: {studentId.substring(0, 8)}...
+                                {t('id') || "ID"}: {studentId.substring(0, 8)}...
                               </div>
                             </div>
                           </div>
@@ -2294,13 +2967,13 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                               onClick={() => handleApproveRequest(studentId, selectedCommunity!)}
                               className="px-3 py-1 rounded-lg bg-green-500 text-white text-sm hover:bg-green-600 transition-colors"
                             >
-                              {t?.('approve') || "Approve"}
+                              {t('approve') || "Одобри"}
                             </button>
                             <button
                               onClick={() => handleRejectRequest(studentId, selectedCommunity!)}
                               className="px-3 py-1 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600 transition-colors"
                             >
-                              {t?.('reject') || "Reject"}
+                              {t('reject') || "Отхвърли"}
                             </button>
                           </div>
                         </div>
@@ -2310,14 +2983,15 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                 </div>
               )}
 
+              {/* Членове на общността */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-bold">{t?.('members') || "Members"} ({getCurrentCommunity()?.memberCount || 0})</h4>
+                  <h4 className="font-bold">{t('members') || "Членове"} ({getCurrentCommunity()?.memberCount || 0})</h4>
                   <button
                     onClick={() => setSelectedTab("students")}
                     className={`text-sm ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}
                   >
-                    {t?.('view_all') || "View All"} →
+                    {t('view_all') || "Виж всички"} →
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2365,1175 +3039,521 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
 
   // Рендиране на предизвикателствата
   const renderChallengesView = () => (
-    <TeacherChallenges 
-      communities={communities}
-      selectedCommunityId={selectedCommunity}
-      onCommunityChange={(communityId) => {
-        console.log("🔄 Смяна на community към:", communityId);
-        setSelectedCommunity(communityId);
-      }}
-      onUpdate={() => {
-        loadCommunities();
-      }}
-      onNewChallenge={(challenge) => {
-        setUploadStatus(`✅ ${t?.('challenge_sent') || 'Challenge'} "${challenge.title}" ${t?.('sent_successfully') || 'sent successfully'}!`);
-        setTimeout(() => setUploadStatus(""), 3000);
-      }}
-      onIncomingChallenge={(notification) => {
-        setChallengeNotifications(prev => [notification, ...prev]);
-        setUploadStatus(`📬 ${notification.description}`);
-        setTimeout(() => setUploadStatus(""), 5000);
-      }}
-      onChallengeStatusChange={(notification) => {
-        setChallengeNotifications(prev => [notification, ...prev]);
-        setUploadStatus(notification.description);
-        setTimeout(() => setUploadStatus(""), 5000);
-      }}
-    />
+    <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+      <TeacherChallenges 
+        communities={communities}
+        selectedCommunityId={selectedCommunity}
+        onCommunityChange={(communityId) => {
+          setSelectedCommunity(communityId);
+        }}
+        onUpdate={() => {
+          loadCommunities();
+          loadDashboardData();
+        }}
+        onNewChallenge={(challenge) => {
+          setUploadStatus(`✅ ${t('challenge_sent') || 'Предизвикателство'} "${challenge.title}" ${t('sent_successfully') || 'изпратено успешно'}!`);
+          setTimeout(() => setUploadStatus(""), 3000);
+          loadDashboardData();
+        }}
+        onIncomingChallenge={(notification) => {
+          setChallengeNotifications(prev => [notification, ...prev]);
+          setUploadStatus(`📬 ${notification.description}`);
+          setTimeout(() => setUploadStatus(""), 5000);
+        }}
+        onChallengeStatusChange={(notification) => {
+          setChallengeNotifications(prev => [notification, ...prev]);
+          setUploadStatus(notification.description);
+          setTimeout(() => setUploadStatus(""), 5000);
+          loadDashboardData();
+        }}
+      />
+    </div>
   );
 
-  return (
-    <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} pt-28`}>
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-green-400" />
-              </div>
-              <span>{t?.('teacher_dashboard') || "Teacher Dashboard"}</span>
-            </h1>
-            <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t?.('welcome_back') || "Welcome back"}, {userData?.fullName || user?.email?.split('@')[0] || t?.('teacher') || "Teacher"}!
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => {
-                loadAllMessages();
-                setShowMessaging(true);
-              }}
-              className={`relative p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              <MessageCircle className="w-5 h-5" />
-              
-              {(() => {
-                const unreadDirect = messages.filter(m => 
-                  !m.read && m.receiverId === user?.uid && m.type === 'direct'
-                ).length;
-                
-                if (unreadDirect > 0) {
-                  return (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {unreadDirect}
-                    </span>
-                  );
-                }
-                return null;
-              })()}
-            </button>
-            
-            <div className="relative">
-           <button 
-  onClick={() => setShowNotifications(!showNotifications)}
-  className={`relative p-2 rounded-lg ${
-    theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
-  }`}
->
-  <Bell className="w-5 h-5" />
-  
-  {/* БРОЯЧ - червеното кръгче на бутона */}
-  {(() => {
-    const pendingRequestsCount = communities.reduce((total, community) => 
-      total + community.pendingRequests.length, 0
-    );
+  // Компонент за нишка от съобщения
+  const MessageThread = ({ threadId, onClose }: { threadId: string, onClose: () => void }) => {
+    const [threadMessages, setThreadMessages] = useState<Message[]>([]);
+    const [newThreadMessage, setNewThreadMessage] = useState("");
+    const [loading, setLoading] = useState(false);
     
-    const unreadMessagesCount = messages.filter(m => 
-      !m.read && m.receiverId === user?.uid
-    ).length;
+    useEffect(() => {
+      if (threadId) {
+        loadThreadMessages();
+      }
+    }, [threadId]);
     
-    const totalNotifications = pendingRequestsCount + unreadMessagesCount + unreadNotificationsCount;
-    
-    if (totalNotifications > 0) {
-      return (
-        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-          {totalNotifications > 9 ? '9+' : totalNotifications}
-        </span>
-      );
-    }
-    return null;
-  })()}
-</button>
-
-{/* Падащо меню за нотификации */}
-{/* Падащо меню за нотификации */}
-{showNotifications && (
-  <div 
-    className={`absolute right-0 mt-2 w-96 rounded-xl border shadow-lg z-50 ${
-      theme === 'dark' 
-        ? 'bg-gray-900 border-gray-700' 
-        : 'bg-white border-gray-200'
-    }`}
-  >
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="font-bold">{t?.('notifications') || "Notifications"}</h4>
-        <button 
-          onClick={() => setShowNotifications(false)}
-          className={`p-1 rounded ${
-            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-          }`}
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+    const loadThreadMessages = async () => {
+      if (!user) return;
       
-      <div className="max-h-96 overflow-y-auto">
-        {(() => {
-          // Създаване на масив с всички нотификации
-          const allNotifications: Array<{
-            id: string;
-            type: 'pending_request' | 'direct_message' | 'challenge' | 'assignment' | 'grade' | string;
-            title: string;
-            description: string;
-            communityId?: string;
-            studentId?: string;
-            challengeId?: string;
-            assignmentId?: string;
-            timestamp: any;
-            read: boolean;
-            icon?: JSX.Element;
-            color?: string;
-          }> = [];
-          
-          // Добавяне на pending requests от общности
-          communities.forEach(community => {
-            community.pendingRequests.forEach(studentId => {
-              const student = students.find(s => s.uid === studentId);
-              allNotifications.push({
-                id: `${community.id}-${studentId}`,
-                type: 'pending_request',
-                title: t?.('join_request') || 'Join Request',
-                description: (t?.('student_wants_to_join') || '{student} wants to join "{community}"')
-                  .replace('{student}', student?.username || t?.('student') || 'Student')
-                  .replace('{community}', community.name),
-                communityId: community.id,
-                studentId: studentId,
-                timestamp: community.createdAt,
-                read: false,
-                icon: <UserPlus className="w-5 h-5" />,
-                color: 'bg-amber-500/20 text-amber-500'
-              });
-            });
-          });
-          
-          // Добавяне на директни съобщения
-          messages
-            .filter(m => !m.read && m.receiverId === user?.uid)
-            .forEach(msg => {
-              allNotifications.push({
-                id: msg.id,
-                type: 'direct_message',
-                title: t?.('new_message') || 'New Message',
-                description: `${msg.senderName}: ${msg.content.substring(0, 60)}${msg.content.length > 60 ? '...' : ''}`,
-                studentId: msg.senderId,
-                timestamp: msg.timestamp,
-                read: msg.read,
-                icon: <MessageCircle className="w-5 h-5" />,
-                color: 'bg-blue-500/20 text-blue-500'
-              });
-            });
-
-          // Добавяне на challengeNotifications (от prop)
-          challengeNotifications.forEach(notification => {
-  if (!notification.read) { // ← ДОБАВЕТЕ ТОВА
-    allNotifications.push({
-      id: notification.id,
-      type: 'challenge',
-      title: notification.title,
-      description: notification.description,
-      communityId: notification.targetCommunityId,
-      challengeId: notification.challengeId,
-      timestamp: notification.timestamp,
-      read: notification.read,
-      icon: <Target className="w-5 h-5" />,
-      color: 'bg-purple-500/20 text-purple-500'
-    });
-  }
-});
-          
-          // Добавяне на ВСИЧКИ нотификации от колекцията notifications
-          notifications.forEach((notification: any) => {
-  if (!notification.read) {
-            let icon = <Bell className="w-5 h-5" />;
-            let color = 'bg-blue-500/20 text-blue-500';
-            
-            if (notification.type === 'challenge') {
-              icon = <Target className="w-5 h-5" />;
-              color = 'bg-purple-500/20 text-purple-500';
-            } else if (notification.type === 'assignment') {
-              icon = <FileText className="w-5 h-5" />;
-              color = 'bg-green-500/20 text-green-500';
-            } else if (notification.type === 'grade') {
-              icon = <Star className="w-5 h-5" />;
-              color = 'bg-yellow-500/20 text-yellow-500';
-            } else if (notification.type === 'message') {
-              icon = <MessageCircle className="w-5 h-5" />;
-              color = 'bg-blue-500/20 text-blue-500';
-            } else if (notification.type === 'system') {
-              icon = <Bell className="w-5 h-5" />;
-              color = 'bg-gray-500/20 text-gray-500';
-            }
-            
-            allNotifications.push({
-              id: notification.id,
-              type: notification.type,
-              title: notification.title || t?.('notification') || 'Notification',
-              description: notification.message || notification.description || '',
-              communityId: notification.data?.communityId,
-              challengeId: notification.data?.challengeId,
-              assignmentId: notification.data?.assignmentId,
-              timestamp: notification.timestamp,
-              read: notification.read || false,
-              icon: icon,
-              color: color
-            
-            });
-          }
-          });
-          
-          // Сортиране по време (най-новите отгоре)
-          allNotifications.sort((a, b) => 
-            (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
-          );
-          
-          if (allNotifications.length === 0) {
-            return (
-              <div className="text-center py-8">
-                <Bell className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                  {t?.('no_notifications') || "No notifications"}
-                </p>
-              </div>
-            );
-          }
-          
-          return (
-            <div className="space-y-3">
-              {allNotifications.map((notification: any) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                    theme === 'dark' 
-                      ? 'hover:bg-white/5 border-white/10' 
-                      : 'hover:bg-gray-50 border-gray-200'
-                  }`}
-                  onClick={async () => {
-  // Маркирай като прочетена (ако е от колекцията notifications)
-  if (notification.id && notification.type !== 'pending_request' && notification.type !== 'direct_message') {
-    await handleMarkNotificationAsRead(notification.id);
-  }
-  
-  setShowNotifications(false);
-  
-  if (notification.type === 'pending_request') {
-    setSelectedCommunity(notification.communityId || null);
-    setSelectedTab('communities');
-  } else if (notification.type === 'direct_message') {
-    setActiveThread(notification.studentId || null);
-    setShowMessaging(true);
-  } else if (notification.type === 'challenge' || 
-             notification.type === 'challenge_accepted' || 
-             notification.type === 'challenge_rejected' ||
-             notification.type === 'challenge_completed' ||
-             notification.type === 'challenge_sent' ||
-             notification.type.includes('challenge')) {
-    setSelectedTab('challenges');
-    if (notification.communityId) {
-      setSelectedCommunity(notification.communityId);
-    }
-  } else if (notification.type === 'assignment') {
-    setSelectedTab('assignments');
-  } else if (notification.type === 'grade') {
-    setSelectedTab('students');
-  }
-}}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${notification.color}`}>
-                      {notification.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="font-medium text-sm">
-                          {notification.title}
-                        </div>
-                        {!notification.read && (
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        )}
-                      </div>
-                      <div className={`text-sm mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {notification.description}
-                      </div>
-                      <div className="text-xs opacity-70">
-                        {new Date(notification.timestamp?.toMillis?.() || Date.now()).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-      </div>
-      
-      {/* БУТОН ЗА МАРКИРАНЕ НА ВСИЧКИ КАТО ПРОЧЕТЕНИ */}
-      {(() => {
-        const pendingRequestsCount = communities.reduce((total, community) => 
-          total + community.pendingRequests.length, 0
+      setLoading(true);
+      try {
+        const q = query(
+          collection(db, "messages"),
+          where("senderId", "in", [user.uid, threadId]),
+          where("receiverId", "in", [user.uid, threadId]),
+          orderBy("timestamp", "asc")
         );
         
-        const unreadMessagesCount = messages.filter(m => 
-          !m.read && m.receiverId === user?.uid
-        ).length;
+        const querySnapshot = await getDocs(q);
+        const messagesData: Message[] = [];
         
-        const total = pendingRequestsCount + unreadMessagesCount + unreadNotificationsCount;
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          messagesData.push({
+            id: doc.id,
+            senderId: data.senderId,
+            senderName: data.senderName || t('unknown') || "Unknown",
+            receiverId: data.receiverId,
+            receiverName: data.receiverName || t('unknown') || "Unknown",
+            content: data.content,
+            timestamp: data.timestamp,
+            read: data.read || false,
+            type: data.type || 'direct'
+          });
+        });
         
-        if (total > 0) {
-          return (
-            <div className={`mt-4 pt-4 ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
-              <button
-                onClick={async () => {
-                  try {
-                    // Маркирай всички съобщения като прочетени
-                    const unreadMessages = messages.filter(m => !m.read && m.receiverId === user?.uid);
-                    const batch = writeBatch(db);
-                    
-                    for (const msg of unreadMessages) {
-                      const messageRef = doc(db, 'messages', msg.id);
-                      batch.update(messageRef, { read: true });
-                    }
-                    
-                    await batch.commit();
-                    
-                    loadMessages();
-                    
-                    // Маркирай всички нотификации като прочетени
-                    await handleMarkAllNotificationsAsRead();
-                    
-                    setShowNotifications(false);
-                  } catch (error) {
-                    console.error("Error marking all as read:", error);
-                  }
-                }}
-                className="w-full py-2 text-sm text-blue-500 hover:text-blue-600 text-center"
-              >
-                {t?.('mark_all_as_read') || "Mark all as read"} ({total})
-              </button>
-            </div>
-          );
+        setThreadMessages(messagesData);
+      } catch (error) {
+        console.error(t('error_loading_thread') || "Error loading thread messages:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    const sendThreadMessage = async () => {
+      if (!user || !threadId || !newThreadMessage.trim()) return;
+      
+      try {
+        const messageRef = doc(collection(db, 'messages'));
+        
+        let receiverName = t('unknown') || "Unknown";
+        
+        const student = students.find(s => s.uid === threadId);
+        if (student) {
+          receiverName = student.username;
+        } else {
+          const community = communities.find(c => c.id === threadId);
+          if (community) {
+            receiverName = community.name;
+          } else {
+            const foundUser = allUsers.find(u => u.uid === threadId);
+            if (foundUser) {
+              receiverName = foundUser.username;
+            }
+          }
         }
-        return null;
-      })()}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-2">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setSelectedTab(item.id)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${
-                  selectedTab === item.id
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                    : theme === 'dark'
-                    ? 'bg-white/5 hover:bg-white/10'
-                    : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                {item.icon}
-                <span className="font-medium">{item.label}</span>
-                {item.badge !== null && item.badge !== undefined && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    selectedTab === item.id
-                      ? 'bg-white/20 text-white'
-                      : theme === 'dark'
-                      ? 'bg-white/10'
-                      : 'bg-gray-200'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Dashboard View */}
-        {selectedTab === "dashboard" && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {statsCards.map((stat, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color}/20 flex items-center justify-center`}>
-                      {stat.icon}
-                    </div>
-                    <span className={`text-sm px-2 py-1 rounded-lg ${
-                      stat.change.includes('active') 
-                        ? 'bg-green-500/20 text-green-500'
-                        : stat.change.includes('Requires')
-                        ? 'bg-amber-500/20 text-amber-500'
-                        : theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'
-                    }`}>
-                      {stat.change}
-                    </span>
-                  </div>
-                  <div className="text-3xl font-bold mb-2">{stat.value}</div>
-                  <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{stat.title}</div>
-                  <div className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {stat.description}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Activity className="w-5 h-5" /> {t?.('my_students_activities') || "My Students Activities"}
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {studentActivities.map((student, index) => (
-                      <div
-                        key={student.username}
-                        className={`flex items-center gap-4 p-4 rounded-xl border ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                        } transition-colors`}
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold`}
-                             style={{ backgroundColor: getColorByIndex(index) }}>
-                          {student.username.charAt(0).toUpperCase()}
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-medium">{student.username}</h4>
-                            {student.pendingApproval && (
-                              <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-500">
-                                {t?.('pending_approval') || "Pending"}
-                              </span>
-                            )}
-                          </div>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {student.lastActivity || t?.('no_activity') || "No activity"}
-                          </p>
-                          <div className="flex items-center gap-4 mt-2 text-xs">
-                            <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                              {t?.('files') || "Files"}: {student.totalFiles}
-                            </span>
-                            <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                              {t?.('points') || "Points"}: {student.averagePoints?.toFixed(1) || "0.0"}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full ${
-                              student.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                              student.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                              'bg-red-500/20 text-red-500'
-                            }`}>
-                              {student.status}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <button
-                          onClick={() => setViewingStudentFiles(student.username)}
-                          className={`p-2 rounded-lg ${
-                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                          }`}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    
-                    {studentActivities.length === 0 && (
-                      <div className="text-center py-8">
-                        <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                        <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                          {t?.('no_student_activities') || "No student activities yet"}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <GroupIcon className="w-5 h-5" /> {t?.('my_communities') || "My Communities"}
-                  </h3>
-                  
-                  {communities.length === 0 ? (
-                    <div className="text-center py-8">
-                      <GroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {t?.('no_communities_dashboard') || "You haven't created any communities yet"}
-                      </p>
-                      <button
-                        onClick={() => setSelectedTab("communities")}
-                        className="mt-4 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                      >
-                        {t?.('create_community') || "Create Community"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {communities.slice(0, 3).map((community) => (
-                        <div
-                          key={community.id}
-                          className={`flex items-center justify-between p-4 rounded-xl border ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                          } transition-colors`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              community.isPublic
-                                ? 'bg-green-500/20 text-green-500'
-                                : 'bg-blue-500/20 text-blue-500'
-                            }`}>
-                              <GroupIcon className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium">{community.name}</h4>
-                              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {community.memberCount} {t?.('members') || 'members'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {community.pendingRequests.length > 0 && (
-                              <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-500">
-                                {community.pendingRequests.length} {t?.('pending') || 'pending'}
-                              </span>
-                            )}
-                            <button
-                              onClick={() => {
-                                setSelectedCommunity(community.id);
-                                setSelectedTab("communities");
-                              }}
-                              className={`px-3 py-1 rounded text-sm ${
-                                theme === 'dark' 
-                                  ? 'bg-white/5 hover:bg-white/10' 
-                                  : 'bg-gray-100 hover:bg-gray-200'
-                              }`}
-                            >
-                              {t?.('view') || "View"}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      <button
-                        onClick={() => setSelectedTab("communities")}
-                        className={`w-full py-3 rounded-lg ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 hover:bg-white/10' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        } transition-colors flex items-center justify-center gap-2`}
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                        {t?.('view_all_communities') || "View All Communities"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              <div className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
-                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                  <Brain className="w-5 h-5" /> {t?.('recommendations') || "Recommendations"}
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {recommendations.map((rec) => (
-                    <motion.div
-                      key={rec.id}
-                      whileHover={{ scale: 1.02 }}
-                      className={`rounded-xl p-4 relative overflow-hidden group cursor-pointer ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-gray-50 border border-gray-200'
-                      } ${activeRecommendation === rec.id ? 'ring-2 ring-green-500/50' : ''}`}
-                      onClick={() => setActiveRecommendation(rec.id === activeRecommendation ? null : rec.id)}
-                    >
-                      <div className="relative z-10">
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${rec.color}/20 flex items-center justify-center`}>
-                            {rec.icon}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold mb-1">{rec.title}</h4>
-                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                              {rec.description}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <button
-                            className={`px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r ${rec.color} text-white`}
-                          >
-                            {rec.action}
-                          </button>
-                          <Sparkles className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Communities View */}
-        {selectedTab === "communities" && renderCommunitiesView()}
-
-        {/* Challenges View */}
-        {selectedTab === "challenges" && (
-          communities.length === 0 ? (
-            <div className={`rounded-2xl p-12 border text-center ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                : 'bg-white border-gray-200'
-            }`}>
-              <GroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">{t?.('no_communities_yet') || "No Communities Yet"}</h3>
-              <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                {t?.('need_community_for_challenges') || "You need to create a community before you can create challenges."}
-              </p>
-              <button
-                onClick={() => setSelectedTab("communities")}
-                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-              >
-                <Plus className="w-4 h-4 inline mr-2" />
-                {t?.('create_first_community') || "Create Your First Community"}
-              </button>
-            </div>
-          ) : !selectedCommunity ? (
-            <div className={`rounded-2xl p-12 border text-center ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                : 'bg-white border-gray-200'
-            }`}>
-              <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">{t?.('no_community_selected') || "No Community Selected"}</h3>
-              <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                {t?.('select_community_for_challenges') || "Please select a community from the Communities tab to view and manage challenges."}
-              </p>
-              <button
-                onClick={() => setSelectedTab("communities")}
-                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-              >
-                {t?.('go_to_communities') || "Go to Communities"}
-              </button>
-            </div>
-          ) : (
-            renderChallengesView()
-          )
-        )}
-
-        {/* Courses/Lessons View */}
-        {selectedTab === "courses" && (
-          <div className="mb-8">
+        
+        const newMessageData = {
+          senderId: user.uid,
+          senderName: userData?.fullName || user.email?.split('@')[0] || t('teacher') || "Teacher",
+          receiverId: threadId,
+          receiverName: receiverName,
+          content: newThreadMessage,
+          timestamp: serverTimestamp(),
+          read: false,
+          type: 'direct'
+        };
+        
+        await setDoc(messageRef, newMessageData);
+        
+        const tempMessage: Message = {
+          id: messageRef.id,
+          ...newMessageData,
+          timestamp: new Date()
+        };
+        
+        setThreadMessages(prev => [...prev, tempMessage]);
+        setNewThreadMessage("");
+        
+        setTimeout(() => loadThreadMessages(), 100);
+        
+      } catch (error) {
+        console.error(t('error_sending_message') || "Error sending message:", error);
+        alert(t('error_sending_message') || "Error sending message!");
+      }
+    };
+    
+    return (
+      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-black/80' : 'bg-black/60'}`}>
+        <div className="absolute inset-0" onClick={onClose} />
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          className={`relative w-full max-w-2xl rounded-2xl border overflow-hidden ${
+            theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
+          }`}
+        >
+          <div className="p-6 h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">{t?.('my_lessons') || "My Lessons"}</h2>
-                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                  {filteredLessons.length} {t?.('lessons') || 'lessons'} • {lessons.filter(l => l.status === 'published').length} {t?.('published') || 'published'}
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                  <input
-                    type="text"
-                    placeholder={t?.('search_lessons') || "Search lessons..."}
-                    value={lessonSearch}
-                    onChange={(e) => setLessonSearch(e.target.value)}
-                    className={`pl-10 pr-4 py-2 rounded-lg border ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/10 text-white' 
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  />
-                </div>
-                
-           <select
-  value={lessonFilter}
-  onChange={(e) => setLessonFilter(e.target.value)}
-  className={`px-4 py-2 rounded-lg border ${
-    theme === 'dark' 
-      ? 'bg-white/5 border-white/10 text-white [&>option]:bg-gray-800 [&>option]:text-white' 
-      : 'bg-white border-gray-300 text-gray-900'
-  }`}
->
-  <option value="all" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
-    {t?.('all_lessons') || "All Lessons"}
-  </option>
-  <option value="published" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
-    {t?.('published') || "Published"}
-  </option>
-  <option value="draft" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
-    {t?.('drafts') || "Drafts"}
-  </option>
-  <option value="archived" className={theme === 'dark' ? 'bg-gray-800 text-white' : ''}>
-    {t?.('archived') || "Archived"}
-  </option>
-</select>
-                
-                <button 
-                  onClick={() => {
-                    setEditingLesson(null);
-                    setShowLessonForm(true);
-                  }}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t?.('add_new_lesson') || "Add New Lesson"}
-                </button>
-              </div>
+              <h3 className="text-xl font-bold">
+                {t('message_thread') || "Нишка съобщения"} - {
+                  students.find(s => s.uid === threadId)?.username ||
+                  communities.find(c => c.id === threadId)?.name ||
+                  allUsers.find(u => u.uid === threadId)?.username ||
+                  threadId.substring(0, 8)
+                }
+              </h3>
+              <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">{lessons.length}</div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('total_lessons') || "Total Lessons"}
-                </div>
-              </div>
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">
-                  {lessons.filter(l => l.status === 'published').length}
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('published') || "Published"}
-                </div>
-              </div>
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">
-                  {lessons.filter(l => l.status === 'draft').length}
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('drafts') || "Drafts"}
-                </div>
-              </div>
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <div className="text-2xl font-bold mb-1">
-                  {[...new Set(lessons.map(l => l.category))].length}
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('categories') || "Categories"}
-                </div>
-              </div>
-            </div>
-
-            {filteredLessons.length === 0 ? (
-              <div className={`rounded-2xl p-12 border text-center ${
-                theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold mb-2">
-                  {lessonSearch || lessonFilter !== 'all' 
-                    ? t?.('no_matching_lessons') || 'No matching lessons found' 
-                    : t?.('no_lessons_yet') || "No lessons yet"}
-                </h3>
-                <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {lessonSearch || lessonFilter !== 'all' 
-                    ? t?.('try_changing_criteria') || 'Try changing your search or filter criteria'
-                    : t?.('create_first_lesson') || "Create your first lesson to get started"}
-                </p>
-                <button
-                  onClick={() => {
-                    setEditingLesson(null);
-                    setShowLessonForm(true);
-                    setLessonSearch('');
-                    setLessonFilter('all');
-                  }}
-                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                >
-                  <Plus className="w-4 h-4 inline mr-2" />
-                  {t?.('create_first_lesson') || "Create First Lesson"}
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredLessons.map((lesson) => (
-                  <motion.div
-                    key={lesson.id}
-                    whileHover={{ scale: 1.02, translateY: -5 }}
-                    className={`rounded-2xl p-6 border cursor-pointer ${
-                      theme === 'dark'
-                        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10 hover:border-white/20'
-                        : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'
-                    } backdrop-blur-xl transition-all`}
-                    onClick={() => setViewingLesson(lesson)}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                          style={{ backgroundColor: `${lesson.color}20`, color: lesson.color }}
-                        >
-                          {lesson.icon}
-                        </div>
-                        <div>
-                          <h3 className="font-bold line-clamp-1">{lesson.title}</h3>
-                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {lesson.category}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          lesson.status === 'published' ? 'bg-green-500/20 text-green-500' :
-                          lesson.status === 'draft' ? 'bg-yellow-500/20 text-yellow-500' :
-                          'bg-gray-500/20 text-gray-500'
-                        }`}>
-                          {lesson.status === 'published' ? t?.('published') || 'published' :
-                           lesson.status === 'draft' ? t?.('draft') || 'draft' :
-                           t?.('archived') || 'archived'}
-                        </span>
-                        <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                          {lesson.estimatedTime || 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className={`mb-4 line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {lesson.description}
-                    </p>
-
-                    <div className="space-y-3 mb-6">
-                      {lesson.tags && lesson.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {lesson.tags.slice(0, 3).map((tag, index) => (
-                            <span
-                              key={index}
-                              className={`px-2 py-1 rounded text-xs ${
-                                theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                              }`}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {lesson.tags.length > 3 && (
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                            }`}>
-                              +{lesson.tags.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                          <Calendar className="w-4 h-4 inline mr-1" />
-                          {new Date(lesson.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
-                        </span>
-                        {lesson.attachments && lesson.attachments.length > 0 && (
-                          <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-                            <FileText className="w-4 h-4 inline mr-1" />
-                            {lesson.attachments.length}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                          <span className="text-blue-400 font-bold text-sm">U</span>
-                        </div>
-                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {lesson.teacherName}
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingLesson(lesson);
-                            setShowLessonForm(true);
-                          }}
-                          className={`p-2 rounded-lg ${
-                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                          }`}
-                          title={t?.('edit') || "Edit"}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewingLesson(lesson);
-                          }}
-                          className={`p-2 rounded-lg ${
-                            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                          }`}
-                          title={t?.('view') || "View"}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+            
+            {loading && (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2"
+                     style={{ borderColor: colorScheme.primary }}></div>
               </div>
             )}
-          </div>
-        )}
-
-        {selectedTab === "assignments" && (
-          <TeacherAssignments 
-            teacherId={user?.uid || ''}
-            isTeacherOrAdmin={userData?.role === 'teacher' || userData?.role === 'admin'}
-            onStatsChange={(stats) => {
-              setAssignmentStats(stats);
-              setStats(prev => ({
-                ...prev,
-                lessonProgress: stats.total > 0 
-                  ? Math.round((stats.active / stats.total) * 100) 
-                  : 0
-              }));
-            }}
-          />
-        )}
-
-        {/* Students View */}
-        {selectedTab === "students" && (userData?.role === 'teacher' || userData?.role === 'admin') && (
-          <div className="mb-8">
-            <div className={`rounded-2xl p-6 border ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                : 'bg-white border-gray-200'
-            } backdrop-blur-xl`}>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">
-                    {t?.('my_students') || "My Students"} ({students.filter(s => s.role === 'student').length})
-                  </h2>
+            
+            <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-2">
+              {threadMessages.length === 0 && !loading ? (
+                <div className="text-center py-8">
+                  <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {t?.('manage_students_subtitle') || "Review student submissions and assign grades"}
+                    {t('no_messages_yet') || "Все още няма съобщения"}
+                  </p>
+                  <p className="text-sm opacity-70 mt-2">
+                    {t('start_conversation') || "Започнете разговор, като изпратите съобщение"}
                   </p>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
-                    <input
-                      type="text"
-                      placeholder={t?.('search_students') || "Search students..."}
-                      className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10' 
-                          : 'bg-white border-gray-300'
-                      }`}
-                    />
-                  </div>
-                  <button
-                    onClick={loadAllStudentsData}
-                    disabled={loadingStudents}
-                    className={`px-4 py-2 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors disabled:opacity-50`}
+              ) : (
+                threadMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`p-3 rounded-lg ${
+                      msg.senderId === user?.uid
+                        ? 'ml-auto'
+                        : 'mr-auto'
+                    } max-w-[80%]`}
+                    style={{
+                      backgroundColor: msg.senderId === user?.uid 
+                        ? `${colorScheme.primary}20`
+                        : `${colorScheme.secondary}20`
+                    }}
                   >
-                    {loadingStudents ? (
-                      <span className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-500"></div>
-                        {t?.('loading') || "Loading..."}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4" />
-                        {t?.('refresh') || "Refresh"}
-                      </span>
-                    )}
-                  </button>
-                </div>
+                    <div className="font-medium text-sm mb-1" style={{
+                      color: msg.senderId === user?.uid 
+                        ? colorScheme.primary
+                        : colorScheme.secondary
+                    }}>
+                      {msg.senderName}
+                      {msg.senderId === user?.uid && ` (${t('you') || 'Вие'})`}
+                    </div>
+                    <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
+                    <div className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {msg.timestamp?.toDate 
+                        ? new Date(msg.timestamp.toDate()).toLocaleString()
+                        : msg.timestamp instanceof Date
+                        ? msg.timestamp.toLocaleString()
+                        : t('just_now') || 'Току-що'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newThreadMessage}
+                onChange={(e) => setNewThreadMessage(e.target.value)}
+                placeholder={t('type_message') || "Напишете съобщение..."}
+                className={`flex-1 p-3 rounded-lg border focus:outline-none focus:ring-2 ${
+                  theme === 'dark' 
+                    ? 'bg-gray-800 border-gray-700 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendThreadMessage();
+                  }
+                }}
+              />
+              <button
+                onClick={sendThreadMessage}
+                disabled={!newThreadMessage.trim()}
+                className="px-4 py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`min-h-screen ${currentTheme.bg} ${currentTheme.text}`}>
+      
+      {/* HEADER */}
+      <Header 
+        isScrolled={true}
+        userRole="teacher"
+        notifications={notifications.map(n => ({
+          id: n.id,
+          title: n.title || t('notification') || 'Notification',
+          description: n.message || n.description || '',
+          type: (n.type as string) || 'system',
+          read: n.read,
+          timestamp: n.timestamp,
+          data: n.data || { type: n.type || 'system' },
+          actionUrl: n.actionUrl
+        }))}
+        unreadCount={unreadNotificationsCount}
+        onNotificationClick={handleMarkNotificationAsRead}
+        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+        onNotificationAction={(notification) => {
+          if (notification.id) {
+            handleMarkNotificationAsRead(notification.id);
+          }
+          
+          if (notification.actionUrl) {
+            const urlParams = new URLSearchParams(notification.actionUrl.split('?')[1]);
+            const tab = urlParams.get('tab');
+            
+            if (tab) {
+              setSelectedTab(tab);
+            }
+            
+            if (notification.data?.communityId) {
+              setSelectedCommunity(notification.data.communityId);
+            }
+            
+            navigate(notification.actionUrl);
+            return;
+          }
+          
+          if (notification.data) {
+            const data = notification.data;
+            const type = data.type || notification.type;
+            
+            switch(type) {
+              case 'join_request':
+                if (data.communityId) {
+                  setSelectedCommunity(data.communityId);
+                  setSelectedTab('communities');
+                }
+                break;
+                
+              case 'message':
+              case 'direct':
+                setActiveThread(data.studentId || data.senderId || null);
+                setShowMessaging(true);
+                break;
+                
+              case 'challenge':
+              case 'challenge_accepted':
+              case 'challenge_rejected':
+              case 'challenge_completed':
+              case 'challenge_submission':
+                setSelectedTab('challenges');
+                if (data.communityId) {
+                  setSelectedCommunity(data.communityId);
+                }
+                break;
+                
+              case 'grade':
+              case 'submission_evaluated':
+                setSelectedTab('students');
+                if (data.studentId) {
+                  const student = students.find(s => s.uid === data.studentId);
+                  if (student) {
+                    setTimeout(() => {
+                      openGradingModal(student, data.assignmentId);
+                    }, 300);
+                  }
+                }
+                break;
+            }
+          }
+        }}
+        messages={messages.map(msg => ({
+          id: msg.id,
+          senderId: msg.senderId,
+          senderName: msg.senderName,
+          receiverId: msg.receiverId,
+          receiverName: msg.receiverName,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          read: msg.read,
+          type: msg.type as any
+        }))}
+        unreadMessagesCount={messages.filter(m => !m.read && m.receiverId === user?.uid).length}
+        onMessageClick={handleMarkAsRead}
+        onMarkAllMessagesAsRead={handleMarkAllAsRead}
+        onSendMessage={handleSendMessage}
+      />
+
+      {/* СТРАНИЧЕН ПАНЕЛ */}
+      <AnimatePresence mode="wait">
+        {sidebarOpen && (
+          <motion.aside
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            className={`w-72 ${currentTheme.card} border-r ${currentTheme.border} fixed left-0 top-20 z-30 h-[calc(100vh-5rem)] overflow-hidden`}
+          >
+            <div className="h-full flex flex-col pt-6">
+              <div className="flex-1 overflow-y-auto px-4 pb-4 hide-scrollbar">
+
+                {navSections.map((section, idx) => (
+                  <div key={idx} className="mb-6">
+                    <h3 className="text-xs uppercase tracking-wider opacity-50 mb-3 px-3">
+                      {section.title}
+                    </h3>
+                    <div className="space-y-1">
+                      {section.items.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setSelectedTab(item.id);
+                            navigate(`/teacher-dashboard?tab=${item.id}`);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                            selectedTab === item.id
+                              ? 'bg-blue-500 text-white'
+                              : `opacity-70 hover:opacity-100 ${currentTheme.hover}`
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {item.icon}
+                            <span className="text-sm font-medium">{item.label}</span>
+                          </div>
+                          {item.badge !== null && item.badge !== undefined && item.badge > 0 && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-white/20">
+                              {item.badge}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <button 
+                  onClick={handleLogout}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl ${currentTheme.hover} opacity-70 hover:opacity-100 mt-8`}
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-medium">{t('logout') || "Изход"}</span>
+                </button>
+              </div>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* ОСНОВНО СЪДЪРЖАНИЕ */}
+      <div className={`transition-all ${sidebarOpen ? 'ml-72' : 'ml-0'}`}>
+        <main className="p-6 pt-32">
+          
+          {/* ЗАГЛАВИЕ */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold mb-2">
+              {selectedTab === "dashboard" && (t('welcome_back') || "Добре дошли отново!")}
+              {selectedTab === "students" && (t('my_students') || "Моите ученици")}
+              {selectedTab === "communities" && (t('communities') || "Общности")}
+              {selectedTab === "courses" && (t('my_lessons') || "Моите уроци")}
+              {selectedTab === "assignments" && (t('assignments') || "Задания")}
+              {selectedTab === "challenges" && (t('challenges') || "Предизвикателства")}
+              {selectedTab === "submissions" && (t('submissions') || "Предадени работи")}
+              {selectedTab === "file-upload" && (t('upload_file') || "Качване на файл")}
+              {selectedTab === "messages" && (t('messages') || "Съобщения")}
+            </h1>
+            <p className="opacity-70">
+              {selectedTab === "dashboard" && (t('dashboard_description') || "Преглед на последните активности и статистики")}
+              {selectedTab === "students" && `${students.filter(s => s.role === 'student').length} ${t('students_in_system') || 'ученици в системата'}`}
+              {selectedTab === "communities" && `${communities.length} ${t('communities') || 'общности'}`}
+              {selectedTab === "courses" && `${lessonStats.total} ${t('lessons') || 'урока'}`}
+              {selectedTab === "assignments" && `${assignmentStats.total} ${t('assignments') || 'задания'}`}
+              {selectedTab === "challenges" && `${challengeStats.active} ${t('active_challenges') || 'активни предизвикателства'}`}
+              {selectedTab === "submissions" && `${submissions.length} ${t('submissions') || 'предадени работи'}`}
+            </p>
+          </div>
+
+          {/* ДИНАМИЧНО СЪДЪРЖАНИЕ */}
+          {selectedTab === "dashboard" && renderDashboardView()}
+          {selectedTab === "students" && (
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <div className="flex justify-between mb-6">
+                <h2 className="text-xl font-bold">{t('student_list') || "Списък с ученици"}</h2>
+                <button
+                  onClick={loadAllStudentsData}
+                  className="px-3 py-1.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors text-sm"
+                >
+                  <RefreshCw className="w-4 h-4 inline mr-2" />
+                  {t('refresh') || "Обнови"}
+                </button>
               </div>
 
               {loadingStudents ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 mx-auto mb-4"
+                       style={{ borderColor: colorScheme.primary }}></div>
+                  <p className="opacity-70">{t('loading') || "Зареждане..."}</p>
                 </div>
               ) : students.length === 0 ? (
                 <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">
-                    {t?.('no_students_found') || "No Students Found"}
-                  </h3>
-                  <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t?.('no_students_description') || "No students with uploaded files found in the system."}
-                  </p>
-                  <button
-                    onClick={loadAllStudentsData}
-                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                  >
-                    {t?.('try_again') || "Try Again"}
-                  </button>
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="opacity-70">{t('no_students_found') || "Няма намерени ученици"}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className={`border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('student') || "Student"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('class') || "Class"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('files') || "Files"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('last_activity') || "Last Activity"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('avg_points') || "Avg Points"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('status') || "Status"}</th>
-                        <th className="py-3 px-4 text-left font-medium">{t?.('actions') || "Actions"}</th>
+                      <tr className="border-b border-white/10">
+                        <th className="py-3 text-left text-sm font-medium opacity-70">{t('student') || "Ученик"}</th>
+                        <th className="py-3 text-left text-sm font-medium opacity-70">{t('files') || "Файлове"}</th>
+                        <th className="py-3 text-left text-sm font-medium opacity-70">{t('avg_points') || "Ср. точки"}</th>
+                        <th className="py-3 text-left text-sm font-medium opacity-70">{t('status') || "Статус"}</th>
+                        <th className="py-3 text-left text-sm font-medium opacity-70">{t('actions') || "Действия"}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {students.map((student, index) => (
-                        <tr key={student.username} className={`border-b ${
-                          theme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'
-                        }`}>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-                                style={{ backgroundColor: getColorByIndex(index) }}
-                              >
+                      {students.map((student, idx) => (
+                        <tr key={idx} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                                   style={{ backgroundColor: getColorByIndex(idx) }}>
                                 {student.username.charAt(0).toUpperCase()}
                               </div>
-                              <div>
-                                <div className="font-medium">{student.username}</div>
-                                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {student.email || t?.('no_email') || "No email"}
-                                </div>
-                              </div>
+                              <span className="text-sm">{student.username}</span>
                             </div>
                           </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-3 py-1 rounded-full text-sm ${
-                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                            }`}>
-                              {student.class || t?.('na') || "N/A"}
+                          <td className="py-3 text-sm">{student.totalFiles}</td>
+                          <td className="py-3">
+                            <span className="text-sm font-medium"
+                                  style={{ color: student.averagePoints && student.averagePoints >= 7 ? colorScheme.accent :
+                                          student.averagePoints && student.averagePoints >= 4 ? colorScheme.primary :
+                                          colorScheme.secondary }}>
+                              {student.averagePoints?.toFixed(1) || '0.0'}/10
                             </span>
                           </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{student.totalFiles}</span>
-                              {student.totalFiles > 0 && (
-                                <span className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>
-                                  ({student.files.filter(f => f.points !== undefined).length} {t?.('graded') || 'graded'})
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">{student.lastActivity}</td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{student.averagePoints?.toFixed(1) || "0.0"}/10</span>
-                              <div className={`w-16 h-2 rounded-full overflow-hidden ${
-                                theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'
-                              }`}>
-                                <div
-                                  className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                                  style={{ width: `${(student.averagePoints || 0) * 10}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              student.status === 'active' ? 'bg-green-500/20 text-green-500' :
-                              student.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                              'bg-red-500/20 text-red-500'
-                            }`}>
-                              {student.status === 'active' ? t?.('active') || "Active" :
-                               student.status === 'warning' ? t?.('warning') || "Warning" :
-                               t?.('inactive') || "Inactive"}
+                          <td className="py-3">
+                            <span className={`text-xs px-2 py-1 rounded-full`}
+                            style={{
+                              backgroundColor: student.status === 'active' ? `${colorScheme.accent}20` :
+                                              student.status === 'warning' ? `${colorScheme.primary}20` :
+                                              `${colorScheme.secondary}20`,
+                              color: student.status === 'active' ? colorScheme.accent :
+                                     student.status === 'warning' ? colorScheme.primary :
+                                     colorScheme.secondary
+                            }}>
+                              {student.status === 'active' ? t('active') || 'Активен' :
+                               student.status === 'warning' ? t('average') || 'Среден' : t('inactive') || 'Неактивен'}
                             </span>
                           </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => openGradingModal(student)}
-                                className={`p-2 rounded ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title={t?.('grade') || "Grade"}
-                              >
-                                <GraduationCap className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setViewingStudentFiles(student.username)}
-                                className={`p-2 rounded ${
-                                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                                } transition-colors`}
-                                title={t?.('view_files') || "View Files"}
-                              >
-                                <FolderOpen className="w-4 h-4" />
-                              </button>
-                            </div>
+                          <td className="py-3">
+                            <button
+                              onClick={() => openGradingModal(student)}
+                              className="p-1.5 rounded hover:bg-gray-500/20 transition-colors"
+                              title={t('grade') || "Оцени"}
+                            >
+                              <GraduationCap className="w-4 h-4" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -3542,309 +3562,78 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Grading Modal */}
-        {gradingModal.isOpen && (
-          <AssignmentGradingModal
-            studentName={gradingModal.studentName}
-            studentId={gradingModal.studentId}
-            files={gradingModal.files}
-            assignmentId={gradingModal.assignmentId}
-            onClose={() => setGradingModal({ isOpen: false, studentName: '', studentId: '', files: [] })}
-            onSave={handleSaveGrade}
-          />
-        )}
+          {selectedTab === "communities" && renderCommunitiesView()}
+          {selectedTab === "challenges" && renderChallengesView()}
+          
+          {selectedTab === "courses" && (
+            <TeacherLessons
+              teacherId={user?.uid || ''}
+              isTeacherOrAdmin={userData?.role === 'teacher' || userData?.role === 'admin'}
+              onStatsChange={(stats) => {
+                setLessonStats(stats);
+                loadDashboardData();
+              }}
+            />
+          )}
 
-        {/* View Student Files Modal */}
-        {/* View Student Files Modal */}
-{viewingStudentFiles && (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="fixed inset-0 z-50 flex items-center justify-center p-4"
-  >
-    <div className="absolute inset-0 bg-black/80" onClick={() => setViewingStudentFiles(null)} />
-    <motion.div
-      initial={{ scale: 0.9, y: 20 }}
-      animate={{ scale: 1, y: 0 }}
-      className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl border overflow-hidden ${
-        theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-      }`}
-    >
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-              <FolderOpen className="w-5 h-5 text-green-400" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold">
-                {t?.('student_files') || "Student Files"}: {viewingStudentFiles}
-              </h3>
-              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                {students.find(s => s.username === viewingStudentFiles)?.files.length || 0} {t?.('files') || "files"}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setViewingStudentFiles(null)}
-            className={`p-2 rounded-lg ${
-              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-            } transition-colors`}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          {selectedTab === "assignments" && (
+            <TeacherAssignments 
+              teacherId={user?.uid || ''}
+              isTeacherOrAdmin={userData?.role === 'teacher' || userData?.role === 'admin'}
+              onStatsChange={(stats) => {
+                setAssignmentStats(stats);
+              }}
+            />
+          )}
 
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-          {students.find(s => s.username === viewingStudentFiles)?.files.map((file) => (
-            <div
-              key={file.id}
-              className={`p-4 rounded-xl border ${
-                theme === 'dark' 
-                  ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-              } transition-colors`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3 flex-1">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                    <FileCode className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium mb-1">{file.originalFileName}</div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        <Folder className="w-4 h-4 inline mr-1" /> {file.folder}
-                      </span>
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        <Calendar className="w-4 h-4 inline mr-1" />
-                        {new Date(file.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
-                      </span>
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {(file.fileSize / 1024).toFixed(2)} KB
-                      </span>
-                      {file.points !== undefined && (
-                        <span className="px-2 py-1 rounded bg-green-500/20 text-green-500 text-xs font-medium">
-                          {file.points}/10
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => openFileInNewTab(file)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                    title={t?.('view_code') || "View Code"}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      // Актуализирана функция за изтегляне
-                      const element = document.createElement('a');
-                      const fileBlob = new Blob([file.code], { type: 'text/plain' });
-                      
-                      // Уверете се, че файлът има .pl разширение
-                      const fileName = file.originalFileName.endsWith('.pl') 
-                        ? file.originalFileName 
-                        : `${file.originalFileName}.pl`;
-                      
-                      element.href = URL.createObjectURL(fileBlob);
-                      element.download = fileName;
-                      document.body.appendChild(element);
-                      element.click();
-                      document.body.removeChild(element);
-                      URL.revokeObjectURL(element.href);
-                    }}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                    title={t?.('download_file') || "Download File"}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {students.find(s => s.username === viewingStudentFiles)?.files.length === 0 && (
-          <div className="text-center py-12">
-            <Folder className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h4 className="text-lg font-bold mb-2">{t?.('no_files_found') || "No Files Found"}</h4>
-            <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-              {t?.('no_files_uploaded') || "This student hasn't uploaded any files yet."}
-            </p>
-          </div>
-        )}
-
-        {/* Бутон за оценяване в модала за файлове */}
-        {students.find(s => s.username === viewingStudentFiles) && 
-         students.find(s => s.username === viewingStudentFiles)!.files.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-white/10 dark:border-gray-700">
-            <div className="flex justify-center">
-              <button
-                onClick={() => {
-                  const student = students.find(s => s.username === viewingStudentFiles);
-                  if (student) {
-                    setViewingStudentFiles(null);
-                    setTimeout(() => {
-                      openGradingModal(student);
-                    }, 300);
-                  }
-                }}
-                className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-              >
-                <GraduationCap className="w-5 h-5" />
-                {t?.('grade_all_work') || "Grade All Work"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  </motion.div>
-)}
-
-        {/* Submissions View */}
-        {selectedTab === "submissions" && (
-          <div className="mb-8">
-            <div className={`rounded-2xl p-6 border ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                : 'bg-white border-gray-200'
-            } backdrop-blur-xl`}>
-              <h2 className="text-2xl font-bold mb-6">
-                {t?.('recent_submissions') || "Recent Submissions"} ({submissions.length})
-              </h2>
-              
+          {selectedTab === "submissions" && (
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <h2 className="text-xl font-bold mb-6">{t('submissions') || "Предадени работи"}</h2>
               {submissions.length === 0 ? (
                 <div className="text-center py-12">
-                  <Folder className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">
-                    {t?.('no_submissions') || "No submissions yet"}
-                  </h3>
-                  <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t?.('make_first_submission') || "Make your first submission to get started"}
-                  </p>
-                  <button
-                    onClick={() => setSelectedTab("file-upload")}
-                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
-                  >
-                    {t?.('upload_first_file') || "Upload your first file"}
-                  </button>
+                  <Inbox className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="opacity-70">{t('no_submissions') || "Няма предадени работи"}</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {submissions.map((sub) => (
-                    <div
-                      key={sub.id}
-                      className={`p-4 rounded-xl border ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      } transition-colors`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium mb-1">{sub.name}</h4>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {sub.date}
-                          </p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          sub.status === 'success' 
-                            ? 'bg-green-500/20 text-green-500' 
-                            : 'bg-red-500/20 text-red-500'
-                        }`}>
-                          {sub.status === 'success' 
-                            ? t?.('status_success') || 'Success'
-                            : t?.('status_error') || 'Error'}
+                <div className="space-y-3">
+                  {submissions.slice(0, 5).map((sub) => (
+                    <div key={sub.id} className={`p-4 rounded-lg border ${currentTheme.border}`}>
+                      <div className="flex justify-between mb-2">
+                        <span className="font-medium">{sub.name}</span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          sub.status === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'
+                        }`}
+                        style={{
+                          color: sub.status === 'success' ? colorScheme.accent : colorScheme.danger
+                        }}>
+                          {sub.status === 'success' ? t('success') || 'Успех' : t('error') || 'Грешка'}
                         </span>
                       </div>
-                      <div className={`mt-3 p-3 rounded-lg ${
-                        theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'
-                      }`}>
-                        <code className="text-sm font-mono">
-                          {sub.code?.substring(0, 100)}...
-                        </code>
-                      </div>
-                      {sub.code && (
-                        <button
-                          onClick={() => {
-                            const newWindow = window.open('', '_blank');
-                            if (newWindow) {
-                              newWindow.document.write(`
-                                <html>
-                                  <head>
-                                    <title>${sub.name}</title>
-                                    <style>
-                                      body { 
-                                        font-family: monospace; 
-                                        margin: 20px; 
-                                        background: ${theme === 'dark' ? '#1e1e1e' : '#ffffff'};
-                                        color: ${theme === 'dark' ? '#ffffff' : '#000000'};
-                                        white-space: pre-wrap;
-                                      }
-                                    </style>
-                                  </head>
-                                  <body>${sub.code}</body>
-                                </html>
-                              `);
-                              newWindow.document.close();
-                            }
-                          }}
-                          className="mt-3 text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" /> {t?.('view_full_code') || "View Full Code"}
-                        </button>
-                      )}
+                      <p className="text-xs opacity-70">{sub.date}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* File Upload View */}
-        {selectedTab === "file-upload" && (
-          <div className="mb-8">
-            <div className={`rounded-2xl p-6 border ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-                : 'bg-white border-gray-200'
-            } backdrop-blur-xl`}>
-              <h2 className="text-2xl font-bold mb-6">{t?.('upload_file') || "Upload File"}</h2>
+          {selectedTab === "file-upload" && (
+            <div className={`rounded-xl border ${currentTheme.card} ${currentTheme.border} p-6`}>
+              <h2 className="text-xl font-bold mb-6">{t('upload_file') || "Качване на файл"}</h2>
               
               <div 
-                className={`border-2 border-dashed rounded-2xl p-12 text-center transition-colors ${
-                  isDragging 
-                    ? 'border-green-500 bg-green-500/5' 
-                    : theme === 'dark' 
-                      ? 'border-white/10 hover:border-white/20' 
-                      : 'border-gray-300 hover:border-gray-400'
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                  isDragging ? 'border-blue-500 bg-blue-500/5' : ''
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <FileUp className={`w-16 h-16 mx-auto mb-4 ${
-                  theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-                }`} />
-                <p className="text-lg mb-2">
-                  {t?.('drag_drop_file') || "Drag & drop your .pl file here"}
-                </p>
-                <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t?.('or') || "or"}
-                </p>
+                <Upload className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="mb-2">{t('drag_drop') || "Плъзнете вашия .pl файл тук"}</p>
+                <p className="text-sm opacity-70 mb-4">{t('or') || "или"}</p>
                 
                 <input
                   id="fileInput"
@@ -3855,53 +3644,31 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                 />
                 <label
                   htmlFor="fileInput"
-                  className={`inline-block px-6 py-3 rounded-lg ${
-                    theme === 'dark' 
-                      ? 'bg-white/5 hover:bg-white/10' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  } transition-colors cursor-pointer`}
+                  className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer inline-block"
                 >
-                  {t?.('browse_files') || "Browse Files"}
+                  {t('browse_files') || "Избери файл"}
                 </label>
               </div>
 
               {file && (
-                <div className={`mt-6 p-4 rounded-xl border ${
-                  theme === 'dark' 
-                    ? 'bg-white/5 border-white/10' 
-                    : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileCode className="w-8 h-8 text-green-500" />
-                      <div>
-                        <div className="font-medium">{file.name}</div>
-                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {(file.size / 1024).toFixed(2)} KB
-                        </div>
-                      </div>
+                <div className={`mt-4 p-4 rounded-lg border ${currentTheme.border}`}>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <FileCode className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                      <span>{file.name}</span>
                     </div>
-                    <button
-                      onClick={() => setFile(null)}
-                      className={`p-2 rounded-lg ${
-                        theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                      } transition-colors`}
-                    >
-                      <X className="w-5 h-5" />
+                    <button onClick={() => setFile(null)} className="p-1 rounded hover:bg-gray-500/20 transition-colors">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 mt-4">
                 <select
                   value={folder}
                   onChange={(e) => setFolder(e.target.value)}
-                  className={`px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                    theme === 'dark' 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded-lg border ${currentTheme.border} ${currentTheme.card}`}
                 >
                   {folders.map((f) => (
                     <option key={f} value={f}>
@@ -3913,656 +3680,487 @@ console.log(getStatusClass, getFileStatusText, getStatusText)
                 <button
                   onClick={handleFileUpload}
                   disabled={!file}
-                  className="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Upload className="w-5 h-5 inline mr-2" />
-                  {t?.('upload_to') || "Upload to"} {folder}
+                  <Upload className="w-4 h-4 inline mr-2" />
+                  {t('upload') || "Качи"}
                 </button>
               </div>
 
               {uploadStatus && (
                 <div className={`mt-4 p-3 rounded-lg ${
-                  uploadStatus.includes('✅') 
-                    ? theme === 'dark' ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'
-                    : theme === 'dark' ? 'bg-red-500/10 text-red-400' : 'bg-red-100 text-red-700'
+                  uploadStatus.includes('✅') ? 'bg-green-500/10' : 'bg-red-500/10'
                 }`}>
                   {uploadStatus}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Messages View */}
-        {selectedTab === "messages" && <MessagesTab />}
+          {selectedTab === "messages" && <MessagesTab />}
 
-        {/* MODALS */}
+          {/* СТАТУС ЗА КАЧВАНЕ */}
+          {uploadStatus && uploadStatus.includes('✅') && (
+            <div className={`fixed bottom-6 right-6 p-4 rounded-lg border shadow-lg ${currentTheme.card} ${currentTheme.border}`}>
+              {uploadStatus}
+            </div>
+          )}
 
-        {/* Community Form Modal */}
-        {showCommunityForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setShowCommunityForm(false)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-md rounded-2xl border ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <GroupIcon className="w-5 h-5 text-green-400" />
-                    </div>
-                    <h3 className="text-xl font-bold">{t?.('create_community') || "Create Community"}</h3>
-                  </div>
-                  <button
-                    onClick={() => setShowCommunityForm(false)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('community_name') || "Community Name"} *
-                    </label>
-                    <input
-                      type="text"
-                      value={communityForm.name}
-                      onChange={(e) => setCommunityForm({...communityForm, name: e.target.value})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('enter_community_name') || "Enter community name"}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('description') || "Description"}
-                    </label>
-                    <textarea
-                      value={communityForm.description}
-                      onChange={(e) => setCommunityForm({...communityForm, description: e.target.value})}
-                      rows={3}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('enter_description') || "Enter community description"}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        {t?.('grade_level') || "Grade Level"}
-                      </label>
-                      <input
-                        type="text"
-                        value={communityForm.gradeLevel}
-                        onChange={(e) => setCommunityForm({...communityForm, gradeLevel: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                        placeholder="e.g., 10th grade"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        {t?.('subject') || "Subject"}
-                      </label>
-                      <input
-                        type="text"
-                        value={communityForm.subject}
-                        onChange={(e) => setCommunityForm({...communityForm, subject: e.target.value})}
-                        className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 border border-white/10' 
-                            : 'bg-white border border-gray-300'
-                        }`}
-                        placeholder="e.g., Mathematics"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('privacy_settings') || "Privacy Settings"}
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="privacy"
-                          value="private"
-                          checked={communityForm.privacy === 'private'}
-                          onChange={(e) => setCommunityForm({...communityForm, privacy: e.target.value as "public" | "private"})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${communityForm.privacy === 'private' ? 'bg-blue-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('private') || "Private"}
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="privacy"
-                          value="public"
-                          checked={communityForm.privacy === 'public'}
-                          onChange={(e) => setCommunityForm({...communityForm, privacy: e.target.value as "public" | "private"})}
-                          className="hidden"
-                        />
-                        <span className={`px-4 py-2 rounded-lg ${communityForm.privacy === 'public' ? 'bg-green-500 text-white' : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-                          {t?.('public') || "Public"}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={communityForm.autoApprove}
-                        onChange={(e) => setCommunityForm({...communityForm, autoApprove: e.target.checked})}
-                        className={`w-4 h-4 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 border-gray-600 text-blue-500'
-                            : 'bg-white border-gray-300 text-blue-600'
-                        } focus:ring-2 focus:ring-blue-500/20`}
-                      />
-                      <span className="text-sm">
-                        {t?.('auto_approve_students') || "Auto-approve student requests"}
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={communityForm.allowStudentMessages}
-                        onChange={(e) => setCommunityForm({...communityForm, allowStudentMessages: e.target.checked})}
-                        className={`w-4 h-4 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 border-gray-600 text-blue-500'
-                            : 'bg-white border-gray-300 text-blue-600'
-                        } focus:ring-2 focus:ring-blue-500/20`}
-                      />
-                      <span className="text-sm">
-                        {t?.('allow_student_messages') || "Allow students to send messages"}
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={communityForm.allowStudentChallenges}
-                        onChange={(e) => setCommunityForm({...communityForm, allowStudentChallenges: e.target.checked})}
-                        className={`w-4 h-4 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 border-gray-600 text-blue-500'
-                            : 'bg-white border-gray-300 text-blue-600'
-                        } focus:ring-2 focus:ring-blue-500/20`}
-                      />
-                      <span className="text-sm">
-                        {t?.('allow_student_challenges') || "Allow students to create challenges"}
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={communityForm.allowInterCommunityChallenges}
-                        onChange={(e) => setCommunityForm({...communityForm, allowInterCommunityChallenges: e.target.checked})}
-                        className={`w-4 h-4 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 border-gray-600 text-blue-500'
-                            : 'bg-white border-gray-300 text-blue-600'
-                        } focus:ring-2 focus:ring-blue-500/20`}
-                      />
-                      <span className="text-sm">
-                        {t?.('allow_inter_community_challenges') || "Allow inter-community challenges"}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowCommunityForm(false)}
-                    className={`flex-1 py-3 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    {t?.('cancel') || "Cancel"}
-                  </button>
-                  <button
-                    onClick={handleCreateCommunity}
-                    disabled={!communityForm.name.trim()}
-                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-5 h-5 inline mr-2" />
-                    {t?.('create_community') || "Create Community"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Messaging Modal */}
-        {showMessaging && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => {
-              setShowMessaging(false);
-              setSelectedStudent(null);
-            }} />
-            
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-lg rounded-2xl border overflow-hidden ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">{t?.('quick_message') || "Quick Message"}</h3>
-                      <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {t?.('quick_message_desc') || "Send a quick message to students"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedTab("messages");
-                        setShowMessaging(false);
-                      }}
-                      className={`px-3 py-1 rounded-lg text-sm ${
-                        theme === 'dark' 
-                          ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' 
-                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                      }`}
-                    >
-                      {t?.('open_mail') || "Open Mail"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowMessaging(false);
-                        setSelectedStudent(null);
-                      }}
-                      className={`p-2 rounded-lg ${
-                        theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                      }`}
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('recipient') || "Recipient"}
-                    </label>
-                    <select
-                      value={selectedStudent?.uid || selectedCommunity || "broadcast"}
-                      onChange={(e) => {
-                        if (e.target.value === "broadcast") {
-                          setSelectedStudent(null);
-                          setSelectedCommunity(null);
-                        } else if (communities.find(c => c.id === e.target.value)) {
-                          setSelectedCommunity(e.target.value);
-                          setSelectedStudent(null);
-                        } else {
-                          const user = allUsers.find(u => u.uid === e.target.value) || 
-                                     students.find(s => s.uid === e.target.value);
-                          
-                          if (user) {
-                            setSelectedStudent({
-                              username: user.username,
-                              uid: user.uid,
-                              files: [],
-                              totalFiles: 0,
-                              lastUpload: '',
-                              role: user.role
-                            });
-                            setSelectedCommunity(null);
-                          }
-                        }
-                      }}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-gray-800 border-gray-700 text-gray-100' 
-                          : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                    >
-                      <option value="broadcast">📢 {t?.('broadcast_all_students') || "Broadcast to All Students"}</option>
-                      
-                      <optgroup 
-                        label={t?.('communities') || "Communities"}
-                        className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
-                      >
-                        {communities.map(community => (
-                          <option 
-                            key={community.id} 
-                            value={community.id}
-                            className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
-                          >
-                            👥 {community.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                      
-                      <optgroup 
-                        label={t?.('students') || "Students"}
-                        className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
-                      >
-                        {students.slice(0, 5).map(student => (
-                          <option 
-                            key={student.uid} 
-                            value={student.uid}
-                            className={theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}
-                          >
-                            👤 {student.username}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('message') || "Message"}
-                    </label>
-                    <textarea
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      rows={4}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500' 
-                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                      }`}
-                      placeholder={t?.('type_your_message_here') || "Type your quick message here..."}
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-white/10 dark:border-gray-700">
-                    <button
-                      onClick={() => {
-                        setShowMessaging(false);
-                        setSelectedStudent(null);
-                        setNewMessage("");
-                      }}
-                      className={`flex-1 py-3 rounded-lg ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 hover:bg-white/10' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      {t?.('cancel') || "Cancel"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (selectedCommunity) {
-                          handleSendMessage('community');
-                        } else if (selectedStudent) {
-                          handleSendMessage('direct');
-                        } else {
-                          handleSendMessage('broadcast');
-                        }
-                        setShowMessaging(false);
-                        setSelectedStudent(null);
-                      }}
-                      disabled={!newMessage.trim()}
-                      className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50"
-                    >
-                      <Send className="w-5 h-5 inline mr-2" />
-                      {t?.('send_message') || "Send Message"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Нови съобщения */}
-                {messages.filter(m => !m.read && m.receiverId === user?.uid).length > 0 && (
-                  <div className={`mt-6 pt-6 border-t ${
-                    theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-                  }`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold">
-                        {t?.('new_messages') || "New Messages"} ({messages.filter(m => !m.read && m.receiverId === user?.uid).length})
-                      </h4>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(t?.('mark_all_read_confirm') || "Mark all as read?")) {
-                            handleMarkAllAsRead();
-                          }
-                        }}
-                        className="text-sm text-blue-500 hover:text-blue-600"
-                      >
-                        {t?.('mark_all_read') || "Mark all read"}
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {messages
-                        .filter(m => !m.read && m.receiverId === user?.uid)
-                        .slice(0, 5)
-                        .map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`p-3 rounded-lg ${
-                              theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                            } group relative`}
-                          >
-                            <button
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-red-500/20 text-red-500 hover:bg-red-500/30"
-                              title={t?.('delete_message') || "Delete message"}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                            
-                            <div 
-                              className="cursor-pointer"
-                              onClick={() => handleMarkAsRead(msg.id)}
-                            >
-                              <div className="flex justify-between items-start mb-1 pr-6">
-                                <div className="font-medium text-sm">{msg.senderName}</div>
-                                <div className="text-xs opacity-70">
-                                  {new Date(msg.timestamp?.toMillis?.() || Date.now()).toLocaleTimeString()}
-                                </div>
-                              </div>
-                              <p className="text-sm truncate">{msg.content}</p>
-                              <div className="text-xs text-green-500 mt-1">
-                                {t?.('click_to_mark_read') || "Click to mark as read"}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                    
-                    {messages.filter(m => !m.read && m.receiverId === user?.uid).length > 5 && (
-                      <button
-                        onClick={() => {
-                          setSelectedTab("messages");
-                          setShowMessaging(false);
-                        }}
-                        className={`w-full mt-3 py-2 rounded-lg text-center ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 hover:bg-white/10' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      >
-                        {t?.('view_all_messages') || "View all messages"} →
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Lesson Form Modal */}
-        {showLessonForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/80" onClick={() => setShowLessonForm(false)} />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={`relative w-full max-w-md rounded-2xl border ${
-                theme === 'dark' ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-green-400" />
-                    </div>
-                    <h3 className="text-xl font-bold">{t?.('add_new_lesson') || "Add New Lesson"}</h3>
-                  </div>
-                  <button
-                    onClick={() => setShowLessonForm(false)}
-                    className={`p-2 rounded-lg ${
-                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('lesson_title') || "Lesson Title"} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newLesson.title}
-                      onChange={(e) => setNewLesson({...newLesson, title: e.target.value})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('enter_lesson_title') || "Enter lesson title"}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {t?.('description') || "Description"}
-                    </label>
-                    <textarea
-                      value={newLesson.description}
-                      onChange={(e) => setNewLesson({...newLesson, description: e.target.value})}
-                      rows={3}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
-                        theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10' 
-                          : 'bg-white border border-gray-300'
-                      }`}
-                      placeholder={t?.('enter_description') || "Enter lesson description"}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowLessonForm(false)}
-                    className={`flex-1 py-3 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 hover:bg-white/10' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    } transition-colors`}
-                  >
-                    {t?.('cancel') || "Cancel"}
-                  </button>
-                  <button
-                    onClick={handleAddLesson}
-                    disabled={!newLesson.title.trim()}
-                    className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-5 h-5 inline mr-2" />
-                    {t?.('add_lesson') || "Add Lesson"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* View Student Files Modal - този е излишен, вече имаме един по-горе */}
-        {/* Премахнах дублиращия се модал */}
-
-        {/* Message Thread Modal */}
-        {activeThread && (
-          <MessageThread
-            threadId={activeThread}
-            onClose={() => setActiveThread(null)}
-          />
-        )}
+        </main>
       </div>
 
-      {/* Lesson View Modal */}
-      {viewingLesson && (
-        <LessonViewModal
-          lesson={viewingLesson}
-          onClose={() => setViewingLesson(null)}
-          onEdit={(lesson) => {
-            setViewingLesson(null);
-            setEditingLesson(lesson);
-            setShowLessonForm(true);
-          }}
-          onDelete={handleDeleteLesson}
+      {/* МОДАЛИ */}
+
+      {/* Community Form Modal */}
+      {showCommunityForm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div className="absolute inset-0 bg-black/80" onClick={() => setShowCommunityForm(false)} />
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className={`relative w-full max-w-md rounded-2xl border ${currentTheme.card} ${currentTheme.border}`}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                       style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                    <GroupIcon className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                  </div>
+                  <h3 className="text-xl font-bold">{t('new_community') || "Нова общност"}</h3>
+                </div>
+                <button
+                  onClick={() => setShowCommunityForm(false)}
+                  className={`p-2 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('name') || "Име"} *</label>
+                  <input
+                    type="text"
+                    value={communityForm.name}
+                    onChange={(e) => setCommunityForm({...communityForm, name: e.target.value})}
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${currentTheme.card} border ${currentTheme.border}`}
+                    placeholder={t('enter_name') || "Въведете име"}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('description') || "Описание"}</label>
+                  <textarea
+                    value={communityForm.description}
+                    onChange={(e) => setCommunityForm({...communityForm, description: e.target.value})}
+                    rows={3}
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${currentTheme.card} border ${currentTheme.border}`}
+                    placeholder={t('enter_description') || "Въведете описание"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">{t('grade_level') || "Клас"}</label>
+                    <input
+                      type="text"
+                      value={communityForm.gradeLevel}
+                      onChange={(e) => setCommunityForm({...communityForm, gradeLevel: e.target.value})}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${currentTheme.card} border ${currentTheme.border}`}
+                      placeholder={t('grade_example') || "напр. 10 клас"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">{t('subject') || "Предмет"}</label>
+                    <input
+                      type="text"
+                      value={communityForm.subject}
+                      onChange={(e) => setCommunityForm({...communityForm, subject: e.target.value})}
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${currentTheme.card} border ${currentTheme.border}`}
+                      placeholder={t('subject_example') || "напр. Математика"}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('privacy') || "Приватност"}</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="privacy"
+                        value="private"
+                        checked={communityForm.privacy === 'private'}
+                        onChange={(e) => setCommunityForm({...communityForm, privacy: e.target.value as "public" | "private"})}
+                        className="hidden"
+                      />
+                      <span className={`px-4 py-2 rounded-lg ${communityForm.privacy === 'private' ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>
+                        {t('private') || "Частна"}
+                      </span>
+                    </label>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="privacy"
+                        value="public"
+                        checked={communityForm.privacy === 'public'}
+                        onChange={(e) => setCommunityForm({...communityForm, privacy: e.target.value as "public" | "private"})}
+                        className="hidden"
+                      />
+                      <span className={`px-4 py-2 rounded-lg ${communityForm.privacy === 'public' ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>
+                        {t('public') || "Публична"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={communityForm.autoApprove}
+                      onChange={(e) => setCommunityForm({...communityForm, autoApprove: e.target.checked})}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-sm">{t('auto_approve_students') || "Автоматично одобряване на ученици"}</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={communityForm.allowStudentMessages}
+                      onChange={(e) => setCommunityForm({...communityForm, allowStudentMessages: e.target.checked})}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-sm">{t('allow_student_messages') || "Позволи съобщения между ученици"}</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={communityForm.allowStudentChallenges}
+                      onChange={(e) => setCommunityForm({...communityForm, allowStudentChallenges: e.target.checked})}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-sm">{t('allow_student_challenges') || "Позволи учениците да създават предизвикателства"}</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={communityForm.allowInterCommunityChallenges}
+                      onChange={(e) => setCommunityForm({...communityForm, allowInterCommunityChallenges: e.target.checked})}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-sm">{t('allow_inter_community_challenges') || "Позволи предизвикателства между общности"}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowCommunityForm(false)}
+                  className={`flex-1 py-3 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                >
+                  {t('cancel') || "Отказ"}
+                </button>
+                <button
+                  onClick={handleCreateCommunity}
+                  disabled={!communityForm.name.trim()}
+                  className="flex-1 py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-5 h-5 inline mr-2" />
+                  {t('create') || "Създай"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Messaging Modal */}
+      {showMessaging && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div className="absolute inset-0 bg-black/80" onClick={() => {
+            setShowMessaging(false);
+            setSelectedStudent(null);
+          }} />
+          
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className={`relative w-full max-w-lg rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.border}`}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                       style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                    <MessageCircle className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">{t('quick_message') || "Бързо съобщение"}</h3>
+                    <p className="opacity-70 text-sm">{t('quick_message_desc') || "Изпратете бързо съобщение до ученици"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedTab("messages");
+                      setShowMessaging(false);
+                    }}
+                    className="px-3 py-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors text-sm"
+                  >
+                    {t('mailbox') || "Поща"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMessaging(false);
+                      setSelectedStudent(null);
+                    }}
+                    className={`p-2 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('recipient') || "Получател"}</label>
+                  <select
+                    value={selectedStudent?.uid || selectedCommunity || "broadcast"}
+                    onChange={(e) => {
+                      if (e.target.value === "broadcast") {
+                        setSelectedStudent(null);
+                        setSelectedCommunity(null);
+                      } else if (communities.find(c => c.id === e.target.value)) {
+                        setSelectedCommunity(e.target.value);
+                        setSelectedStudent(null);
+                      } else {
+                        const user = allUsers.find(u => u.uid === e.target.value) || 
+                                   students.find(s => s.uid === e.target.value);
+                        
+                        if (user) {
+                          setSelectedStudent({
+                            username: user.username,
+                            uid: user.uid,
+                            files: [],
+                            totalFiles: 0,
+                            lastUpload: '',
+                            role: user.role
+                          });
+                          setSelectedCommunity(null);
+                        }
+                      }
+                    }}
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${currentTheme.card} border ${currentTheme.border}`}
+                  >
+                    <option value="broadcast">📢 {t('all_students') || "Всички ученици"}</option>
+                    
+                    <optgroup label={t('communities') || "Общности"}>
+                      {communities.map(community => (
+                        <option key={community.id} value={community.id}>
+                          👥 {community.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    
+                    <optgroup label={t('students') || "Ученици"}>
+                      {students.slice(0, 5).map(student => (
+                        <option key={student.uid} value={student.uid}>
+                          👤 {student.username}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('message') || "Съобщение"}</label>
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    rows={4}
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${currentTheme.card} border ${currentTheme.border}`}
+                    placeholder={t('type_message_here') || "Напишете вашето съобщение тук..."}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      setShowMessaging(false);
+                      setSelectedStudent(null);
+                      setNewMessage("");
+                    }}
+                    className={`flex-1 py-3 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                  >
+                    {t('cancel') || "Отказ"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedCommunity) {
+                        handleSendMessage(selectedCommunity, newMessage);
+                      } else if (selectedStudent) {
+                        handleSendMessage(selectedStudent.uid || undefined, newMessage);
+                      } else {
+                        handleSendMessage('all', newMessage);
+                      }
+                      setShowMessaging(false);
+                      setSelectedStudent(null);
+                      setNewMessage("");
+                    }}
+                    disabled={!newMessage.trim()}
+                    className="flex-1 py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="w-5 h-5 inline mr-2" />
+                    {t('send') || "Изпрати"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Grading Modal */}
+      {gradingModal.isOpen && (
+        <AssignmentGradingModal
+          studentName={gradingModal.studentName}
+          studentId={gradingModal.studentId}
+          files={gradingModal.files}
+          assignmentId={gradingModal.assignmentId}
+          onClose={() => setGradingModal({ isOpen: false, studentName: '', studentId: '', files: [] })}
+          onSave={handleSaveGrade}
         />
       )}
 
-      {/* Lesson Form Modal */}
-      {showLessonForm && (
-        <LessonFormModal
-          editingLesson={editingLesson}
-          onClose={() => {
-            setShowLessonForm(false);
-            setEditingLesson(null);
-          }}
-          onSave={handleSaveLesson}
+      {/* View Student Files Modal */}
+      {viewingStudentFiles && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div className="absolute inset-0 bg-black/80" onClick={() => setViewingStudentFiles(null)} />
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.border}`}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                       style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                    <FolderOpen className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      {t('student_files') || "Файлове на ученик"}: {viewingStudentFiles}
+                    </h3>
+                    <p className="opacity-70">
+                      {students.find(s => s.username === viewingStudentFiles)?.files.length || 0} {t('files') || 'файла'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewingStudentFiles(null)}
+                  className={`p-2 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {students.find(s => s.username === viewingStudentFiles)?.files.map((file) => (
+                  <div
+                    key={file.id}
+                    className={`p-4 rounded-xl border ${currentTheme.border} hover:bg-white/5 transition-colors`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                             style={{ backgroundColor: `${colorScheme.primary}20` }}>
+                          <FileCode className="w-5 h-5" style={{ color: colorScheme.primary }} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium mb-1">{file.originalFileName}</div>
+                          <div className="flex items-center gap-4 text-sm opacity-70">
+                            <span><Folder className="w-4 h-4 inline mr-1" /> {file.folder}</span>
+                            <span>
+                              <Calendar className="w-4 h-4 inline mr-1" />
+                              {new Date(file.createdAt?.toMillis?.() || Date.now()).toLocaleDateString()}
+                            </span>
+                            {file.points !== undefined && (
+                              <span className="px-2 py-1 rounded text-xs"
+                                    style={{ backgroundColor: `${colorScheme.accent}20`, color: colorScheme.accent }}>
+                                {file.points}/10
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => openFileInNewTab(file)}
+                          className={`p-2 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                          title={t('view') || "Преглед"}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => downloadFile(file)}
+                          className={`p-2 rounded-lg hover:bg-gray-500/20 transition-colors`}
+                          title={t('download') || "Изтегли"}
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {students.find(s => s.username === viewingStudentFiles)?.files.length === 0 && (
+                <div className="text-center py-12">
+                  <Folder className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="opacity-70">{t('no_files') || "Няма качени файлове"}</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Message Thread Modal */}
+      {activeThread && (
+        <MessageThread
+          threadId={activeThread}
+          onClose={() => setActiveThread(null)}
         />
       )}
-    </div> 
+
+      {/* Стилове за скриване на скрол */}
+      <style>{`
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+    </div>
   );
 }

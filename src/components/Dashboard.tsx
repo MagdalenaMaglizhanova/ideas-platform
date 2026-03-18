@@ -74,7 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
     schools: {
       titleKey: 'dashboard_schools',
       icon: <School className="w-5 h-5" />,
-      color: "from-blue-400 to-cyan-500",
+      color: "from-blue-500 to-cyan-500",
       metrics: [
         { 
           labelKey: 'total_schools', 
@@ -87,21 +87,21 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
           labelKey: 'active_schools_dash', 
           value: statistics.activeSchools, 
           change: "+8%", 
-          color: "bg-cyan-400",
+          color: "bg-blue-400",
           icon: <Activity className="w-4 h-4" />
         },
         { 
           labelKey: 'registered_users', 
           value: statistics.registeredUsers, 
           change: "+18%", 
-          color: "bg-indigo-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <Users className="w-4 h-4" />
         },
         { 
           labelKey: 'active_users_dash', 
           value: statistics.activeUsers, 
           change: "+15%", 
-          color: "bg-purple-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <TrendingUp className="w-4 h-4" />
         }
       ],
@@ -110,34 +110,34 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
     knowledge: {
       titleKey: 'dashboard_knowledge',
       icon: <Database className="w-5 h-5" />,
-      color: "from-green-400 to-emerald-500",
+      color: "from-orange-500 to-amber-500", // Променено от зелено на оранжево
       metrics: [
         { 
           labelKey: 'total_knowledge_bases', 
           value: statistics.knowledgeBases, 
           change: "+23%", 
-          color: "bg-green-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <Database className="w-4 h-4" />
         },
         { 
           labelKey: 'biology_bases', 
           value: statistics.biologyBases, 
           change: "+15%", 
-          color: "bg-emerald-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <Globe className="w-4 h-4" />
         },
         { 
           labelKey: 'geography_bases', 
           value: statistics.geographyBases, 
           change: "+12%", 
-          color: "bg-lime-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <Globe className="w-4 h-4" />
         },
         { 
           labelKey: 'mathematics_bases', 
           value: statistics.mathematicsBases, 
           change: "+28%", 
-          color: "bg-teal-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <Cpu className="w-4 h-4" />
         }
       ],
@@ -146,34 +146,34 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
     education: {
       titleKey: 'dashboard_education',
       icon: <BookOpen className="w-5 h-5" />,
-      color: "from-purple-400 to-pink-500",
+      color: "from-blue-500 to-cyan-500", // Променено от лилаво на синьо
       metrics: [
         { 
           labelKey: 'chemistry_bases', 
           value: statistics.chemistryBases, 
           change: "+10%", 
-          color: "bg-purple-400",
+          color: "bg-blue-400", // Променено на синьо
           icon: <BookOpen className="w-4 h-4" />
         },
         { 
           labelKey: 'physics_bases', 
           value: statistics.physicsBases, 
           change: "+18%", 
-          color: "bg-pink-400",
+          color: "bg-blue-400", // Променено на синьо
           icon: <BookOpen className="w-4 h-4" />
         },
         { 
           labelKey: 'history_bases', 
           value: statistics.historyBases, 
           change: "+9%", 
-          color: "bg-rose-400",
+          color: "bg-blue-400", // Променено на синьо
           icon: <BookOpen className="w-4 h-4" />
         },
         { 
           labelKey: 'literature_bases', 
           value: statistics.literatureBases, 
           change: "+11%", 
-          color: "bg-orange-400",
+          color: "bg-orange-400", // Променено на оранжево
           icon: <FileText className="w-4 h-4" />
         }
       ],
@@ -219,13 +219,6 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
               <div className="text-gray-300 font-mono flex items-center gap-2 text-sm md:text-base">
                 <Database className="w-4 h-4" />
                 <span>platform.ideas.edu</span>
-                <motion.span
-                  animate={{ opacity: [0, 1, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="text-green-400 text-sm"
-                >
-                  ● {t('live_status') || 'НА ЖИВО'}
-                </motion.span>
               </div>
             </div>
             
@@ -310,11 +303,6 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
               <h2 className="text-lg md:text-xl font-bold">
                 {t(dashboards[activeDashboard].titleKey as any) || getDashboardName(activeDashboard)}
               </h2>
-              {isPlaying && (
-                <div className="text-xs md:text-sm text-green-400">
-                  {t('auto_rotate') || 'Автоматично превключване'}
-                </div>
-              )}
             </div>
             <div className="flex items-center gap-2">
               {dashboardKeys.map((key, index) => (
@@ -397,9 +385,11 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
                         initial={{ height: 0 }}
                         animate={{ height: `${(value / Math.max(...dashboards[activeDashboard].chartData)) * 100}%` }}
                         transition={{ duration: 1, delay: index * 0.05 }}
-                        className={`flex-1 bg-gradient-to-t ${activeDashboard === 'schools' ? 'from-blue-500/30 to-cyan-500/80' :
-                                         activeDashboard === 'knowledge' ? 'from-green-500/30 to-emerald-500/80' :
-                                         'from-purple-500/30 to-pink-500/80'} rounded-t`}
+                        className={`flex-1 bg-gradient-to-t ${
+                          activeDashboard === 'schools' ? 'from-blue-500/30 to-cyan-500/80' :
+                          activeDashboard === 'knowledge' ? 'from-orange-500/30 to-amber-500/80' : // Променено на оранжево
+                          'from-blue-500/30 to-cyan-500/80' // Променено на синьо
+                        } rounded-t`}
                         whileHover={{ scaleY: 1.1 }}
                       />
                     ))}
@@ -410,7 +400,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
                 <div className="space-y-4 md:space-y-6">
                   <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 md:p-6 border border-white/10">
                     <div className="flex items-center gap-3 mb-3 md:mb-4">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-r from-orange-500/20 to-amber-500/20 flex items-center justify-center"> {/* Променено на оранжево */}
                         <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div>
@@ -422,7 +412,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
+                        className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-500" // Променено на оранжево
                         initial={{ width: 0 }}
                         animate={{ width: "94.2%" }}
                         transition={{ duration: 2, delay: 1 }}
@@ -449,7 +439,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isFullscreen, setIsFullscreen }) 
                   
                   <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 md:p-6 border border-white/10">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 flex items-center justify-center"> {/* Променено на синьо */}
                         <Shield className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Code, Database, Brain, GitBranch,
+  Code, Database, GitBranch,
   Variable, Terminal, BookOpen, Lightbulb,
   CheckCircle, Copy,
   ExternalLink, Info, ChevronRight, 
@@ -620,15 +620,7 @@ correct_sentence(S) :-
           className="text-center mb-16"
         >
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20' 
-                : 'bg-gradient-to-br from-blue-100 to-cyan-100'
-            }`}>
-              <Brain className={`w-8 h-8 ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-blue-600'
-              }`} />
-            </div>
+            
             <div>
               <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
                 Prolog Guide

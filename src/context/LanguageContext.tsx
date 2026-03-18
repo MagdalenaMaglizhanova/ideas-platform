@@ -11,6 +11,70 @@ interface LanguageOption {
 
 // Дефинираме интерфейс за всички преводи
 interface TranslationKeys {
+  highest: string;
+  high: string;
+  normal: string;
+  low: string;
+  priority: string;
+  classmates: string;
+  grades: string;
+  rate: string;
+  remove_from_favorites: string;
+  add_to_favorites: string;
+  
+all_grades: string;
+evaluation: string;
+your_learning_communities: string;
+join_community_with_code: string;
+lessons_available: string;
+no_lessons_found: string;
+solutions_found: string;
+activity_chart: string;
+solutions: string;
+  
+  // Статистики и време
+  no_grades_data: string;
+  week_short: string;
+  hours_ago: string;
+  days_ago: string;
+  this_week: string;
+  
+  // Съобщения и грешки
+  error_pinning_message: string;
+  
+  // Филтри и обхват
+  all_teachers_students: string;
+  my_community_only: string;
+  people: string;
+  selected: string;
+  unread_only: string;
+  starred_only: string;
+  with_attachments: string;
+  clear_filters: string;
+  
+  // Състояния на поща
+  inbox_empty: string;
+  inbox_empty_desc: string;
+  no_messages_desc: string;
+  write_message: string;
+  message_details: string;
+  read: string;
+  
+  // Действия с messages
+  archive: string;
+  unarchive: string;
+  pin: string;
+  unpin: string;
+  
+  // Прикачени файлове
+  attachments: string;
+  add_attachments: string;
+  direct: string;
+  
+  // Информация за студенти
+  student_notifications_info: string;
+  send_message_to: string;
+  
   new_lesson: string;
 new_lesson_in: string;
 code_uploaded: string;
@@ -28,9 +92,39 @@ no_notifications_description: string;
 learning_objectives: string;
 prerequisites: string;
 lesson_content: string;
+sort_by_rating: string;
+  sort_by_views: string;
+  sort_by_date: string;
+  
+  // Филтри
+  all_difficulties: string;
+  
+  // Статистики
+  total_views: string;
 tags: string;
 mark_as_completed: string;
 solved_challenge:string;
+  overdue_assignments: string;
+  overdue: string;
+  sort_by_due_date: string;
+  sort_by_completion: string;
+  sort_by_submissions: string;
+  direct_message: string;
+  pending_request: string;
+  
+  // Статистики и графики
+  total_points: string;
+  last_4_weeks: string;
+  grades_trend: string;
+  active_students: string;
+  student_activity_chart: string;
+  activities: string;
+  
+  // Префикс за потребители (който се повтаря няколко пъти)
+  user_prefix: string;
+  
+  // Основна грешка
+  error: string;
 
 unlisted:string;
 has_been_published: string;
@@ -223,7 +317,7 @@ delete_notification: string;
   delete_messages_from_user_confirm: string;
   messages_from: string;
   deleted: string;
-  
+  attachments_cannot_be_forwarded: string;
   // Задания и файлове
   unknown_assignment: string;
   unknown_file: string;
@@ -289,6 +383,95 @@ recently: string;
 viewing_grade_details: string;
 full_feedback: string;
 score: string;
+access_denied: string;
+  teacher_only: string;
+  logout_failed: string;
+  error_loading_lessons: string;
+  error_loading_grades: string;
+  error_loading_challenge_stats: string;
+  error_marking_read: string;
+  error_marking_all_read: string;
+  error_marking_notifications: string;
+  error_loading_activity: string;
+  error_sending_notification: string;
+  error_adding_activity: string;
+  error_loading_thread: string;
+  error_opening_file: string;
+  error_downloading_file: string;
+  error_details: string;
+  stats_icon_chart: string;
+stats_icon_check: string;
+stats_icon_warning: string;
+stats_icon_star: string;
+stats_icon_trophy: string;
+stats_icon_users: string;
+stats_icon_activity: string;
+  
+  // Задания и предизвикателства
+  total_challenges: string;
+  pending_challenges: string;
+  in_draft: string;
+  no_active_challenges: string;
+  recent_challenges: string;
+  completion: string;
+  avg_score: string;
+  respond: string;
+  accepted_students: string;
+  completed_students: string;
+  created_by: string;
+  
+  // Нива
+  beginner: string;
+  intermediate: string;
+  advanced: string;
+  
+  // Общности
+  total_communities: string;
+  new_community: string;
+  no_communities: string;
+  community_activity: string;
+  no_community_activity: string;
+  
+  // Уроци
+  no_lessons: string;
+  recent_lessons: string;
+  create_first: string;
+  
+  // Съобщения и поща
+  mailbox: string;
+  recent_messages: string;
+  total_messages: string;
+  no_files: string;
+  
+  // Студенти
+  students_in_system: string;
+  student_list: string;
+  all_students: string;
+  no_student_data: string;
+  
+  // Файлове и качване
+  drag_drop: string;
+  upload: string;
+  
+  // Основни навигационни секции
+  main: string;
+  learning: string;
+  content: string;
+  activity: string;
+  
+  // Форми и въвеждане
+  name: string;
+  enter_name: string;
+  
+  // Примери
+  grade_example: string;
+  subject_example: string;
+  
+  // Табло и статистики
+  dashboard_description: string;
+  recent_grades: string;
+  no_recent_grades: string;
+  
 grade_distribution: string;
   challenge_not_found: string;
 already_joined_challenge: string;
@@ -416,6 +599,16 @@ estimated_approval_time: string;
   create_challenge: string;
   create_first_challenge: string;
   to: string;
+  no_activity_data: string;
+  
+  // Дни от седмицата (съкратени)
+  monday_short: string;
+  tuesday_short: string;
+  wednesday_short: string;
+  thursday_short: string;
+  friday_short: string;
+  saturday_short: string;
+  sunday_short: string;
   communities_overview: string;
   no_communities_dashboard: string;
   view_all_communities: string;
@@ -877,7 +1070,8 @@ challenge_reject: string;
   logout: string;
   innovation_platform: string;
   admin_dashboard: string;
-  
+  remove_bookmark: string;
+  like: string;
   // Добави след вече съществуващите ключове
   review_code: string;
   start_work: string;
@@ -943,7 +1137,8 @@ challenge_reject: string;
   demo_feature4_description: string;
   explore_live_demos: string;
   try_free_tutorial: string;
-  
+  all_visibility: string;
+  view_template: string;
   // Footer преводи
   footer_description: string;
   footer_platform: string;
@@ -1091,7 +1286,7 @@ challenge_reject: string;
   create_account: string;
   terms_agreement: string;
   and: string;
-  
+  new_join_request:string;
   communities: string;
   from: string;
   my_challenge_solutions: string;
@@ -1510,6 +1705,13 @@ const translations: Translations = {
   creating: "Creating",
   accept: "Accept",
   example_code_hint: "Example code hint",
+  stats_icon_chart: "📊",
+stats_icon_check: "✓",
+stats_icon_warning: "⚠",
+stats_icon_star: "⭐",
+stats_icon_trophy: "🏆",
+stats_icon_users: "👥",
+stats_icon_activity: "📈",
   
   // Съобщения и дискусии
   message_thread: "Message Thread",
@@ -1616,6 +1818,22 @@ const translations: Translations = {
   option: "Option",
   loading_assignments: "Loading assignments",
   total_students: "Total Students",
+  direct_message: "direct_message",
+  pending_request: "pending_request",
+  
+  // Статистики и графики
+  total_points: "Total Points",
+  last_4_weeks: "Last 4 Weeks",
+  grades_trend: "Grades Trend",
+  active_students: "Active Students",
+  student_activity_chart: "Student Activity Chart",
+  activities: "Activities",
+  
+  // Префикс за потребители (използва се за генериране на потребителски имена)
+  user_prefix: "User",
+  
+  // Основна грешка
+  error: "Error",
   
   // Статистики и метрики
   registered_students: "Registered students",
@@ -1790,6 +2008,7 @@ const translations: Translations = {
   challenge_solution_code: "Solution Code",
   challenge_solution_code_placeholder: "Write your solution code here...",
   challenge_send_response: "Send Response",
+  all_visibility: "All",
     
     // Зареждане и съобщения
     loading_topics: "Loading topics...",
@@ -1821,6 +2040,101 @@ create_first_lesson: "Create first lesson",
     basics_facts_title: "Facts",
     basics_rules_title: "Rules",
     basics_queries_title: "Queries",
+     access_denied: "Access Denied",
+  teacher_only: "This area is only accessible to teachers",
+  logout_failed: "Logout failed. Please try again.",
+  error_loading_lessons: "Error loading lessons",
+  error_loading_grades: "Error loading grades",
+  error_loading_challenge_stats: "Error loading challenge statistics",
+  error_marking_read: "Error marking as read",
+  error_marking_all_read: "Error marking all as read",
+  error_marking_notifications: "Error updating notifications",
+  error_loading_activity: "Error loading activity",
+  error_sending_notification: "Error sending notification",
+  error_adding_activity: "Error adding activity",
+  error_loading_thread: "Error loading message thread",
+  error_opening_file: "Error opening file",
+  error_downloading_file: "Error downloading file",
+  error_details: "Error Details",
+  
+  // Задания и предизвикателства
+  total_challenges: "Total Challenges",
+  pending_challenges: "Pending Challenges",
+  in_draft: "In Draft",
+  no_active_challenges: "No active challenges",
+  recent_challenges: "Recent Challenges",
+  completion: "Completion",
+  avg_score: "Avg. Score",
+  respond: "Respond",
+  accepted_students: "Accepted Students",
+  completed_students: "Completed Students",
+  created_by: "Created by",
+  no_activity_data: "No activity data available",
+  
+  // Дни от седмицата (съкратени)
+  monday_short: "Mon",
+  tuesday_short: "Tue",
+  wednesday_short: "Wed",
+  thursday_short: "Thu",
+  friday_short: "Fri",
+  saturday_short: "Sat",
+  sunday_short: "Sun",
+  
+  // Типове нотификации
+  assignment_submission: "assignment_submission",
+  direct: "direct",
+  
+  // Нива
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+  
+  // Общности
+  total_communities: "Total Communities",
+  new_community: "New Community",
+  no_communities: "No communities yet",
+  community_activity: "Community Activity",
+  no_community_activity: "No community activity",
+  
+  // Уроци
+  no_lessons: "No lessons yet",
+  recent_lessons: "Recent Lessons",
+  create_first: "Create First",
+  
+  // Съобщения и поща
+  mailbox: "Mailbox",
+  recent_messages: "Recent Messages",
+  total_messages: "Total Messages",
+  no_files: "No files",
+  
+  // Студенти
+  students_in_system: "Students in System",
+  student_list: "Student List",
+  all_students: "All Students",
+  no_student_data: "No student data available",
+  
+  // Файлове и качване
+  drag_drop: "Drag & drop files here",
+  upload: "Upload",
+  
+  // Основни навигационни секции
+  main: "Main",
+  learning: "Learning",
+  content: "Content",
+  activity: "Activity",
+  
+  // Форми и въвеждане
+  name: "Name",
+  enter_name: "Enter name",
+  
+  // Примери
+  grade_example: "e.g., 9th Grade",
+  subject_example: "e.g., Mathematics",
+  
+  // Табло и статистики
+  dashboard_description: "Overview of your learning activities and progress",
+  recent_grades: "Recent Grades",
+  no_recent_grades: "No recent grades",
     
     // Основи на Prolog - описания
     basics_facts_desc: "Facts are true statements about the world. They form the foundation of your knowledge base.",
@@ -1832,6 +2146,8 @@ create_first_lesson: "Create first lesson",
     basics_facts_p2: "Use lowercase for predicates",
     basics_facts_p3: "Can have multiple arguments",
     basics_facts_p4: "Represent relationships",
+    all_grades: "All Grades",
+evaluation: "Evaluation",
     
     basics_rules_p1: "Head :- Body syntax",
     basics_rules_p2: "Body contains goals",
@@ -1842,6 +2158,54 @@ create_first_lesson: "Create first lesson",
     basics_queries_p2: "Variables start uppercase",
     basics_queries_p3: "Get multiple solutions",
     basics_queries_p4: "Use backtracking",
+    highest: "Highest",
+  high: "High",
+  normal: "Normal",
+  low: "Low",
+  priority: "Priority",
+  
+  // Статистики и време
+  no_grades_data: "No grades data available",
+  week_short: "wk",
+  hours_ago: "{hours} hours ago",
+  days_ago: "{days} days ago",
+  this_week: "This Week",
+  
+  // Съобщения и грешки
+  error_pinning_message: "Error pinning message",
+  
+  // Филтри и обхват
+  all_teachers_students: "All Teachers & Students",
+  my_community_only: "My Community Only",
+  people: "People",
+  selected: "Selected",
+  unread_only: "Unread Only",
+  starred_only: "Starred Only",
+  with_attachments: "With Attachments",
+  clear_filters: "Clear Filters",
+  
+  // Състояния на поща
+  inbox_empty: "Inbox is empty",
+  inbox_empty_desc: "When you receive messages, they will appear here",
+  no_messages_desc: "No messages to display",
+  write_message: "Write a message",
+  message_details: "Message Details",
+  read: "Read",
+  
+  // Действия с messages
+  archive: "Archive",
+  unarchive: "Unarchive",
+  pin: "Pin",
+  unpin: "Unpin",
+  
+  // Прикачени файлове
+  attachments: "Attachments",
+  add_attachments: "Add Attachments",
+  
+  // Информация за студенти
+  student_notifications_info: "You will receive notifications about your activities here",
+  send_message_to: "Send message to {name}",
+  
      inbox: "Inbox",
   starred: "Starred",
   sent: "Sent",
@@ -1851,6 +2215,7 @@ create_first_lesson: "Create first lesson",
   error_loading_users: "Error loading users",
   error_loading_communities: "Error loading communities",
   error_loading_messages: "Error loading messages",
+  attachments_cannot_be_forwarded: "Attachments cannot be forwarded. Please upload them again if needed.",
   unknown: "Unknown",
   no_subject: "No subject",
   login_required: "Please log in!",
@@ -2186,7 +2551,6 @@ challenge_solved: "Challenge Solved",
 lesson_completed: "Lesson Completed",
 completed_lesson: "Completed Lesson",
 lessons_to_read: "Lessons to Read",
-assignment_submission: "Assignment Submission",
 no_lessons_description: "No lessons available.",
 browse_communities: "Browse Communities",
 objectives: "Objectives",
@@ -2204,6 +2568,7 @@ total_schools: "Total Schools",
 active_schools_dash: "Active Schools",
 registered_users: "Registered Users",
 active_users_dash: "Active Users",
+classmates: "Classmates",
 total_knowledge_bases: "Total Knowledge Bases",
 biology_bases: "Biology Bases",
 geography_bases: "Geography Bases",
@@ -2251,7 +2616,17 @@ untitled_assignment: "Untitled Assignment",
   symbolic_ai_expert_system: "Symbolic AI / Expert System",
   notifications: "Notifications",
   delete_notification: "Delete notification",
-  
+  grades: "Grades",
+  rate: "Rate",
+  remove_from_favorites: "Remove from favorites",
+  add_to_favorites: "Add to favorites",
+your_learning_communities: "Your Learning Communities",
+join_community_with_code: "Join Community with Code",
+lessons_available: "Lessons Available",
+no_lessons_found: "No lessons found",
+solutions_found: "Solutions Found",
+activity_chart: "Activity Chart",
+solutions: "Solutions",
   // Communities
   unnamed_community: "Unnamed Community",
   no_description: "No description",
@@ -2292,12 +2667,15 @@ untitled_assignment: "Untitled Assignment",
   delete_all_notifications_error: "Error deleting all notifications",
   notification: "Notification",
   work_on_challenges: "Work on Challenges",
+  view_template: "View Template",
   
   // Grades
   detailed_view: "Detailed View",
   view_grade_details: "View Grade Details",
   // Common buttons and actions
   delete_all: "Delete All",
+   remove_bookmark: "Remove Bookmark",
+  like: "Like",
   delete_all_messages_confirm: "Delete all messages?",
   delete_all_notifications_confirm: "Delete all notifications?",
   new_messages_will_appear_here: "New messages will appear here",
@@ -2385,6 +2763,11 @@ total_assignments_count: 'Total Assignments',
   assignment_created_action: "Assignment Created",
   created_new_assignment: "Created new assignment",
   students_notified: "Students notified",
+  overdue_assignments: "Overdue Assignments",
+  overdue: "Overdue",
+  sort_by_due_date: "Sort by Due Date",
+  sort_by_completion: "Sort by Completion",
+  sort_by_submissions: "Sort by Submissions",
     // Home page преводи
     ideas_acronym: 'Intelligent Data Educational Analysis System',
     hero_title_part1: 'Transform Education',
@@ -2555,7 +2938,7 @@ total_assignments_count: 'Total Assignments',
     create_account: "Create an Account",
     terms_agreement: "By continuing, you agree to our",
     and: "and",
-    
+    new_join_request: "You have a new join request for",
     // Register page преводи
     register_title: "Join the IDEAS Community",
     register_journey_title: "Start your STEM learning journey today",
@@ -2817,6 +3200,15 @@ code_editor: "Code Editor",
     file_date: 'Date',
     file_size: 'Size',
     view_code: 'View Code',
+    sort_by_rating: "Sort by Rating",
+  sort_by_views: "Sort by Views",
+  sort_by_date: "Sort by Date",
+  
+  // Филтри
+  all_difficulties: "All Difficulties",
+  
+  // Статистики
+  total_views: "Total Views",
     download_file: 'Download File',
     grade_file: 'Grade This File',
     no_files_found: 'No files found for this student',
@@ -2988,6 +3380,9 @@ homework_check: "Проверка на домашни",
 visual_examples: "Визуални примери",
 visual_examples_desc: "Учениците реагират много добре на графики и диаграми.",
 apply: "Приложи",
+rate: "Оцени",
+  remove_from_favorites: "Премахни от любими",
+  add_to_favorites: "Добави в любими",
 group_work: "Групова работа",
 group_work_desc: "Започнете групова задача за следващите 15 минути.",
 start: "Започни",
@@ -3054,6 +3449,7 @@ activity_knowledge_base: "Създадена нова база знания по
 activity_new_materials: "Качени нови учебни материали",
 activity_user_registered: "Регистрирани 24 нови потребителя",
 minutes_ago: "мин",
+classmates: "Съученици",
 prolog: "Prolog",
 lessons: "Уроци",
 create_knowledge_title: "Създавайте Бази Знания",
@@ -3087,6 +3483,7 @@ start_work: 'Започни работа',
 select_assignment: 'Моля, изберете задание първо!',
 todays_tasks: 'Днешните Prolog задачи',
 task_details: 'Детайли на задачата',
+all_visibility: 'Всички видимости',
 no_tasks_today: 'Няма задания за днес!',
 all_caught_up: 'Наваксахте с всички Prolog задания.',
 assignment_progress: 'Напредък по задания',
@@ -3145,6 +3542,13 @@ total_assignments_count: 'Общо задания',
   challenge_accept_error: "Грешка при приемане на предизвикателство",
   approve: "Одобри",
   reject: "Отхвърли",
+   stats_icon_chart: "📊",
+stats_icon_check: "✓",
+stats_icon_warning: "⚠",
+stats_icon_star: "⭐",
+stats_icon_trophy: "🏆",
+stats_icon_users: "👥",
+stats_icon_activity: "📈",
   challenge_response_title: "Отговор на Предизвикателство",
   challenge_solution_title: "Решение на Предизвикателство",
   challenge_view_solution_code: "Виж кода на решението",
@@ -3157,6 +3561,8 @@ total_assignments_count: 'Общо задания',
   challenge_solution_code: "Код на Решението",
   challenge_solution_code_placeholder: "Напишете кода на вашето решение тук...",
   challenge_send_response: "Изпрати Отговор",
+   remove_bookmark: "Премахни отметка",
+  like: "Харесай",
     // Категории
     prolog_programming: "Програмиране на Prolog",
     artificial_intelligence: "Изкуствен интелект",
@@ -3194,11 +3600,70 @@ total_assignments_count: 'Общо задания',
     browse_all_topics: "Разгледайте всички налични учебни теми",
     topics_completed: "Завършени теми",
     lessons_completed: "Завършени уроци",
+    no_activity_data: "Няма налични данни за активност",
+  
+  // Дни от седмицата (съкратени)
+  monday_short: "Пон",
+  tuesday_short: "Вто",
+  wednesday_short: "Сря",
+  thursday_short: "Чет",
+  friday_short: "Пет",
+  saturday_short: "Съб",
+  sunday_short: "Нед",
     
     // Бърз достъп и менюта
     quick_access: "Бърз достъп",
     search_topics: "Търсене на теми...",
     categories: "Категории",
+     highest: "Най-висок",
+  high: "Висок",
+  normal: "Нормален",
+  low: "Нисък",
+  priority: "Приоритет",
+  
+  // Статистики и време
+  no_grades_data: "Няма налични данни за оценки",
+  week_short: "седм",
+  hours_ago: "преди {hours} часа",
+  days_ago: "преди {days} дни",
+  this_week: "Тази седмица",
+  
+  // Съобщения и грешки
+  error_pinning_message: "Грешка при закачане на съобщение",
+  
+  // Филтри и обхват
+  all_teachers_students: "Всички учители и ученици",
+  my_community_only: "Само моята общност",
+  people: "Хора",
+  selected: "Избрани",
+  unread_only: "Само непрочетени",
+  starred_only: "Само със звезда",
+  with_attachments: "С прикачени файлове",
+  clear_filters: "Изчисти филтрите",
+  
+  // Състояния на поща
+  inbox_empty: "Входящата кутия е празна",
+  inbox_empty_desc: "Когато получите съобщения, те ще се появят тук",
+  no_messages_desc: "Няма съобщения за показване",
+  write_message: "Напишете съобщение",
+  message_details: "Детайли на съобщението",
+  read: "Прочетено",
+  
+  // Действия с messages
+  archive: "Архивирай",
+  unarchive: "Извади от архив",
+  pin: "Закачи",
+  unpin: "Откачи",
+  
+  // Прикачени файлове
+  attachments: "Прикачени файлове",
+  add_attachments: "Добави прикачени файлове",
+  
+  direct: "direct",
+  
+  // Информация за студенти
+  student_notifications_info: "Тук ще получавате известия за вашите дейности",
+  send_message_to: "Изпрати съобщение до {name}",
     
     // Статуси и действия
     start_learning: "Започнете да учите",
@@ -3284,6 +3749,8 @@ example_code_hint: "Подсказка за примерен код",
   new_assignment: "Нова задача",
   show_less: "Покажи по-малко",
   active_challenge: "Активно предизвикателство",
+  all_grades: "Всички оценки",
+evaluation: "Оценяване",
   
   // Грешки
   error_loading_challenges: "❌ Грешка при зареждане на предизвикателства! Вероятно липсва Firebase индекс.",
@@ -3336,6 +3803,14 @@ example_code_hint: "Подсказка за примерен код",
   // Допълнителни
   challenge_completed: "Предизвикателството е завършено!",
   student_accepted: "Ученик",
+  grades: "Оценки",
+your_learning_communities: "Вашите учебни общности",
+join_community_with_code: "Присъединете се с код",
+lessons_available: "Налични уроци",
+no_lessons_found: "Няма намерени уроци",
+solutions_found: "Намерени решения",
+activity_chart: "Графика на активността",
+solutions: "Решения",
     // Основи на Prolog - точки
     basics_facts_p1: "Завършват с точка (.)",
     basics_facts_p2: "Използвайте малки букви за предикати",
@@ -3481,11 +3956,93 @@ create_first_lesson: "Създай първият си урок",
   no_users_found: "Няма намерени потребители",
   important: "Важно",
   select_all: "Избери всички",
+  attachments_cannot_be_forwarded: "Прикачените файлове не могат да бъдат препратени. Моля, качете ги отново ако е необходимо.",
   delete: "Изтрий",
   no_new_messages: "Нямате нови съобщения",
   no_messages_found: "Няма намерени съобщения",
   no_messages_inbox: "Когато получите съобщения, те ще се появят тук",
   try_different_folder: "Опитайте с различна папка или търсене",
+  access_denied: "Достъпът е отказан",
+  teacher_only: "Тази област е достъпна само за учители",
+  logout_failed: "Изходът е неуспешен. Моля, опитайте отново.",
+  error_loading_lessons: "Грешка при зареждане на уроците",
+  error_loading_grades: "Грешка при зареждане на оценките",
+  error_loading_challenge_stats: "Грешка при зареждане на статистиките за предизвикателства",
+  error_marking_read: "Грешка при маркиране като прочетено",
+  error_marking_all_read: "Грешка при маркиране на всички като прочетени",
+  error_marking_notifications: "Грешка при обновяване на известията",
+  error_loading_activity: "Грешка при зареждане на активността",
+  error_sending_notification: "Грешка при изпращане на известие",
+  error_adding_activity: "Грешка при добавяне на активност",
+  error_loading_thread: "Грешка при зареждане на нишката от съобщения",
+  error_opening_file: "Грешка при отваряне на файл",
+  error_downloading_file: "Грешка при изтегляне на файл",
+  error_details: "Детайли за грешката",
+  new_join_request: "Нова заявка за присъединяване",
+  // Задания и предизвикателства
+  total_challenges: "Общо предизвикателства",
+  pending_challenges: "Чакащи предизвикателства",
+  in_draft: "В чернова",
+  no_active_challenges: "Няма активни предизвикателства",
+  recent_challenges: "Скорошни предизвикателства",
+  completion: "Завършване",
+  avg_score: "Ср. успех",
+  respond: "Отговори",
+  accepted_students: "Приели ученици",
+  completed_students: "Завършили ученици",
+  created_by: "Създадено от",
+  
+  // Нива
+  beginner: "Начинаещ",
+  intermediate: "Средно ниво",
+  advanced: "Напреднал",
+  
+  // Общности
+  total_communities: "Общо общности",
+  new_community: "Нова общност",
+  no_communities: "Все още няма общности",
+  community_activity: "Активност в общността",
+  no_community_activity: "Няма активност в общността",
+  
+  // Уроци
+  no_lessons: "Все още няма уроци",
+  recent_lessons: "Скорошни уроци",
+  create_first: "Създай първи",
+  
+  // Съобщения и поща
+  mailbox: "Пощенска кутия",
+  recent_messages: "Скорошни съобщения",
+  total_messages: "Общо съобщения",
+  no_files: "Няма файлове",
+  
+  // Студенти
+  students_in_system: "Ученици в системата",
+  student_list: "Списък с ученици",
+  all_students: "Всички ученици",
+  no_student_data: "Няма налични данни за ученици",
+  
+  // Файлове и качване
+  drag_drop: "Плъзнете и пуснете файлове тук",
+  upload: "Качи",
+  
+  // Основни навигационни секции
+  main: "Основно",
+  learning: "Обучение",
+  content: "Съдържание",
+  activity: "Активност",
+  
+  // Форми и въвеждане
+  name: "Име",
+  enter_name: "Въведете име",
+  
+  // Примери
+  grade_example: "напр., 9 клас",
+  subject_example: "напр., Математика",
+  
+  // Табло и статистики
+  dashboard_description: "Преглед на вашите учебни дейности и напредък",
+  recent_grades: "Скорошни оценки",
+  no_recent_grades: "Няма скорошни оценки",
   me: "Аз",
   broadcast: "Всички",
   community_message: "Съобщение до общност",
@@ -3616,6 +4173,32 @@ create_first_lesson: "Създай първият си урок",
   delete_messages_from_user_confirm: "Изтрий всички съобщения от",
   messages_from: "съобщения от",
   deleted: "изтрити",
+  challenge_sent: "challenge_sent",
+  direct_message: "direct_message",
+  pending_request: "pending_request",
+  
+  // Статистики и графики
+  total_points: "Общо точки",
+  last_4_weeks: "Последните 4 седмици",
+  grades_trend: "Тенденция на оценките",
+  active_students: "Активни ученици",
+  student_activity_chart: "Графика на активността на учениците",
+  activities: "Дейности",
+  
+  // Префикс за потребители
+  user_prefix: "Потребител",
+   sort_by_rating: "Сортирай по рейтинг",
+  sort_by_views: "Сортирай по прегледи",
+  sort_by_date: "Сортирай по дата",
+  
+  // Филтри
+  all_difficulties: "Всички нива на трудност",
+  
+  // Статистики
+  total_views: "Общо прегледи",
+  
+  // Основна грешка
+  error: "Грешка",
   
   // Assignments and files
   unknown_assignment: "Непознато задание",
@@ -3910,6 +4493,7 @@ about_us:"За нас",
     switch_to_dark: "Превключи към тъмна тема",
     dark_mode: "Тъмен режим",
     light_mode: "Светъл режим",
+    view_template: "Виж шаблон",
     
     // Нови преводи за липсващите ключове
     what_to_learn: "Какво да научите",
@@ -3948,7 +4532,6 @@ about_us:"За нас",
   no_community_selected: "Няма избрана общност",
   select_community_for_challenges: "Моля, изберете общност от раздела Общности, за да видите и управлявате предизвикателства.",
   go_to_communities: "Към Общностите",
-  challenge_sent: "Предизвикателство",
   sent_successfully: "е изпратено успешно",
   
   // Оценяване и обратна връзка
@@ -4014,6 +4597,11 @@ about_us:"За нас",
     api_server: 'API сървър',
     queries: 'Заявки',
     code_files: 'Кодови файлове',
+  overdue_assignments: "Просрочени задания",
+  overdue: "Просрочено",
+  sort_by_due_date: "Сортирай по краен срок",
+  sort_by_completion: "Сортирай по завършване",
+  sort_by_submissions: "Сортирай по предадени",
     none: 'Няма',
     animals: 'Животни',
     history: 'История',
@@ -4349,6 +4937,7 @@ upload_successful: 'Subida exitosa',
 catch_block_error: 'Error en bloque catch:',
 option: 'Opción',
 loading_assignments: 'Cargando tareas...',
+new_join_request: 'Nueva solicitud de unión a la comunidad',
     // Home page преводи
     ideas_acronym: 'Sistema Inteligente de Análisis Educativo de Datos',
     hero_title_part1: 'Transforma la Educación',
@@ -4404,6 +4993,7 @@ loading_assignments: 'Cargando tareas...',
     view_projects: 'Ver Proyectos',
     see_analytics: 'Ver Análisis',
     browse_curriculum: 'Explorar Currículo',
+    classmates: "Compañeros",
     learn_skills: 'Aprender Habilidades',
     demo_title_part1: 'Ver IDEAS',
     demo_title_part2: 'en Acción',
@@ -4433,6 +5023,57 @@ loading_assignments: 'Cargando tareas...',
     privacy: 'Privacidad',
     terms: 'Términos',
     cookies: 'Cookies',
+    highest: "Más Alto",
+  high: "Alto",
+  normal: "Normal",
+  low: "Bajo",
+  priority: "Prioridad",
+  
+  // Статистики и време
+  no_grades_data: "No hay datos de calificaciones disponibles",
+  week_short: "sem",
+  hours_ago: "hace {hours} horas",
+  days_ago: "hace {days} días",
+  this_week: "Esta Semana",
+  
+  // Съобщения и грешки
+  error_pinning_message: "Error al fijar mensaje",
+  
+  // Филтри и обхват
+  all_teachers_students: "Todos los Profesores y Estudiantes",
+  my_community_only: "Solo Mi Comunidad",
+  people: "Personas",
+  selected: "Seleccionados",
+  unread_only: "Solo No Leídos",
+  starred_only: "Solo Destacados",
+  with_attachments: "Con Archivos Adjuntos",
+  clear_filters: "Limpiar Filtros",
+  
+  // Състояния на поща
+  inbox_empty: "La bandeja de entrada está vacía",
+  inbox_empty_desc: "Cuando recibas mensajes, aparecerán aquí",
+  no_messages_desc: "No hay mensajes para mostrar",
+  write_message: "Escribir un mensaje",
+  message_details: "Detalles del Mensaje",
+  read: "Leído",
+  
+  // Действия с messages
+  archive: "Archivar",
+  unarchive: "Desarchivar",
+  pin: "Fijar",
+  unpin: "Desfijar",
+  
+  // Прикачени файлове
+  attachments: "Archivos Adjuntos",
+  add_attachments: "Agregar Archivos Adjuntos",
+  
+  // Типове нотификации
+  assignment_submission: "assignment_submission",
+  direct: "direct",
+  
+  // Информация за студенти
+  student_notifications_info: "Aquí recibirás notificaciones sobre tus actividades",
+  send_message_to: "Enviar mensaje a {name}",
     
     // Dashboard преводи (основни)
     welcome_back: '¡Bienvenido de nuevo!',
@@ -4551,6 +5192,9 @@ loading_assignments: 'Cargando tareas...',
   total_grades: "Calificaciones Totales",
   average_grade: "Calificación Promedio",
   excellent_grades: "Calificaciones Excelentes",
+  rate: "Calificar",
+  remove_from_favorites: "Eliminar de favoritos",
+  add_to_favorites: "Agregar a favoritos",
   graded_by: "Calificado por",
   recently: "Recientemente",
   viewing_grade_details: "Viendo Detalles de Calificación",
@@ -4569,6 +5213,8 @@ loading_assignments: 'Cargando tareas...',
   found: "encontrados",
   student: "Estudiante",
   no_users_found: "No se encontraron usuarios",
+   remove_bookmark: "Eliminar marcador",
+  like: "Me gusta",
   important: "Importante",
   select_all: "Seleccionar todo",
   delete: "Eliminar",
@@ -4578,6 +5224,24 @@ loading_assignments: 'Cargando tareas...',
   try_different_folder: "Intente con una carpeta diferente o búsqueda",
   me: "Yo",
   broadcast: "Todos",
+  no_activity_data: "No hay datos de actividad disponibles",
+  grades: "Calificaciones",
+your_learning_communities: "Tus Comunidades de Aprendizaje",
+join_community_with_code: "Unirse a Comunidad con Código",
+lessons_available: "Lecciones Disponibles",
+no_lessons_found: "No se encontraron lecciones",
+solutions_found: "Soluciones Encontradas",
+activity_chart: "Gráfico de Actividad",
+solutions: "Soluciones",
+  
+  // Дни от седмицата (съкратени)
+  monday_short: "Lun",
+  tuesday_short: "Mar",
+  wednesday_short: "Mié",
+  thursday_short: "Jue",
+  friday_short: "Vie",
+  saturday_short: "Sáb",
+  sunday_short: "Dom",
   community_message: "Mensaje a la comunidad",
   broadcast_message: "Mensaje a todos",
   original_message: "Mensaje original",
@@ -4655,6 +5319,7 @@ all_time_submissions: "Todas las entregas",
 completed_submissions: "Entregas completadas",
 total_files_uploaded: "Total de archivos subidos",
 overall_success_rate: "Tasa de éxito general",
+all_visibility: "Todas las visibilidades",
 no_messages: "No tienes mensajes",
   mark_all_as_read: "Marcar todos",
   messages_as_read: "mensajes como leídos",
@@ -4754,6 +5419,16 @@ prolog_demo:"Demostración de Prolog",
     quick_access: "Acceso Rápido",
     search_topics: "Buscar temas...",
     categories: "Categorías",
+    sort_by_rating: "Ordenar por Puntuación",
+  sort_by_views: "Ordenar por Vistas",
+  sort_by_date: "Ordenar por Fecha",
+  
+  // Филтри
+  all_difficulties: "Todas las Dificultades",
+  
+  // Статистики
+  total_views: "Vistas Totales",
+  
     
     // Статуси и действия
     start_learning: "Comenzar a Aprender",
@@ -4835,9 +5510,93 @@ prolog_demo:"Demostración de Prolog",
     graded_on: "Calificado el",
     submitted_on: "Entregado el",
     pending_evaluation: "Evaluación pendiente",
+    all_grades: "Todas las calificaciones",
+evaluation: "Evaluación",
     
     completed: "Completado",
     assignment_not_graded: "Esta tarea aún no ha sido calificada",
+    access_denied: "Acceso Denegado",
+  teacher_only: "Esta área solo es accesible para profesores",
+  logout_failed: "Error al cerrar sesión. Por favor, intente de nuevo.",
+  error_loading_lessons: "Error al cargar las lecciones",
+  error_loading_grades: "Error al cargar las calificaciones",
+  error_loading_challenge_stats: "Error al cargar estadísticas de desafíos",
+  error_marking_read: "Error al marcar como leído",
+  error_marking_all_read: "Error al marcar todos como leídos",
+  error_marking_notifications: "Error al actualizar notificaciones",
+  error_loading_activity: "Error al cargar actividad",
+  error_sending_notification: "Error al enviar notificación",
+  error_adding_activity: "Error al agregar actividad",
+  error_loading_thread: "Error al cargar el hilo de mensajes",
+  error_opening_file: "Error al abrir archivo",
+  error_downloading_file: "Error al descargar archivo",
+  error_details: "Detalles del Error",
+  
+  // Задания и предизвикателства
+  total_challenges: "Total Desafíos",
+  pending_challenges: "Desafíos Pendientes",
+  in_draft: "En Borrador",
+  no_active_challenges: "No hay desafíos activos",
+  recent_challenges: "Desafíos Recientes",
+  completion: "Finalización",
+  avg_score: "Punt. Prom",
+  respond: "Responder",
+  accepted_students: "Estudiantes Aceptados",
+  completed_students: "Estudiantes Completados",
+  attachments_cannot_be_forwarded: "Los archivos adjuntos no se pueden reenviar. Vuelva a subirlos si es necesario.",
+  created_by: "Creado por",
+  
+  // Нива
+  beginner: "Principiante",
+  intermediate: "Intermedio",
+  advanced: "Avanzado",
+  
+  // Общности
+  total_communities: "Total Comunidades",
+  new_community: "Nueva Comunidad",
+  no_communities: "Aún no hay comunidades",
+  community_activity: "Actividad de la Comunidad",
+  no_community_activity: "Sin actividad en la comunidad",
+  
+  // Уроци
+  no_lessons: "Aún no hay lecciones",
+  recent_lessons: "Lecciones Recientes",
+  create_first: "Crear Primero",
+  
+  // Съобщения и поща
+  mailbox: "Buzón",
+  recent_messages: "Mensajes Recientes",
+  total_messages: "Total Mensajes",
+  no_files: "Sin archivos",
+  
+  // Студенти
+  students_in_system: "Estudiantes en el Sistema",
+  student_list: "Lista de Estudiantes",
+  all_students: "Todos los Estudiantes",
+  no_student_data: "No hay datos de estudiantes disponibles",
+  
+  // Файлове и качване
+  drag_drop: "Arrastra y suelta archivos aquí",
+  upload: "Subir",
+  
+  // Основни навигационни секции
+  main: "Principal",
+  learning: "Aprendizaje",
+  content: "Contenido",
+  activity: "Actividad",
+  
+  // Форми и въвеждане
+  name: "Nombre",
+  enter_name: "Ingrese nombre",
+  
+  // Примери
+  grade_example: "ej., 9° Grado",
+  subject_example: "ej., Matemáticas",
+  
+  // Табло и статистики
+  dashboard_description: "Resumen de tus actividades de aprendizaje y progreso",
+  recent_grades: "Calificaciones Recientes",
+  no_recent_grades: "No hay calificaciones recientes",
     
     assignment_evaluation: "Evaluación de tarea",
     
@@ -4888,7 +5647,7 @@ prolog_demo:"Demostración de Prolog",
     tutorial_backtracking_ex2: "Usa punto y coma (;) para encontrar todas las soluciones",
     tutorial_backtracking_ex3: "El corte (!) previene el backtracking",
     tutorial_backtracking_ex4: "fail fuerza el backtracking",
-    
+    view_template: "Ver plantilla de código",
     // Бързи съвети
     quick_tips_title: "Consejos Rápidos para Principiantes",
     quick_tips_subtitle: "Consejos esenciales para comenzar con Prolog",
@@ -4922,7 +5681,13 @@ prolog_demo:"Demostración de Prolog",
   total_lessons: "Total de lecciones",
   no_matching_lessons: "No se encontraron lecciones que coincidan",
   try_changing_criteria: "Intente cambiar los criterios de búsqueda o filtro",
-  
+   stats_icon_chart: "📊",
+stats_icon_check: "✓",
+stats_icon_warning: "⚠",
+stats_icon_star: "⭐",
+stats_icon_trophy: "🏆",
+stats_icon_users: "👥",
+stats_icon_activity: "📈",
   // Задания и работа
   continue_work: "Continuar trabajo",
   start_assignment: "Comenzar tarea",
@@ -5551,9 +6316,24 @@ challenge_solved: "Desafío Resuelto",
 lesson_completed: "Lección Completada",
 completed_lesson: "Lección Completada",
 lessons_to_read: "Lecciones por Leer",
-assignment_submission: "Entrega de Tarea",
 no_lessons_description: "No hay lecciones disponibles.",
 browse_communities: "Explorar Comunidades",
+  direct_message: "direct_message",
+  pending_request: "pending_request",
+  
+  // Статистики и графики
+  total_points: "Puntos Totales",
+  last_4_weeks: "Últimas 4 Semanas",
+  grades_trend: "Tendencia de Calificaciones",
+  active_students: "Estudiantes Activos",
+  student_activity_chart: "Gráfico de Actividad Estudiantil",
+  activities: "Actividades",
+  
+  // Префикс за потребители
+  user_prefix: "Usuario",
+  
+  // Основна грешка
+  error: "Error",
 objectives: "Objetivos",
 read_lesson: "Leer Lección",
 no_notifications_description: "No hay notificaciones.",
@@ -5626,6 +6406,11 @@ mark_as_completed: "Marcar como Completado",
   // Grades
   detailed_view: "Vista Detallada",
   view_grade_details: "Ver Detalles de la Calificación",
+  overdue_assignments: "Tareas Vencidas",
+  overdue: "Vencido",
+  sort_by_due_date: "Ordenar por Fecha Límite",
+  sort_by_completion: "Ordenar por Finalización",
+  sort_by_submissions: "Ordenar por Entregas",
   
   // Common buttons and actions
   delete_all: "Eliminar Todo",

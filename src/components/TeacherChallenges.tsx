@@ -1,10 +1,9 @@
-// components/TeacherChallenges.tsx
+import React from "react";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Target,
-  GroupIcon,
-  Calendar,
+  Users as GroupIcon,
   Trophy,
   MessageCircle,
   CheckCircle,
@@ -19,7 +18,9 @@ import {
   UserCheck,
   Clock,
   Star,
-  Edit
+  Edit,
+  TrendingUp,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -97,7 +98,17 @@ interface AcceptedStudent {
   acceptedAt: any;
 }
 
+interface ChallengeStats {
+  totalSubmissions: number;
+  pendingSubmissions: number;
+  evaluatedCount: number;
+  averageScore: number;
+  completionRate: number;
+  acceptedCount: number;
+}
+
 export interface Challenge {
+  completedBy: string[];
   id: string;
   title: string;
   description: string;
@@ -113,6 +124,7 @@ export interface Challenge {
   submissions: ChallengeSubmission[];
   acceptedBy?: string[];
   acceptedStudents?: AcceptedStudent[];
+  acceptedAt?: Record<string, any>;
   response?: {
     respondedAt: any;
     responderId: string;
@@ -123,6 +135,9 @@ export interface Challenge {
   };
   createdAt: any;
   updatedAt?: any;
+  stats?: ChallengeStats;
+  daysLeft?: number;
+  isOverdue?: boolean;
 }
 
 interface SystemUser {
@@ -169,44 +184,54 @@ interface TeacherChallengesProps {
   onChallengeStatusChange?: (notification: ChallengeNotification) => void;
 }
 
+
 // ============ ПОМОЩНИ ФУНКЦИИ ============
 
 const getStatusColor = (status: string): string => {
   const statusColorMap: Record<string, string> = {
-    'joined': 'bg-blue-500/20 text-blue-500',
-    'submitted': 'bg-yellow-500/20 text-yellow-500',
-    'evaluated': 'bg-green-500/20 text-green-500',
-    'completed': 'bg-purple-500/20 text-purple-500',
-    'pending': 'bg-yellow-500/20 text-yellow-500',
-    'accepted': 'bg-green-500/20 text-green-500',
-    'rejected': 'bg-red-500/20 text-red-500',
-    'responded': 'bg-purple-500/20 text-purple-500'
+    'joined': 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
+    'submitted': 'bg-orange-500/20 text-orange-600 dark:text-orange-400',
+    'evaluated': 'bg-green-500/20 text-green-600 dark:text-green-400',
+    'completed': 'bg-green-500/20 text-green-600 dark:text-green-400',
+    'pending': 'bg-orange-500/20 text-orange-600 dark:text-orange-400',
+    'accepted': 'bg-green-500/20 text-green-600 dark:text-green-400',
+    'rejected': 'bg-red-500/20 text-red-600 dark:text-red-400',
+    'responded': 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
   };
-  return statusColorMap[status] || 'bg-gray-500/20 text-gray-500';
+  return statusColorMap[status] || 'bg-gray-500/20 text-gray-600 dark:text-gray-400';
 };
 
 const getSubmissionStatusColor = (status: string): string => {
   const statusColorMap: Record<string, string> = {
-    'joined': 'bg-blue-500/20 text-blue-500',
-    'submitted': 'bg-yellow-500/20 text-yellow-500',
-    'evaluated': 'bg-green-500/20 text-green-500',
-    'completed': 'bg-purple-500/20 text-purple-500'
+    'joined': 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
+    'submitted': 'bg-orange-500/20 text-orange-600 dark:text-orange-400',
+    'evaluated': 'bg-green-500/20 text-green-600 dark:text-green-400',
+    'completed': 'bg-green-500/20 text-green-600 dark:text-green-400'
   };
-  return statusColorMap[status] || 'bg-gray-500/20 text-gray-500';
+  return statusColorMap[status] || 'bg-gray-500/20 text-gray-600 dark:text-gray-400';
 };
 
 const getDifficultyColor = (difficulty: string): string => {
   switch(difficulty) {
-    case 'easy': return 'bg-green-500/20 text-green-500';
-    case 'medium': return 'bg-yellow-500/20 text-yellow-500';
-    case 'hard': return 'bg-red-500/20 text-red-500';
-    default: return 'bg-gray-500/20 text-gray-500';
+    case 'easy': return 'bg-green-500/20 text-green-600 dark:text-green-400';
+    case 'medium': return 'bg-orange-500/20 text-orange-600 dark:text-orange-400';
+    case 'hard': return 'bg-red-500/20 text-red-600 dark:text-red-400';
+    default: return 'bg-gray-500/20 text-gray-600 dark:text-gray-400';
   }
 };
 
-const formatDate = (timestamp: any): string => {
+const getDifficultyIcon = (difficulty: string): string => {
+  switch(difficulty) {
+    case 'easy': return '🟢';
+    case 'medium': return '🟡';
+    case 'hard': return '🔴';
+    default: return '⚪';
+  }
+};
+
+const formatDate = (timestamp: any, t?: any): string => {
   try {
-    if (!timestamp) return 'No date';
+    if (!timestamp) return t?.('no_date') || 'No date';
     if (timestamp?.toMillis) {
       return new Date(timestamp.toMillis()).toLocaleString();
     }
@@ -216,10 +241,51 @@ const formatDate = (timestamp: any): string => {
     if (timestamp instanceof Date) {
       return timestamp.toLocaleString();
     }
-    return 'Invalid date';
+    return t?.('invalid_date') || 'Invalid date';
   } catch {
-    return 'Invalid date';
+    return t?.('invalid_date') || 'Invalid date';
   }
+};
+
+const formatRelativeTime = (dateString: string, t?: any): string => {
+  try {
+    const dueDate = new Date(dateString);
+    const today = new Date();
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return t?.('overdue_by')?.replace('{days}', Math.abs(diffDays)) || `Overdue by ${Math.abs(diffDays)} days`;
+    if (diffDays === 0) return t?.('due_today') || 'Due today';
+    if (diffDays === 1) return t?.('due_tomorrow') || 'Due tomorrow';
+    return t?.('days_left')?.replace('{days}', diffDays) || `${diffDays} days left`;
+  } catch {
+    return t?.('invalid_date') || 'Invalid date';
+  }
+};
+
+// ============ КОМПОНЕНТ ЗА СТАТИСТИЧЕСКА КАРТА ============
+const StatsCard = ({ title, value, icon, color, theme}: { title: string; value: number; icon: React.ReactNode; color: 'blue' | 'green' | 'orange'; theme: string; t: any }) => {
+  const colors = {
+    blue: theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600',
+    green: theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600',
+    orange: theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600',
+  };
+
+  return (
+    <div className={`rounded-2xl p-6 border ${
+      theme === 'dark'
+        ? 'bg-gray-900/80 border-white/10'
+        : 'bg-white border-gray-200'
+    }`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm opacity-70">{title}</span>
+        <div className={`p-2 rounded-lg ${colors[color]}`}>
+          {icon}
+        </div>
+      </div>
+      <div className="text-2xl font-bold">{value}</div>
+    </div>
+  );
 };
 
 // ============ КОМПОНЕНТ ЗА RESPONSE ============
@@ -233,8 +299,8 @@ const ChallengeResponseDisplay = ({ response, theme, t }: {
       theme === 'dark' ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
     }`}>
       <div className="flex items-center gap-2 mb-2">
-        <MessageCircle className="w-4 h-4 text-blue-500" />
-        <span className="font-medium text-blue-500">
+        <MessageCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <span className="font-medium text-blue-600 dark:text-blue-400">
           {t?.('challenge_response_title') || "Challenge Response"}
         </span>
       </div>
@@ -264,23 +330,28 @@ const ChallengeResponseDisplay = ({ response, theme, t }: {
               newWindow.document.close();
             }
           }}
-          className="text-sm text-blue-500 hover:text-blue-600"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
         >
           {t?.('view_solution_code') || "View solution code"} →
         </button>
       )}
       <div className="text-xs opacity-70 mt-2">
-        {t?.('challenge_response_from') || "Response from"} {response.responderName} • {formatDate(response.respondedAt)}
+        {t?.('challenge_response_from') || "Response from"} {response.responderName} • {formatDate(response.respondedAt, t)}
       </div>
     </div>
   );
 };
 
 // ============ МИГРАЦИЯ ЗА TEACHER NAMES ============
-const fixTeacherNames = async (_userId: string) => {
+const fixTeacherNames = async (userId: string) => {
   try {
     console.log("🔧 Fixing teacher names in challenges...");
-    const challengesQuery = query(collection(db, "challenges"));
+    
+    const challengesQuery = query(
+      collection(db, "challenges"),
+      where("createdBy", "==", userId)
+    );
+    
     const snapshot = await getDocs(challengesQuery);
     
     let fixedCount = 0;
@@ -309,6 +380,190 @@ const fixTeacherNames = async (_userId: string) => {
     console.log(`🎉 Fixed ${fixedCount} challenges!`);
   } catch (error) {
     console.error("❌ Error fixing teacher names:", error);
+  }
+};
+
+// ============ МИГРАЦИЯ ЗА СТРУКТУРАТА НА CHALLENGES ============
+const migrateChallengesStructure = async (communityId: string) => {
+  try {
+    console.log("🔄 Migrating challenges structure for community:", communityId);
+    
+    const challengesRef = collection(db, "challenges");
+    const q = query(
+      challengesRef,
+      where("creatorCommunityId", "==", communityId)
+    );
+    
+    const snapshot = await getDocs(q);
+    let migratedCount = 0;
+    
+    for (const docSnapshot of snapshot.docs) {
+      const data = docSnapshot.data();
+      const updates: any = {};
+      let needsUpdate = false;
+      
+      if (!data.completedBy) {
+        updates.completedBy = [];
+        needsUpdate = true;
+      }
+      
+      if (!data.acceptedAt) {
+        updates.acceptedAt = {};
+        needsUpdate = true;
+      }
+      
+      const solutionsQuery = query(
+        collection(db, "challengeSolutions"),
+        where("challengeId", "==", docSnapshot.id)
+      );
+      const solutionsSnapshot = await getDocs(solutionsQuery);
+      
+      const allStudentIds = new Set<string>();
+      const evaluatedStudentIds = new Set<string>();
+      const acceptedAtMap: Record<string, any> = {};
+      
+      solutionsSnapshot.forEach((solDoc) => {
+        const solData = solDoc.data();
+        const studentId = solData.studentId;
+        
+        if (studentId) {
+          allStudentIds.add(studentId);
+          
+          if (solData.score !== undefined || solData.status === 'evaluated' || solData.status === 'completed') {
+            evaluatedStudentIds.add(studentId);
+          }
+          
+          if (solData.acceptedAt || solData.submittedAt) {
+            acceptedAtMap[studentId] = solData.acceptedAt || solData.submittedAt;
+          }
+        }
+      });
+      
+      if (data.submissions && Array.isArray(data.submissions)) {
+        data.submissions.forEach((sub: any) => {
+          if (sub.studentId) {
+            allStudentIds.add(sub.studentId);
+            
+            if (sub.status === 'joined' || sub.status === 'submitted') {
+              if (!acceptedAtMap[sub.studentId] && sub.submittedAt) {
+                acceptedAtMap[sub.studentId] = sub.submittedAt;
+              }
+            }
+            
+            if (sub.status === 'evaluated' || sub.status === 'completed' || sub.score !== undefined) {
+              evaluatedStudentIds.add(sub.studentId);
+            }
+          }
+        });
+      }
+      
+      const currentAcceptedBy = data.acceptedBy || [];
+      if (currentAcceptedBy.length === 0 && allStudentIds.size > 0) {
+        updates.acceptedBy = Array.from(allStudentIds);
+        needsUpdate = true;
+        console.log(`📝 Setting acceptedBy for challenge ${docSnapshot.id}:`, Array.from(allStudentIds));
+      }
+      
+      const currentCompletedBy = data.completedBy || [];
+      if (evaluatedStudentIds.size > 0) {
+        const newCompletedBy = Array.from(new Set([...currentCompletedBy, ...Array.from(evaluatedStudentIds)]));
+        if (JSON.stringify(currentCompletedBy) !== JSON.stringify(newCompletedBy)) {
+          updates.completedBy = newCompletedBy;
+          needsUpdate = true;
+          console.log(`📝 Setting completedBy for challenge ${docSnapshot.id}:`, newCompletedBy);
+        }
+      }
+      
+      if (Object.keys(acceptedAtMap).length > 0) {
+        const currentAcceptedAt = data.acceptedAt || {};
+        const hasNewAcceptedAt = Object.keys(acceptedAtMap).some(
+          key => JSON.stringify(acceptedAtMap[key]) !== JSON.stringify(currentAcceptedAt[key])
+        );
+        
+        if (hasNewAcceptedAt) {
+          updates.acceptedAt = { ...currentAcceptedAt, ...acceptedAtMap };
+          needsUpdate = true;
+        }
+      }
+      
+      if (evaluatedStudentIds.size > 0 && data.status !== 'completed') {
+        const allStudentsEvaluated = Array.from(allStudentIds).length > 0 && 
+          Array.from(allStudentIds).every(id => evaluatedStudentIds.has(id));
+        
+        if (allStudentsEvaluated) {
+          updates.status = 'completed';
+          needsUpdate = true;
+          console.log(`📝 Setting status to completed for challenge ${docSnapshot.id}`);
+        }
+      }
+      
+      if (needsUpdate) {
+        await updateDoc(docSnapshot.ref, {
+          ...updates,
+          updatedAt: serverTimestamp()
+        });
+        migratedCount++;
+        console.log(`✅ Migrated challenge ${docSnapshot.id}`, updates);
+      } else {
+        console.log(`ℹ️ No updates needed for challenge ${docSnapshot.id}`);
+      }
+    }
+    
+    console.log(`🎉 Migration complete! Migrated ${migratedCount} challenges`);
+    return migratedCount;
+  } catch (error) {
+    console.error("❌ Error during migration:", error);
+    return 0;
+  }
+};
+
+// ============ МИГРАЦИЯ ЗА СТАТУС НА SUBMISSIONS ============
+const migrateSubmissionStatus = async (communityId: string) => {
+  if (!communityId) return 0;
+  
+  try {
+    console.log("🔄 Migrating submission statuses for community:", communityId);
+    
+    const challengesRef = collection(db, "challenges");
+    const q = query(
+      challengesRef,
+      where("creatorCommunityId", "==", communityId)
+    );
+    
+    const snapshot = await getDocs(q);
+    let updatedCount = 0;
+    
+    for (const challengeDoc of snapshot.docs) {
+      const data = challengeDoc.data();
+      
+      if (data.submissions && Array.isArray(data.submissions)) {
+        let needsUpdate = false;
+        const updatedSubmissions = data.submissions.map((sub: any) => {
+          if (sub.solutionCode && sub.solutionCode.length > 10 && sub.status === 'joined') {
+            needsUpdate = true;
+            console.log(`📝 Changing status for ${sub.studentName} from 'joined' to 'submitted'`);
+            return { ...sub, status: 'submitted' };
+          }
+          return sub;
+        });
+        
+        if (needsUpdate) {
+          await updateDoc(challengeDoc.ref, {
+            submissions: updatedSubmissions,
+            updatedAt: serverTimestamp()
+          });
+          updatedCount++;
+          console.log(`✅ Updated statuses for challenge ${challengeDoc.id}`);
+        }
+      }
+    }
+    
+    console.log(`🎉 Updated ${updatedCount} challenges with submission status migration`);
+    return updatedCount;
+    
+  } catch (error) {
+    console.error("❌ Error migrating statuses:", error);
+    return 0;
   }
 };
 
@@ -345,28 +600,57 @@ export default function TeacherChallenges({
   const [allSystemUsers, setAllSystemUsers] = useState<SystemUser[]>([]);
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'active' | 'completed'>('all');
+  const [sortBy, setSortBy] = useState<'dueDate' | 'submissions' | 'completion'>('dueDate');
+  const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null);
 
-  // ТЕКУЩОТО community (избраното)
   const currentCommunity = communities.find(c => c.id === selectedCommunityId);
-  
-  // Моите комюнити (където съм учител)
   const myCommunities = communities.filter(c => c.teacherId === user?.uid);
   
-  // Challenge form state
   const [challengeForm, setChallengeForm] = useState({
     title: "",
     description: "",
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     category: "Programming",
     difficulty: "medium" as "easy" | "medium" | "hard",
-    points: 50
+    points: 100
   });
 
-  // Response form state
   const [challengeResponseForm, setChallengeResponseForm] = useState({
     content: "",
     solutionCode: ""
   });
+
+  // ============ ФУНКЦИЯ ЗА ИЗЧИСЛЯВАНЕ НА СТАТИСТИКА ============
+  const calculateChallengeStats = (challenge: Challenge): ChallengeStats => {
+    const submissions = challenge.submissions || [];
+    const acceptedCount = challenge.acceptedBy?.length || 0;
+    
+    const totalSubmissions = submissions.length;
+    const pendingSubmissions = submissions.filter(s => s.status === 'submitted').length;
+    const evaluatedCount = submissions.filter(s => s.status === 'evaluated' || s.score !== undefined).length;
+    
+    const scores = submissions
+      .filter(s => s.score !== undefined)
+      .map(s => s.score || 0);
+    
+    const averageScore = scores.length > 0 
+      ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
+      : 0;
+    
+    const completionRate = acceptedCount > 0 
+      ? (evaluatedCount / acceptedCount) * 100 
+      : 0;
+
+    return {
+      totalSubmissions,
+      pendingSubmissions,
+      evaluatedCount,
+      averageScore,
+      completionRate,
+      acceptedCount
+    };
+  };
 
   // ============ АКТУАЛИЗИРАНА ФУНКЦИЯ ЗА НОТИФИКАЦИИ ============
   const sendChallengeNotification = async (
@@ -403,7 +687,6 @@ export default function TeacherChallenges({
         }
       };
 
-      // ИЗПРАТЕТЕ НОТИФИКАЦИИ В НОВАТА КОЛЕКЦИЯ "notifications"
       const batch = writeBatch(db);
       
       studentIds.forEach((studentId) => {
@@ -424,7 +707,7 @@ export default function TeacherChallenges({
             communityName: targetCommunity.name,
             action: action
           },
-          actionUrl: '/dashboard/student?tab=challenges'
+          actionUrl: '/teacher-dashboard?tab=challenges'
         });
       });
 
@@ -432,7 +715,6 @@ export default function TeacherChallenges({
       
       console.log(`✅ Challenge notifications sent to ${studentIds.length} students`);
       
-      // Добавете и в activityLogs за проследяване (опционално)
       if (studentIds.length > 0) {
         await addDoc(collection(db, "activityLogs"), {
           userId: user.uid,
@@ -456,15 +738,19 @@ export default function TeacherChallenges({
     }
   };
 
-  // ============ МИГРАЦИЯ ============
+  // ============ МИГРАЦИИ ============
   useEffect(() => {
-    if (user && !isMigrating) {
+    if (user && !isMigrating && selectedCommunityId) {
       setIsMigrating(true);
-      fixTeacherNames(user.uid).finally(() => {
+      Promise.all([
+        fixTeacherNames(user.uid),
+        migrateChallengesStructure(selectedCommunityId),
+        migrateSubmissionStatus(selectedCommunityId)
+      ]).finally(() => {
         setIsMigrating(false);
       });
     }
-  }, [user]);
+  }, [user, selectedCommunityId]);
 
   // ============ API ЗАЯВКИ ============
 
@@ -478,7 +764,7 @@ export default function TeacherChallenges({
           const studentData = studentDoc.data();
           students.push({
             id: studentId,
-            name: studentData?.fullName || (studentData?.email ? studentData.email.split('@')[0] : "Unknown Student"),
+            name: studentData?.fullName || (studentData?.email ? studentData.email.split('@')[0] : t?.('unknown_student') || "Unknown Student"),
             email: studentData?.email || "",
             acceptedAt: acceptedAt?.[studentId] || null
           });
@@ -540,7 +826,78 @@ export default function TeacherChallenges({
           data.acceptedAt || {}
         );
         
-        challengesData.push({
+        const solutionsQuery = query(
+          collection(db, "challengeSolutions"),
+          where("challengeId", "==", docSnapshot.id)
+        );
+        const solutionsSnapshot = await getDocs(solutionsQuery);
+        const submissions: ChallengeSubmission[] = [];
+        
+        solutionsSnapshot.forEach((solDoc) => {
+          const solData = solDoc.data();
+          submissions.push({
+            id: solDoc.id,
+            studentId: solData.studentId || "",
+            studentName: solData.studentName || t?.('unknown_student') || "Unknown Student",
+            studentEmail: solData.studentEmail,
+            studentAvatar: solData.studentAvatar,
+            submittedAt: solData.submittedAt,
+            files: solData.files || [],
+            notes: solData.notes || "",
+            score: solData.score || solData.evaluation?.score,
+            feedback: solData.feedback || solData.evaluation?.feedback,
+            status: solData.status || 'submitted',
+            solutionCode: solData.solutionCode || "",
+            evaluation: solData.evaluation || {},
+            communityId: solData.communityId,
+            acceptedAt: solData.acceptedAt
+          });
+        });
+        
+        // Добавяме legacy submissions от основния документ
+        if (data.submissions && Array.isArray(data.submissions) && data.submissions.length > 0) {
+          console.log(`📝 Found ${data.submissions.length} legacy submissions for challenge ${docSnapshot.id}`);
+          
+          data.submissions.forEach((legacySub: any) => {
+            const alreadyExists = submissions.some(s => s.studentId === legacySub.studentId);
+            
+            if (!alreadyExists) {
+              let status = legacySub.status || 'submitted';
+              
+              if (legacySub.solutionCode && legacySub.solutionCode.length > 10) {
+                status = 'submitted';
+                console.log(`📝 Setting status to 'submitted' for ${legacySub.studentName} (has solutionCode)`);
+              }
+              
+              submissions.push({
+                id: `legacy-${legacySub.studentId}-${docSnapshot.id}`,
+                studentId: legacySub.studentId || "",
+                studentName: legacySub.studentName || t?.('unknown_student') || "Unknown Student",
+                studentEmail: legacySub.studentEmail,
+                studentAvatar: legacySub.studentAvatar,
+                submittedAt: legacySub.submittedAt,
+                files: legacySub.files || [],
+                notes: legacySub.notes || "",
+                score: legacySub.score,
+                feedback: legacySub.feedback,
+                status: status,
+                solutionCode: legacySub.solutionCode || "",
+                evaluation: legacySub.evaluation || {},
+                communityId: legacySub.communityId,
+                acceptedAt: legacySub.acceptedAt
+              });
+            }
+          });
+        }
+        
+        console.log(`📊 Challenge ${docSnapshot.id} has ${submissions.length} total submissions`);
+        console.log(`📊 Pending submissions: ${submissions.filter(s => s.status === 'submitted').length}`);
+        
+        const dueDate = data.dueDate ? new Date(data.dueDate) : null;
+        const today = new Date();
+        const daysLeft = dueDate ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+        
+        const challenge: Challenge = {
           id: docSnapshot.id,
           title: data.title || "",
           description: data.description || "",
@@ -553,13 +910,20 @@ export default function TeacherChallenges({
           category: data.category || "General",
           difficulty: data.difficulty || 'medium',
           points: data.points || 50,
-          submissions: data.submissions || [],
+          submissions: submissions,
           acceptedBy: data.acceptedBy || [],
           acceptedStudents: acceptedStudents,
+          acceptedAt: data.acceptedAt || {},
           response: data.response,
           createdAt: data.createdAt,
-          updatedAt: data.updatedAt
-        });
+          updatedAt: data.updatedAt,
+          daysLeft: daysLeft || 0,
+          isOverdue: daysLeft !== null ? daysLeft < 0 : false,
+          completedBy: data.completedBy || []
+        };
+        
+        challenge.stats = calculateChallengeStats(challenge);
+        challengesData.push(challenge);
       }
       
       for (const docSnapshot of targetSnapshot.docs) {
@@ -571,7 +935,73 @@ export default function TeacherChallenges({
             data.acceptedAt || {}
           );
           
-          challengesData.push({
+          const solutionsQuery = query(
+            collection(db, "challengeSolutions"),
+            where("challengeId", "==", docSnapshot.id)
+          );
+          const solutionsSnapshot = await getDocs(solutionsQuery);
+          const submissions: ChallengeSubmission[] = [];
+          
+          solutionsSnapshot.forEach((solDoc) => {
+            const solData = solDoc.data();
+            submissions.push({
+              id: solDoc.id,
+              studentId: solData.studentId || "",
+              studentName: solData.studentName || t?.('unknown_student') || "Unknown Student",
+              studentEmail: solData.studentEmail,
+              studentAvatar: solData.studentAvatar,
+              submittedAt: solData.submittedAt,
+              files: solData.files || [],
+              notes: solData.notes || "",
+              score: solData.score || solData.evaluation?.score,
+              feedback: solData.feedback || solData.evaluation?.feedback,
+              status: solData.status || 'submitted',
+              solutionCode: solData.solutionCode || "",
+              evaluation: solData.evaluation || {},
+              communityId: solData.communityId,
+              acceptedAt: solData.acceptedAt
+            });
+          });
+          
+          if (data.submissions && Array.isArray(data.submissions) && data.submissions.length > 0) {
+            console.log(`📝 Found ${data.submissions.length} legacy submissions for challenge ${docSnapshot.id}`);
+            
+            data.submissions.forEach((legacySub: any) => {
+              const alreadyExists = submissions.some(s => s.studentId === legacySub.studentId);
+              
+              if (!alreadyExists) {
+                let status = legacySub.status || 'submitted';
+                
+                if (legacySub.solutionCode && legacySub.solutionCode.length > 10) {
+                  status = 'submitted';
+                }
+                
+                submissions.push({
+                  id: `legacy-${legacySub.studentId}-${docSnapshot.id}`,
+                  studentId: legacySub.studentId || "",
+                  studentName: legacySub.studentName || t?.('unknown_student') || "Unknown Student",
+                  studentEmail: legacySub.studentEmail,
+                  studentAvatar: legacySub.studentAvatar,
+                  submittedAt: legacySub.submittedAt,
+                  files: legacySub.files || [],
+                  notes: legacySub.notes || "",
+                  score: legacySub.score,
+                  feedback: legacySub.feedback,
+                  status: status,
+                  solutionCode: legacySub.solutionCode || "",
+                  evaluation: legacySub.evaluation || {},
+                  communityId: legacySub.communityId,
+                  acceptedAt: legacySub.acceptedAt
+                });
+              }
+            });
+          }
+          
+          const dueDate = data.dueDate ? new Date(data.dueDate) : null;
+          const today = new Date();
+          const daysLeft = dueDate ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+          
+          const challenge: Challenge = {
             id: docSnapshot.id,
             title: data.title || "",
             description: data.description || "",
@@ -584,13 +1014,20 @@ export default function TeacherChallenges({
             category: data.category || "General",
             difficulty: data.difficulty || 'medium',
             points: data.points || 50,
-            submissions: data.submissions || [],
+            submissions: submissions,
             acceptedBy: data.acceptedBy || [],
             acceptedStudents: acceptedStudents,
+            acceptedAt: data.acceptedAt || {},
             response: data.response,
             createdAt: data.createdAt,
-            updatedAt: data.updatedAt
-          });
+            updatedAt: data.updatedAt,
+            daysLeft: daysLeft || 0,
+            isOverdue: daysLeft !== null ? daysLeft < 0 : false,
+            completedBy: data.completedBy || []
+          };
+          
+          challenge.stats = calculateChallengeStats(challenge);
+          challengesData.push(challenge);
         }
       }
       
@@ -606,7 +1043,7 @@ export default function TeacherChallenges({
     } catch (error) {
       console.error("❌ Error loading challenges for community:", error);
       setUploadStatus({ 
-        message: t?.('error_loading_challenges') || "❌ Error loading challenges! Firebase index may be missing.", 
+        message: t?.('error_loading_challenges') || "❌ Error loading challenges!", 
         type: "error" 
       });
     } finally {
@@ -670,7 +1107,7 @@ export default function TeacherChallenges({
         const userData = docSnapshot.data();
         usersData.push({
           uid: docSnapshot.id,
-          username: userData?.fullName || (userData?.email ? userData.email.split('@')[0] : `User_${docSnapshot.id.substring(0, 6)}`),
+          username: userData?.fullName || (userData?.email ? userData.email.split('@')[0] : `${t?.('user_prefix') || 'User'}_${docSnapshot.id.substring(0, 6)}`),
           fullName: userData?.fullName,
           email: userData?.email || "",
           role: userData?.role || 'student',
@@ -687,49 +1124,10 @@ export default function TeacherChallenges({
     }
   };
 
-  const loadChallengeSubmissions = async (challengeId: string): Promise<ChallengeSubmission[]> => {
-    try {
-      const solutionsQuery = query(
-        collection(db, "challengeSolutions"),
-        where("challengeId", "==", challengeId)
-      );
-      
-      const solutionsSnapshot = await getDocs(solutionsQuery);
-      const submissionsData: ChallengeSubmission[] = [];
-      
-      solutionsSnapshot.forEach((docSnapshot) => {
-        const data = docSnapshot.data();
-        submissionsData.push({
-          id: docSnapshot.id,
-          studentId: data.studentId || "",
-          studentName: data.studentName || "Unknown Student",
-          studentEmail: data.studentEmail,
-          studentAvatar: data.studentAvatar,
-          submittedAt: data.submittedAt,
-          files: data.files || [],
-          notes: data.notes || "",
-          score: data.score || data.evaluation?.score,
-          feedback: data.feedback || data.evaluation?.feedback,
-          status: data.status || 'submitted',
-          solutionCode: data.solutionCode || "",
-          evaluation: data.evaluation || {},
-          communityId: data.communityId,
-          acceptedAt: data.acceptedAt
-        });
-      });
-      
-      return submissionsData;
-    } catch (error) {
-      console.error("Error loading challenge submissions:", error);
-      return [];
-    }
-  };
-
-  // ============ АКТУАЛИЗИРАНА ФУНКЦИЯ ЗА ОЦЕНЯВАНЕ ============
   const handleGradeSubmission = async (
     challengeId: string,
     submissionId: string,
-    _studentId: string,
+    studentId: string,
     score: number,
     feedback: string
   ) => {
@@ -754,41 +1152,36 @@ export default function TeacherChallenges({
         updatedAt: serverTimestamp()
       });
 
-      const challengeDoc = await getDoc(challengeRef);
-      const challengeData = challengeDoc.data();
-      const submissions = challengeData?.submissions || [];
-      
-      const updatedSubmissions = submissions.map((sub: any) => {
-        if (sub.id === submissionId) {
-          return {
-            ...sub,
-            score: score,
-            feedback: feedback,
-            status: 'evaluated',
-            evaluation: {
-              score: score,
-              feedback: feedback,
-              evaluatedAt: serverTimestamp(),
-              evaluatedBy: user.uid,
-              evaluatedByName: userData?.fullName || user.email?.split('@')[0] || "Teacher"
-            }
-          };
-        }
-        return sub;
-      });
-
       await updateDoc(challengeRef, {
-        submissions: updatedSubmissions,
-        status: 'completed',
+        completedBy: arrayUnion(studentId),
         updatedAt: serverTimestamp()
       });
 
+      const challengeDoc = await getDoc(challengeRef);
+      const challengeData = challengeDoc.data();
+
+      const solutionsQuery = query(
+        collection(db, "challengeSolutions"),
+        where("challengeId", "==", challengeId)
+      );
+      const solutionsSnapshot = await getDocs(solutionsQuery);
+      const allEvaluated = solutionsSnapshot.docs.every(
+        doc => doc.data().status === 'evaluated' || doc.data().status === 'completed'
+      );
+
+      if (allEvaluated) {
+        await updateDoc(challengeRef, {
+          status: 'completed',
+          updatedAt: serverTimestamp()
+        });
+      }
+
       setUploadStatus({ 
-        message: t?.('submission_graded') || "✅ Submission graded! Challenge completed!", 
+        message: t?.('submission_graded') || "✅ Submission graded successfully!", 
         type: "success" 
       });
 
-      if (challengeData) {
+      if (challengeData && allEvaluated) {
         await sendChallengeNotification(
           challengeId,
           challengeData.title || "Challenge",
@@ -801,7 +1194,7 @@ export default function TeacherChallenges({
         onChallengeStatusChange({
           id: `grade-${submissionId}-${Date.now()}`,
           type: 'submission_evaluated',
-          title: t?.('challenge_completed') || 'Challenge Completed!',
+          title: t?.('submission_graded') || 'Submission Graded!',
           description: `${t?.('your_submission_received') || 'Your submission for'} "${challengeData?.title}" ${t?.('received') || 'received'} ${score}/${challengeData?.points || 50} ${t?.('points') || 'points'}`,
           challengeId: challengeId,
           fromCommunityId: selectedCommunityId || '',
@@ -829,8 +1222,6 @@ export default function TeacherChallenges({
       setGradeForm({ score: 0, feedback: "" });
     }
   };
-
-  // ============ ОБРАБОТЧИЦИ НА СЪБИТИЯ ============
 
   const handleCommunityChange = (communityId: string) => {
     console.log("🎯 TeacherChallenges: избрано community:", communityId);
@@ -876,6 +1267,8 @@ export default function TeacherChallenges({
         points: challengeForm.points,
         submissions: [],
         acceptedBy: [],
+        completedBy: [],
+        acceptedAt: {},
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -971,30 +1364,7 @@ export default function TeacherChallenges({
     }
   };
 
-  const handleRejectChallenge = async (challengeId: string) => {
-    try {
-      await updateDoc(doc(db, 'challenges', challengeId), { 
-        status: 'rejected',
-        updatedAt: serverTimestamp()
-      });
-      
-      setUploadStatus({ 
-        message: t?.('challenge_rejected') || "✅ Challenge rejected!", 
-        type: "success" 
-      });
-      
-      if (viewingChallengeSubmissions?.id === challengeId) {
-        setViewingChallengeSubmissions(null);
-      }
-      
-    } catch (error) {
-      console.error("Error rejecting challenge:", error);
-      setUploadStatus({ 
-        message: t?.('error_rejecting_challenge') || "❌ Error rejecting challenge!", 
-        type: "error" 
-      });
-    }
-  };
+  
 
   const handleChallengeResponse = async (
     challengeId: string, 
@@ -1077,9 +1447,36 @@ export default function TeacherChallenges({
     }
   };
 
+  const toggleChallengeDetails = (id: string) => {
+    setExpandedChallenge(expandedChallenge === id ? null : id);
+  };
+
   useEffect(() => {
     loadAllSystemUsers();
   }, []);
+
+  const filteredChallenges = challenges
+    .filter(c => {
+      if (filterStatus === 'all') return true;
+      if (filterStatus === 'pending') return c.status === 'pending';
+      if (filterStatus === 'active') return c.status === 'accepted' || c.status === 'responded';
+      if (filterStatus === 'completed') return c.status === 'completed';
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'dueDate') {
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      if (sortBy === 'submissions') {
+        return (b.stats?.totalSubmissions || 0) - (a.stats?.totalSubmissions || 0);
+      }
+      if (sortBy === 'completion') {
+        return (b.stats?.completionRate || 0) - (a.stats?.completionRate || 0);
+      }
+      return 0;
+    });
 
   const stats = {
     total: challenges.length,
@@ -1088,14 +1485,19 @@ export default function TeacherChallenges({
     completed: challenges.filter(c => c.status === 'completed').length,
     responded: challenges.filter(c => c.status === 'responded').length,
     sent: challenges.filter(c => c.creatorCommunityId === selectedCommunityId).length,
-    received: challenges.filter(c => c.targetCommunityId === selectedCommunityId && c.creatorCommunityId !== selectedCommunityId).length
+    received: challenges.filter(c => c.targetCommunityId === selectedCommunityId && c.creatorCommunityId !== selectedCommunityId).length,
+    totalSubmissions: challenges.reduce((sum, c) => sum + (c.stats?.totalSubmissions || 0), 0),
+    pendingSubmissions: challenges.reduce((sum, c) => sum + (c.stats?.pendingSubmissions || 0), 0),
+    averageCompletion: challenges.length > 0 
+      ? challenges.reduce((sum, c) => sum + (c.stats?.completionRate || 0), 0) / challenges.length 
+      : 0
   };
 
   if (!selectedCommunityId) {
     return (
       <div className={`rounded-2xl p-12 border text-center ${
         theme === 'dark'
-          ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+          ? 'bg-gray-900/80 border-white/10'
           : 'bg-white border-gray-200'
       }`}>
         <GroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -1110,12 +1512,11 @@ export default function TeacherChallenges({
   }
 
   return (
-    <div className="mb-8">
-      {/* Header with Community Dropdown */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Target className="w-6 h-6 text-green-400" />
+            <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <h2 className="text-2xl font-bold">
               {t?.('challenges') || "Challenges"}
             </h2>
@@ -1157,13 +1558,13 @@ export default function TeacherChallenges({
                         onClick={() => handleCommunityChange(community.id)}
                         className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-opacity-10 rounded-lg ${
                           theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                        } ${community.id === selectedCommunityId ? 'bg-green-500/20' : ''}`}
+                        } ${community.id === selectedCommunityId ? 'bg-blue-500/20' : ''}`}
                       >
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                           community.isPublic ? 'bg-green-500/20' : 'bg-blue-500/20'
                         }`}>
                           <GroupIcon className={`w-4 h-4 ${
-                            community.isPublic ? 'text-green-500' : 'text-blue-500'
+                            community.isPublic ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'
                           }`} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1173,7 +1574,7 @@ export default function TeacherChallenges({
                           </div>
                         </div>
                         {community.id === selectedCommunityId && (
-                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                         )}
                       </button>
                     ))}
@@ -1185,25 +1586,13 @@ export default function TeacherChallenges({
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex gap-2 mr-2">
-            <span className={`px-3 py-1.5 rounded-lg text-sm ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-              📤 {stats.sent} {t?.('sent') || 'sent'}
-            </span>
-            <span className={`px-3 py-1.5 rounded-lg text-sm ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`}>
-              📥 {stats.received} {t?.('received') || 'received'}
-            </span>
-            <span className="px-3 py-1.5 rounded-lg text-sm bg-yellow-500/20 text-yellow-500">
-              ⏳ {stats.pending} {t?.('pending') || 'pending'}
-            </span>
-          </div>
-          
           <button
             onClick={() => {
               resetChallengeForm();
               setShowChallengeForm(true);
             }}
             disabled={!currentCommunity}
-            className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Plus className="w-4 h-4" />
             {t?.('create_challenge') || "Create Challenge"}
@@ -1211,8 +1600,45 @@ export default function TeacherChallenges({
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatsCard
+          title={t?.('total_challenges') || "Total Challenges"}
+          value={stats.total}
+          icon={<Target className="w-5 h-5" />}
+          color="blue"
+          theme={theme}
+          t={t}
+        />
+        <StatsCard
+          title={t?.('active_challenges') || "Active"}
+          value={stats.accepted + stats.responded}
+          icon={<TrendingUp className="w-5 h-5" />}
+          color="green"
+          theme={theme}
+          t={t}
+        />
+        <StatsCard
+          title={t?.('pending_challenges') || "Pending"}
+          value={stats.pending}
+          icon={<Clock className="w-5 h-5" />}
+          color="orange"
+          theme={theme}
+          t={t}
+        />
+        <StatsCard
+          title={t?.('total_submissions') || "Submissions"}
+          value={stats.totalSubmissions}
+          icon={<Users className="w-5 h-5" />}
+          color="blue"
+          theme={theme}
+          t={t}
+        />
+      </div>
+
+      {/* Status Message */}
       {uploadStatus.message && (
-        <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+        <div className={`p-3 rounded-lg flex items-center gap-2 ${
           uploadStatus.type === 'success' 
             ? theme === 'dark' ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'
             : theme === 'dark' ? 'bg-red-500/10 text-red-400' : 'bg-red-100 text-red-700'
@@ -1228,16 +1654,78 @@ export default function TeacherChallenges({
         </div>
       )}
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'all'
+                ? 'bg-blue-600 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            } transition-colors`}
+          >
+            {t?.('all') || "All"} ({stats.total})
+          </button>
+          <button
+            onClick={() => setFilterStatus('pending')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'pending'
+                ? 'bg-blue-600 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            } transition-colors`}
+          >
+            {t?.('pending') || "Pending"} ({stats.pending})
+          </button>
+          <button
+            onClick={() => setFilterStatus('active')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'active'
+                ? 'bg-blue-600 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            } transition-colors`}
+          >
+            {t?.('active') || "Active"} ({stats.accepted + stats.responded})
+          </button>
+          <button
+            onClick={() => setFilterStatus('completed')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'completed'
+                ? 'bg-blue-600 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            } transition-colors`}
+          >
+            {t?.('completed') || "Completed"} ({stats.completed})
+          </button>
+        </div>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as any)}
+          className={`px-3 py-1.5 rounded-lg text-sm ${
+            theme === 'dark' 
+              ? 'bg-gray-800 border-gray-700 text-gray-100' 
+              : 'bg-white border-gray-300 text-gray-900'
+          } border`}
+        >
+          <option value="dueDate">{t?.('sort_by_due_date') || "Sort by Due Date"}</option>
+          <option value="submissions">{t?.('sort_by_submissions') || "Sort by Submissions"}</option>
+          <option value="completion">{t?.('sort_by_completion') || "Sort by Completion"}</option>
+        </select>
+      </div>
+
+      {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
         </div>
       )}
 
-      {!loading && challenges.length === 0 ? (
+      {/* Challenges List */}
+      {!loading && filteredChallenges.length === 0 ? (
         <div className={`rounded-2xl p-12 border text-center ${
           theme === 'dark'
-            ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+            ? 'bg-gray-900/80 border-white/10'
             : 'bg-white border-gray-200'
         }`}>
           <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -1249,227 +1737,283 @@ export default function TeacherChallenges({
           </p>
           <button
             onClick={() => setShowChallengeForm(true)}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+            className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
           >
             <Plus className="w-4 h-4 inline mr-2" />
             {t?.('create_first_challenge') || "Create First Challenge"}
           </button>
         </div>
       ) : (
-        <>
-          {!loading && challenges.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {challenges.map((challenge) => {
-                const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
-                const targetCommunity = communities.find(c => c.id === challenge.targetCommunityId);
-                const isMyChallenge = challenge.creatorCommunityId === selectedCommunityId;
-                const isTargetingMe = challenge.targetCommunityId === selectedCommunityId && !isMyChallenge;
-                
-                let teacherDisplayName = challenge.createdByName;
-                if (challenge.createdBy === user?.uid) {
-                  teacherDisplayName = userData?.fullName || 
-                                      (user?.email ? user.email.split('@')[0] : null) || 
-                                      t?.('you') || "You";
-                }
+        <div className="space-y-4">
+          {filteredChallenges.map((challenge) => {
+            const creatorCommunity = communities.find(c => c.id === challenge.creatorCommunityId);
+            const targetCommunity = communities.find(c => c.id === challenge.targetCommunityId);
+            const isMyChallenge = challenge.creatorCommunityId === selectedCommunityId;
+            const isTargetingMe = challenge.targetCommunityId === selectedCommunityId && !isMyChallenge;
+            
+            let teacherDisplayName = challenge.createdByName;
+            if (challenge.createdBy === user?.uid) {
+              teacherDisplayName = userData?.fullName || 
+                                  (user?.email ? user.email.split('@')[0] : null) || 
+                                  t?.('you') || "You";
+            }
 
-                const hasUngradedSubmissions = challenge.submissions?.some(
-                  sub => sub.status === 'submitted'
-                );
-                
-                return (
-                  <motion.div
-                    key={challenge.id}
-                    whileHover={{ scale: 1.02, translateY: -5 }}
-                    className={`rounded-2xl p-6 border ${
-                      theme === 'dark'
-                        ? `bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10 hover:border-white/20 ${
-                            hasUngradedSubmissions ? 'ring-2 ring-green-500/50' : ''
-                          }`
-                        : `bg-white border-gray-200 hover:border-gray-300 ${
-                            hasUngradedSubmissions ? 'ring-2 ring-green-400/50' : ''
-                          }`
-                    } backdrop-blur-xl transition-all`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          challenge.status === 'accepted' ? 'bg-green-500/20 text-green-500' :
-                          challenge.status === 'completed' ? 'bg-blue-500/20 text-blue-500' :
-                          challenge.status === 'responded' ? 'bg-purple-500/20 text-purple-500' :
-                          challenge.status === 'rejected' ? 'bg-red-500/20 text-red-500' :
-                          'bg-yellow-500/20 text-yellow-500'
-                        }`}>
-                          <Target className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold line-clamp-1">{challenge.title}</h3>
-                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {isMyChallenge ? '📤 ' + (t?.('sent') || 'Sent') : '📥 ' + (t?.('received') || 'Received')} • {challenge.category}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs ${getDifficultyColor(challenge.difficulty)}`}>
-                        {t?.(challenge.difficulty) || challenge.difficulty}
-                      </span>
+            const hasPendingSubmissions = challenge.stats?.pendingSubmissions ? challenge.stats.pendingSubmissions > 0 : false;
+            
+            return (
+              <motion.div
+                key={challenge.id}
+                layout
+                className={`rounded-2xl border overflow-hidden ${
+                  theme === 'dark'
+                    ? `bg-gray-900/80 border-white/10 ${
+                        hasPendingSubmissions ? 'ring-2 ring-orange-500/50' : ''
+                      }`
+                    : `bg-white border-gray-200 ${
+                        hasPendingSubmissions ? 'ring-2 ring-orange-400/50' : ''
+                      }`
+                }`}
+              >
+                <div 
+                  className="p-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => toggleChallengeDetails(challenge.id)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      challenge.status === 'accepted' ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
+                      challenge.status === 'completed' ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
+                      challenge.status === 'responded' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' :
+                      challenge.status === 'rejected' ? 'bg-red-500/20 text-red-600 dark:text-red-400' :
+                      'bg-orange-500/20 text-orange-600 dark:text-orange-400'
+                    }`}>
+                      <Target className="w-5 h-5" />
                     </div>
 
-                    <p className={`mb-4 line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {challenge.description}
-                    </p>
-
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-2 text-sm">
-                        <GroupIcon className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('from') || "From"}: {creatorCommunity?.name || "Unknown"}
-                          {isMyChallenge && ` (${t?.('you') || 'You'})`}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold truncate">{challenge.title}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(challenge.status)}`}>
+                          {t?.(challenge.status) || challenge.status}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getDifficultyColor(challenge.difficulty)}`}>
+                          {getDifficultyIcon(challenge.difficulty)} {t?.(challenge.difficulty) || challenge.difficulty}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Target className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('to') || "To"}: {targetCommunity?.name || "Unknown"}
-                          {isTargetingMe && ` (${t?.('you') || 'You'})`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('due') || "Due"}: {challenge.dueDate || t?.('no_date') || "No date"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Trophy className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('points') || "Points"}: {challenge.points}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Users className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-                          {t?.('teacher') || "Teacher"}: {teacherDisplayName}
-                          {challenge.createdBy === user?.uid && ` (${t?.('you') || 'You'})`}
-                        </span>
-                      </div>
-                      {hasUngradedSubmissions && (
-                        <div className="flex items-center gap-2 text-sm text-green-500">
-                          <Clock className="w-4 h-4" />
-                          <span className="font-medium">{t?.('needs_grading') || "⚠️ Needs grading!"}</span>
-                        </div>
-                      )}
+                      <p className={`text-sm truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {creatorCommunity?.name} {isMyChallenge ? '(' + (t?.('you') || 'You') + ')' : ''} → {targetCommunity?.name} {isTargetingMe ? '(' + (t?.('you') || 'You') + ')' : ''} • {challenge.category}
+                      </p>
                     </div>
 
-                    {challenge.acceptedStudents && challenge.acceptedStudents.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <UserCheck className="w-4 h-4 text-green-500" />
-                          <span className="text-sm font-medium">
-                            {challenge.acceptedStudents.length} {t?.('student_accepted') || 'Student'} 
-                            {challenge.acceptedStudents.length !== 1 ? 's' : ''} {t?.('accepted') || 'Accepted'}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {challenge.acceptedStudents.slice(0, 3).map((student) => (
-                            <div
-                              key={student.id}
-                              className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20"
-                            >
-                              <div className="w-5 h-5 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center text-white text-xs">
-                                {student.name?.charAt(0).toUpperCase() || '?'}
-                              </div>
-                              <span className="text-xs font-medium">
-                                {student.name?.split(' ')[0] || t?.('student') || 'Student'}
-                              </span>
-                            </div>
-                          ))}
-                          {challenge.acceptedStudents.length > 3 && (
-                            <span className="text-xs text-gray-500">
-                              +{challenge.acceptedStudents.length - 3} {t?.('more') || 'more'}
-                            </span>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <div className="text-xs opacity-70">{t?.('accepted') || "Accepted"}</div>
+                        <div className="font-bold text-sm">{challenge.acceptedBy?.length || 0}</div>
                       </div>
-                    )}
+                      <div className="text-center">
+                        <div className="text-xs opacity-70">{t?.('completed') || "Completed"}</div>
+                        <div className="font-bold text-sm">{challenge.completedBy?.length || 0}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs opacity-70">{t?.('completion') || "Completion"}</div>
+                        <div className="font-bold text-sm">{((challenge.completedBy?.length || 0) / (challenge.acceptedBy?.length || 1) * 100).toFixed(0)}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs opacity-70">{t?.('avg_score') || "Avg Score"}</div>
+                        <div className="font-bold text-sm">{(challenge.stats?.averageScore || 0).toFixed(1)}</div>
+                      </div>
+                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(challenge.status)}`}>
-                        {t?.(challenge.status) || challenge.status}
-                        {isMyChallenge && challenge.status === 'pending' && ` • ${t?.('waiting') || 'Waiting'}`}
-                        {isTargetingMe && challenge.status === 'pending' && ` • ${t?.('action_needed') || 'Action needed'}`}
-                        {challenge.status === 'completed' && ` ✅ ${t?.('done') || 'Done'}`}
-                      </span>
+                    <div className={`text-right min-w-[100px] ${
+                      challenge.isOverdue ? 'text-red-600 dark:text-red-400' : 
+                      challenge.daysLeft && challenge.daysLeft < 3 ? 'text-orange-600 dark:text-orange-400' : ''
+                    }`}>
+                      <div className="text-xs opacity-70">{t?.('due') || "Due"}</div>
+                      <div className="font-bold text-sm">{challenge.dueDate ? new Date(challenge.dueDate).toLocaleDateString() : t?.('no_date') || 'No date'}</div>
+                      <div className="text-xs">
+                        {challenge.dueDate ? formatRelativeTime(challenge.dueDate, t) : ''}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 min-w-[40px]">
+                      <Trophy className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                      <span className="font-bold text-sm">{challenge.points}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={async () => {
+                          await loadChallengesForCommunity();
+                          setViewingChallengeSubmissions(challenge);
+                        }}
+                        className={`p-1.5 rounded-lg ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                        } relative`}
+                        title={t?.('view_submissions') || "View submissions"}
+                      >
+                        <Eye className="w-4 h-4" />
+                        {hasPendingSubmissions && (
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"></span>
+                        )}
+                        <span className="ml-1 text-xs">{challenge.stats?.pendingSubmissions || 0}</span>
+                      </button>
                       
-                      <div className="flex gap-2">
+                      {isTargetingMe && challenge.status === 'pending' && (
                         <button
-                          onClick={async () => {
-                            const submissions = await loadChallengeSubmissions(challenge.id);
-                            setViewingChallengeSubmissions({
-                              ...challenge,
-                              submissions: submissions
-                            });
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-sm ${
-                            theme === 'dark' 
-                              ? 'bg-white/5 hover:bg-white/10' 
-                              : 'bg-gray-100 hover:bg-gray-200'
-                          } flex items-center gap-1`}
-                          title={t?.('view_submissions') || "View submissions"}
+                          onClick={() => handleAcceptChallenge(challenge.id)}
+                          className="p-1.5 rounded-lg bg-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/30"
+                          title={t?.('accept') || "Accept"}
                         >
-                          <Eye className="w-4 h-4" />
-                          {challenge.submissions?.length || 0}
-                          {hasUngradedSubmissions && (
-                            <span className="w-2 h-2 bg-green-500 rounded-full ml-1"></span>
-                          )}
+                          <CheckCircle className="w-4 h-4" />
                         </button>
-                        
-                        {isTargetingMe && challenge.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleAcceptChallenge(challenge.id)}
-                              className="px-3 py-1.5 rounded-lg text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white flex items-center gap-1"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              {t?.('accept') || "Accept"}
-                            </button>
-                            <button
-                              onClick={() => handleRejectChallenge(challenge.id)}
-                              className="px-3 py-1.5 rounded-lg text-sm bg-gradient-to-r from-red-500 to-pink-500 text-white flex items-center gap-1"
-                            >
-                              <X className="w-4 h-4" />
-                              {t?.('reject') || "Reject"}
-                            </button>
-                          </>
+                      )}
+                      
+                      {isTargetingMe && challenge.status === 'accepted' && (
+                        <button
+                          onClick={() => {
+                            setSelectedChallenge(challenge);
+                            setShowResponseForm(true);
+                          }}
+                          className="p-1.5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/30"
+                          title={t?.('respond') || "Respond"}
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {isMyChallenge && (
+                        <button
+                          onClick={() => handleDeleteChallenge(challenge.id)}
+                          className={`p-1.5 rounded-lg ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 text-red-400' 
+                              : 'hover:bg-gray-100 text-red-500'
+                          }`}
+                          title={t?.('delete') || "Delete"}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => toggleChallengeDetails(challenge.id)}
+                        className={`p-1.5 rounded-lg ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${expandedChallenge === challenge.id ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {expandedChallenge === challenge.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className={`border-t ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}
+                    >
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <h4 className="font-medium mb-2 text-sm">{t?.('description') || "Description"}</h4>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {challenge.description}
+                          </p>
+                        </div>
+
+                        {challenge.acceptedStudents && challenge.acceptedStudents.length > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-2 flex items-center gap-2 text-sm">
+                              <UserCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              {t?.('accepted_students') || "Accepted Students"} ({challenge.acceptedStudents.length})
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {challenge.acceptedStudents.map((student) => {
+                                const acceptedDate = challenge.acceptedAt?.[student.id] || student.acceptedAt;
+                                return (
+                                  <div
+                                    key={student.id}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20"
+                                  >
+                                    <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white text-xs">
+                                      {student.name?.charAt(0).toUpperCase() || '?'}
+                                    </div>
+                                    <span className="text-sm">{student.name}</span>
+                                    {acceptedDate && (
+                                      <span className="text-xs opacity-70">
+                                        {formatDate(acceptedDate, t)}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
-                        
-                        {isMyChallenge && (
-                          <button
-                            onClick={() => handleDeleteChallenge(challenge.id)}
-                            className={`px-3 py-1.5 rounded-lg text-sm ${
-                              theme === 'dark' 
-                                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' 
-                                : 'bg-red-100 hover:bg-red-200 text-red-600'
-                            } flex items-center gap-1`}
-                          >
-                            <X className="w-4 h-4" />
-                            {t?.('delete') || "Delete"}
-                          </button>
+
+                        {challenge.completedBy && challenge.completedBy.length > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-2 flex items-center gap-2 text-sm">
+                              <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              {t?.('completed_students') || "Completed Students"} ({challenge.completedBy.length})
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {challenge.completedBy.map((studentId) => {
+                                const student = allSystemUsers.find(u => u.uid === studentId);
+                                const studentName = student?.fullName || student?.username || studentId.substring(0, 8);
+                                return (
+                                  <div
+                                    key={studentId}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20"
+                                  >
+                                    <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white text-xs">
+                                      {studentName?.charAt(0).toUpperCase() || '?'}
+                                    </div>
+                                    <span className="text-sm">{studentName}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <div className="text-xs opacity-70 mb-1">{t?.('difficulty') || "Difficulty"}</div>
+                            <div className={`font-medium text-sm ${
+                              challenge.difficulty === 'easy' ? 'text-green-600 dark:text-green-400' :
+                              challenge.difficulty === 'medium' ? 'text-orange-600 dark:text-orange-400' :
+                              'text-red-600 dark:text-red-400'
+                            }`}>
+                              {t?.(challenge.difficulty) || challenge.difficulty}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs opacity-70 mb-1">{t?.('category') || "Category"}</div>
+                            <div className="font-medium text-sm">{challenge.category}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs opacity-70 mb-1">{t?.('created_by') || "Created by"}</div>
+                            <div className="font-medium text-sm">{teacherDisplayName}</div>
+                          </div>
+                        </div>
+
+                        {challenge.response && (
+                          <ChallengeResponseDisplay 
+                            response={challenge.response} 
+                            theme={theme}
+                            t={t}
+                          />
                         )}
                       </div>
-                    </div>
-
-                    {challenge.response && (
-                      <ChallengeResponseDisplay 
-                        response={challenge.response} 
-                        theme={theme}
-                        t={t}
-                      />
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </div>
       )}
 
       {/* Create Challenge Modal */}
@@ -1493,8 +2037,8 @@ export default function TeacherChallenges({
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                    <Target className="w-5 h-5 text-green-400" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">{t?.('create_challenge') || "Create Challenge"}</h3>
@@ -1525,7 +2069,7 @@ export default function TeacherChallenges({
                     type="text"
                     value={challengeForm.title}
                     onChange={(e) => setChallengeForm({...challengeForm, title: e.target.value})}
-                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                       theme === 'dark' 
                         ? 'bg-white/5 border border-white/10' 
                         : 'bg-white border border-gray-300'
@@ -1542,30 +2086,13 @@ export default function TeacherChallenges({
                     value={challengeForm.description}
                     onChange={(e) => setChallengeForm({...challengeForm, description: e.target.value})}
                     rows={4}
-                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                       theme === 'dark' 
                         ? 'bg-white/5 border border-white/10' 
                         : 'bg-white border border-gray-300'
                     }`}
                     placeholder={t?.('enter_description') || "Enter challenge description"}
                   />
-                </div>
-
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <GroupIcon className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-500">
-                      {t?.('community') || "Community"}
-                    </span>
-                  </div>
-                  <p className="text-sm">
-                    {t?.('challenge_will_be_created_for') || "Challenge will be created for"}: <strong>{currentCommunity?.name}</strong>
-                  </p>
-                  {currentCommunity?.description && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {currentCommunity.description}
-                    </p>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1577,7 +2104,7 @@ export default function TeacherChallenges({
                       type="date"
                       value={challengeForm.dueDate}
                       onChange={(e) => setChallengeForm({...challengeForm, dueDate: e.target.value})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                         theme === 'dark' 
                           ? 'bg-white/5 border border-white/10' 
                           : 'bg-white border border-gray-300'
@@ -1594,13 +2121,35 @@ export default function TeacherChallenges({
                       max="200"
                       value={challengeForm.points}
                       onChange={(e) => setChallengeForm({...challengeForm, points: parseInt(e.target.value) || 50})}
-                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                      className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                         theme === 'dark' 
                           ? 'bg-white/5 border border-white/10' 
                           : 'bg-white border border-gray-300'
                       }`}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {t?.('category') || "Category"}
+                  </label>
+                  <select
+                    value={challengeForm.category}
+                    onChange={(e) => setChallengeForm({...challengeForm, category: e.target.value})}
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                      theme === 'dark' 
+                        ? 'bg-gray-800 border-gray-700 text-gray-100' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } border`}
+                  >
+                    <option value="Programming">Programming</option>
+                    <option value="Algorithms">Algorithms</option>
+                    <option value="Data Science">Data Science</option>
+                    <option value="Database">Database</option>
+                    <option value="AI">AI</option>
+                    <option value="Design">Design</option>
+                  </select>
                 </div>
 
                 <div>
@@ -1615,13 +2164,13 @@ export default function TeacherChallenges({
                         onClick={() => setChallengeForm({...challengeForm, difficulty})}
                         className={`flex-1 py-2 rounded-lg capitalize ${
                           challengeForm.difficulty === difficulty
-                            ? difficulty === 'easy' ? 'bg-green-500 text-white' :
-                              difficulty === 'medium' ? 'bg-yellow-500 text-white' :
-                              'bg-red-500 text-white'
+                            ? difficulty === 'easy' ? 'bg-green-600 text-white' :
+                              difficulty === 'medium' ? 'bg-orange-600 text-white' :
+                              'bg-red-600 text-white'
                             : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
                         } transition-colors`}
                       >
-                        {t?.(difficulty) || difficulty}
+                        {getDifficultyIcon(difficulty)} {t?.(difficulty) || difficulty}
                       </button>
                     ))}
                   </div>
@@ -1645,7 +2194,7 @@ export default function TeacherChallenges({
                 <button
                   onClick={handleCreateChallenge}
                   disabled={!challengeForm.title.trim() || loading}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
                 >
                   {loading ? (
                     <>
@@ -1654,7 +2203,7 @@ export default function TeacherChallenges({
                     </>
                   ) : (
                     <>
-                      <Target className="w-4 h-4" />
+                      <Plus className="w-4 h-4" />
                       {t?.('create_challenge') || "Create Challenge"}
                     </>
                   )}
@@ -1683,8 +2232,8 @@ export default function TeacherChallenges({
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                    <FileCheck className="w-5 h-5 text-green-400" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <FileCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">
@@ -1692,8 +2241,12 @@ export default function TeacherChallenges({
                     </h3>
                     <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
                       {viewingChallengeSubmissions.submissions?.length || 0} {t?.('submissions') || 'submissions'} • {
+                        viewingChallengeSubmissions.submissions?.filter(s => s.status === 'submitted').length || 0
+                      } {t?.('pending') || 'pending'} • {
                         viewingChallengeSubmissions.acceptedStudents?.length || 0
-                      } {t?.('students_accepted') || 'students accepted'} • {t?.('max_points') || 'Max points'}: {viewingChallengeSubmissions.points}
+                      } {t?.('students_accepted') || 'students accepted'} • {
+                        viewingChallengeSubmissions.completedBy?.length || 0
+                      } {t?.('completed') || 'completed'} • {t?.('max_points') || 'Max points'}: {viewingChallengeSubmissions.points}
                     </p>
                   </div>
                 </div>
@@ -1710,26 +2263,31 @@ export default function TeacherChallenges({
               {viewingChallengeSubmissions.acceptedStudents && viewingChallengeSubmissions.acceptedStudents.length > 0 && (
                 <div className="mb-6 p-4 rounded-lg bg-green-500/5 border border-green-500/20">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-green-500" />
+                    <UserCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
                     {t?.('students_who_accepted') || "Students who accepted this challenge"}
                   </h4>
                   <div className="flex flex-wrap gap-3">
-                    {viewingChallengeSubmissions.acceptedStudents.map((student) => (
-                      <div
-                        key={student.id}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center text-white font-medium">
-                          {student.name?.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{student.name}</div>
-                          <div className="text-xs opacity-70">
-                            {t?.('accepted') || "Accepted"}: {formatDate(student.acceptedAt)}
+                    {viewingChallengeSubmissions.acceptedStudents.map((student) => {
+                      const acceptedDate = viewingChallengeSubmissions.acceptedAt?.[student.id] || student.acceptedAt;
+                      return (
+                        <div
+                          key={student.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-medium">
+                            {student.name?.charAt(0).toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">{student.name}</div>
+                            {acceptedDate && (
+                              <div className="text-xs opacity-70">
+                                {t?.('accepted') || "Accepted"}: {formatDate(acceptedDate, t)}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1756,7 +2314,7 @@ export default function TeacherChallenges({
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-white font-medium">
+                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
                               {studentName.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -1765,21 +2323,30 @@ export default function TeacherChallenges({
                               </h4>
                               <div className="flex items-center gap-3 text-xs">
                                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                                  {t?.('submitted') || "Submitted"}: {formatDate(submission.submittedAt)}
+                                  {t?.('submitted') || "Submitted"}: {formatDate(submission.submittedAt, t)}
                                 </span>
+                                {submission.status && (
+                                  <span className={`px-2 py-0.5 rounded-full text-xs ${getSubmissionStatusColor(submission.status)}`}>
+                                    {t?.(submission.status) || submission.status}
+                                  </span>
+                                )}
+                                {viewingChallengeSubmissions.completedBy?.includes(submission.studentId) && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-600 dark:text-green-400">
+                                    ✓ {t?.('completed') || 'completed'}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getSubmissionStatusColor(submission.status || 'submitted')}`}>
-                              {t?.(submission.status || 'submitted') || submission.status || 'submitted'}
-                            </span>
-                            {isEvaluated && submission.score !== undefined && (
-                              <span className="px-2 py-1 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold">
-                                {t?.('score') || "Score"}: {submission.score}/{viewingChallengeSubmissions.points}
-                              </span>
-                            )}
-                          </div>
+                          {isEvaluated && submission.score !== undefined && (
+                            <div className={`px-3 py-1 rounded-lg ${
+                              submission.score >= viewingChallengeSubmissions.points * 0.8 ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
+                              submission.score >= viewingChallengeSubmissions.points * 0.5 ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400' :
+                              'bg-red-500/20 text-red-600 dark:text-red-400'
+                            }`}>
+                              <span className="font-bold">{submission.score}</span>/{viewingChallengeSubmissions.points}
+                            </div>
+                          )}
                         </div>
 
                         {submission.notes && (
@@ -1825,7 +2392,7 @@ export default function TeacherChallenges({
                                   newWindow.document.close();
                                 }
                               }}
-                              className="mt-2 text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1"
+                              className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm flex items-center gap-1"
                             >
                               <Eye className="w-4 h-4" /> {t?.('view_full_code') || "View Full Code"}
                             </button>
@@ -1854,7 +2421,7 @@ export default function TeacherChallenges({
                                 });
                                 setShowGradeForm(true);
                               }}
-                              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium flex items-center gap-2 hover:from-blue-600 hover:to-cyan-600 transition-all"
+                              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-2 transition-colors"
                             >
                               <Star className="w-4 h-4" />
                               {t?.('grade_submission') || "Grade Submission"}
@@ -1870,7 +2437,7 @@ export default function TeacherChallenges({
                                 });
                                 setShowGradeForm(true);
                               }}
-                              className="px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-medium flex items-center gap-2 hover:from-yellow-600 hover:to-amber-600 transition-all"
+                              className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium flex items-center gap-2 transition-colors"
                             >
                               <Edit className="w-4 h-4" />
                               {t?.('update_grade') || "Update Grade"}
@@ -1917,8 +2484,8 @@ export default function TeacherChallenges({
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-yellow-500/20 to-amber-500/20 flex items-center justify-center">
-                    <Star className="w-5 h-5 text-yellow-400" />
+                  <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                    <Star className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">
@@ -1954,7 +2521,7 @@ export default function TeacherChallenges({
                     max={selectedChallenge.points}
                     value={gradeForm.score}
                     onChange={(e) => setGradeForm({...gradeForm, score: parseInt(e.target.value) || 0})}
-                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 ${
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
                       theme === 'dark' 
                         ? 'bg-white/5 border border-white/10' 
                         : 'bg-white border border-gray-300'
@@ -1974,7 +2541,7 @@ export default function TeacherChallenges({
                     value={gradeForm.feedback}
                     onChange={(e) => setGradeForm({...gradeForm, feedback: e.target.value})}
                     rows={4}
-                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 ${
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
                       theme === 'dark' 
                         ? 'bg-white/5 border border-white/10' 
                         : 'bg-white border border-gray-300'
@@ -1995,7 +2562,7 @@ export default function TeacherChallenges({
                     theme === 'dark' 
                       ? 'bg-white/5 hover:bg-white/10' 
                       : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
+                  } transition-colors`}
                 >
                   {t?.('cancel') || "Cancel"}
                 </button>
@@ -2012,7 +2579,7 @@ export default function TeacherChallenges({
                     }
                   }}
                   disabled={gradeForm.score === undefined || gradeForm.score < 0 || gradeForm.score > selectedChallenge.points || loading}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {loading ? (
                     <>
@@ -2054,8 +2621,8 @@ export default function TeacherChallenges({
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-green-400" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">
@@ -2089,7 +2656,7 @@ export default function TeacherChallenges({
                     value={challengeResponseForm.content}
                     onChange={(e) => setChallengeResponseForm({...challengeResponseForm, content: e.target.value})}
                     rows={4}
-                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                    className={`w-full rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                       theme === 'dark' 
                         ? 'bg-white/5 border border-white/10' 
                         : 'bg-white border border-gray-300'
@@ -2106,7 +2673,7 @@ export default function TeacherChallenges({
                     value={challengeResponseForm.solutionCode}
                     onChange={(e) => setChallengeResponseForm({...challengeResponseForm, solutionCode: e.target.value})}
                     rows={6}
-                    className={`w-full rounded-xl p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
+                    className={`w-full rounded-xl p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                       theme === 'dark' 
                         ? 'bg-white/5 border border-white/10' 
                         : 'bg-white border border-gray-300'
@@ -2127,7 +2694,7 @@ export default function TeacherChallenges({
                     theme === 'dark' 
                       ? 'bg-white/5 hover:bg-white/10' 
                       : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
+                  } transition-colors`}
                 >
                   {t?.('cancel') || "Cancel"}
                 </button>
@@ -2142,7 +2709,7 @@ export default function TeacherChallenges({
                     }
                   }}
                   disabled={!challengeResponseForm.content.trim() || loading}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {loading ? (
                     <>

@@ -1,13 +1,14 @@
-// components/TeacherAssignments.tsx
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Plus, Edit, Trash2, Eye, Calendar, 
-  GraduationCap, Star, FileText, Target,
+  Plus, Edit, Trash2,  Calendar, 
+  GraduationCap, FileText, Target,
   BookOpen, ListChecks, Database, Link,
   List, Tag, ImageIcon, FileCode, 
   CheckCircle, X, Trophy, FileTextIcon,
-  TargetIcon
+  TargetIcon, ChevronDown, ChevronRight,
+   BarChart,
+  AlertTriangle, 
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -25,10 +26,10 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
-  writeBatch
+  writeBatch,
 } from "firebase/firestore";
 
-// Интерфейси - актуализирани с всички полета от оригинала
+// Интерфейси
 export interface Assignment {
   id: string;
   title: string;
@@ -53,8 +54,30 @@ export interface Assignment {
   exampleCode?: string;
   backgroundImage?: string;
   category?: string;
-  progress?: number;
   actionText?: string;
+}
+
+interface StatsCardProps {
+  title: string;
+  value: number;
+  color: 'blue' | 'green' | 'orange';
+  theme: string;
+  t?: any;
+}
+
+interface AssignmentStats {
+  totalSubmissions: number;
+  completedCount: number;
+  inProgressCount: number;
+  averageScore: number;
+  completionRate: number;
+  gradedCount: number;
+}
+
+interface AssignmentWithStats extends Assignment {
+  stats: AssignmentStats;
+  daysLeft: number;
+  isOverdue: boolean;
 }
 
 interface AssignmentFormData {
@@ -83,7 +106,7 @@ interface TeacherAssignmentsProps {
   onAssignmentsChange?: (assignments: Assignment[]) => void;
 }
 
-// Константи - точно както в оригинала
+// Константи
 const assignmentBackgrounds = [
   "https://img.freepik.com/free-photo/clock-top-textbooks-teacher-desk_23-2148199985.jpg?semt=ais_hybrid&w=740&q=80",
   "https://naukatolubie.pl/app/uploads/2023/03/jak-szybciej-sie-uczyc-1023x550.png",
@@ -95,7 +118,6 @@ const assignmentBackgrounds = [
 
 const categories = ["Design", "Programming", "Algorithms", "Data Science", "Database", "AI"];
 
-// Константа за шаблонния код - за да не се повтаря
 const EXPERT_SYSTEM_TEMPLATE = `%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                                  %
 %   EXPERT SYSTEM TEMPLATE                         %
@@ -132,15 +154,17 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
   const { theme } = useTheme();
   const { t } = useLanguage();
 
-  // State - всички от оригинала
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  // State
+  const [assignments, setAssignments] = useState<AssignmentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [uploadStatus, setUploadStatus] = useState("");
   const [instructions, setInstructions] = useState(initialInstructions);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'overdue'>('all');
+  const [sortBy, setSortBy] = useState<'dueDate' | 'completionRate' | 'submissions'>('dueDate');
+  const [selectedAssignment, setSelectedAssignment] = useState<string | null>(null);
 
-  // В initialState на формата, exampleCode вече съдържа шаблона
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormData>({
     title: "",
     description: "",
@@ -160,12 +184,65 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
     category: "Programming"
   });
 
-  // 🔥 АКТУАЛИЗИРАНА ФУНКЦИЯ: Изпращане на нотификации до всички ученици в НОВАТА КОЛЕКЦИЯ "notifications"
+  // Функция за изчисляване на статистика за задание
+  const fetchAssignmentStats = async (assignmentId: string): Promise<AssignmentStats> => {
+    try {
+      console.log(`📊 Fetching stats for assignment: ${assignmentId}`);
+      
+      const solutionsQuery = query(
+        collection(db, "prologCodes"),
+        where("assignmentId", "==", assignmentId)
+      );
+      
+      const solutionsSnapshot = await getDocs(solutionsQuery);
+      const solutions = solutionsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Array<{ id: string; points?: number; status?: string; [key: string]: any }>;
+      
+      console.log(`📝 Found ${solutions.length} submissions for assignment ${assignmentId}`);
+      
+      const totalSubmissions = solutions.length;
+      const completedCount = solutions.filter(s => s.points !== undefined && s.points !== null).length;
+      const inProgressCount = solutions.filter(s => 
+        s.status === 'submitted' || 
+        (s.status === 'pending' && s.points === undefined)
+      ).length;
+      const gradedCount = solutions.filter(s => s.points !== undefined && s.points !== null).length;
+      
+      const gradedSolutions = solutions.filter(s => s.points !== undefined && s.points !== null);
+      const averageScore = gradedSolutions.length > 0
+        ? gradedSolutions.reduce((sum, s) => sum + (s.points || 0), 0) / gradedSolutions.length
+        : 0;
+      
+      const completionRate = totalSubmissions > 0 ? (completedCount / totalSubmissions) * 100 : 0;
+
+      return {
+        totalSubmissions,
+        completedCount,
+        inProgressCount,
+        gradedCount,
+        averageScore,
+        completionRate
+      };
+    } catch (error) {
+      console.error("Error fetching assignment stats:", error);
+      return {
+        totalSubmissions: 0,
+        completedCount: 0,
+        inProgressCount: 0,
+        gradedCount: 0,
+        averageScore: 0,
+        completionRate: 0
+      };
+    }
+  };
+
+  // Функция за изпращане на нотификации
   const sendAssignmentNotifications = async (assignmentTitle: string, assignmentId: string) => {
     if (!teacherId || !userData) return;
     
     try {
-      // Намерете всички общности на този учител
       const communitiesQuery = query(
         collection(db, "communities"),
         where("teacherId", "==", teacherId)
@@ -174,24 +251,18 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
       const communitiesSnapshot = await getDocs(communitiesQuery);
       const allStudentIds: string[] = [];
       
-      // Съберете всички studentIds от всички общности
       communitiesSnapshot.forEach((doc) => {
         const data = doc.data();
         const studentIds = data.studentIds || [];
         allStudentIds.push(...studentIds);
       });
       
-      // Премахнете дублиращите се ID-та
       const uniqueStudentIds = [...new Set(allStudentIds)];
       
       console.log(`📢 Sending assignment notifications to ${uniqueStudentIds.length} students`);
 
-      if (uniqueStudentIds.length === 0) {
-        console.log("No students found in communities");
-        return;
-      }
+      if (uniqueStudentIds.length === 0) return;
 
-      // Създаване на нотификации в НОВАТА КОЛЕКЦИЯ "notifications"
       const batch = writeBatch(db);
       
       uniqueStudentIds.forEach((studentId) => {
@@ -215,7 +286,6 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
 
       await batch.commit();
       
-      // Запазете и в activityLogs за проследяване (остава за история)
       await addDoc(collection(db, "activityLogs"), {
         userId: teacherId,
         userName: userData.fullName || userData.email?.split('@')[0] || "Teacher",
@@ -233,7 +303,6 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
       
       console.log(`✅ Assignment notifications sent to ${uniqueStudentIds.length} students`);
       
-      // Покажете съобщение на учителя
       if (uniqueStudentIds.length > 0) {
         setUploadStatus(`✅ ${t?.('assignment_created') || 'Assignment created'}! ${uniqueStudentIds.length} ${t?.('students_notified') || 'students notified'}.`);
       }
@@ -243,8 +312,7 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
     }
   };
 
-  // Функция за изпращане на updates
-  const sendUpdates = (assignmentsData: Assignment[]) => {
+  const sendUpdates = (assignmentsData: AssignmentWithStats[]) => {
     if (onStatsChange) {
       onStatsChange({
         total: assignmentsData.length,
@@ -263,7 +331,7 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
     }
   };
 
-  // Зареждане с onSnapshot
+  // Зареждане с onSnapshot и статистика
   useEffect(() => {
     if (!teacherId) {
       setLoading(false);
@@ -278,55 +346,63 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
       orderBy("createdAt", "desc")
     );
     
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const assignmentsData: Assignment[] = [];
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      console.log(`📚 Loading ${snapshot.docs.length} assignments for teacher ${teacherId}`);
+      
+      const assignmentsData: AssignmentWithStats[] = [];
+      
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
         
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          assignmentsData.push({
-            id: doc.id,
-            title: data.title || '',
-            description: data.description || '',
-            objective: data.objective || '',
-            topic: data.topic || '',
-            subject: data.subject || '',
-            requirements: data.requirements || {
-              minFacts: 10,
-              minRules: 5,
-              minCombinedRules: 2,
-              minMenuItems: 3
-            },
-            instructions: data.instructions || [],
-            teacherId: data.teacherId,
-            teacherName: data.teacherName || 'Teacher',
-            createdAt: data.createdAt,
-            dueDate: data.dueDate || new Date().toISOString().split('T')[0],
-            status: data.status || 'active',
-            difficulty: data.difficulty || 'medium',
-            points: data.points || 100,
-            exampleCode: data.exampleCode || EXPERT_SYSTEM_TEMPLATE,
-            backgroundImage: data.backgroundImage || assignmentBackgrounds[Math.floor(Math.random() * assignmentBackgrounds.length)],
-            category: data.category || categories[Math.floor(Math.random() * categories.length)],
-            progress: data.progress || 0,
-            actionText: data.actionText || t?.('view') || "View"
-          });
+        const stats = await fetchAssignmentStats(doc.id);
+        
+        const dueDate = new Date(data.dueDate || new Date());
+        const today = new Date();
+        const daysLeft = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        assignmentsData.push({
+          id: doc.id,
+          title: data.title || '',
+          description: data.description || '',
+          objective: data.objective || '',
+          topic: data.topic || '',
+          subject: data.subject || '',
+          requirements: data.requirements || {
+            minFacts: 10,
+            minRules: 5,
+            minCombinedRules: 2,
+            minMenuItems: 3
+          },
+          instructions: data.instructions || [],
+          teacherId: data.teacherId,
+          teacherName: data.teacherName || 'Teacher',
+          createdAt: data.createdAt,
+          dueDate: data.dueDate || new Date().toISOString().split('T')[0],
+          status: data.status || 'active',
+          difficulty: data.difficulty || 'medium',
+          points: data.points || 100,
+          exampleCode: data.exampleCode || EXPERT_SYSTEM_TEMPLATE,
+          backgroundImage: data.backgroundImage || assignmentBackgrounds[Math.floor(Math.random() * assignmentBackgrounds.length)],
+          category: data.category || categories[Math.floor(Math.random() * categories.length)],
+          actionText: data.actionText || t?.('view') || "View",
+          stats,
+          daysLeft,
+          isOverdue: daysLeft < 0 && data.status === 'active'
         });
-        
-        setAssignments(assignmentsData);
-        sendUpdates(assignmentsData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("❌ Error loading assignments:", error);
-        setLoading(false);
       }
-    );
+      
+      console.log(`✅ Loaded ${assignmentsData.length} assignments with stats`);
+      setAssignments(assignmentsData);
+      sendUpdates(assignmentsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("❌ Error loading assignments:", error);
+      setLoading(false);
+    });
     
     return () => unsubscribe();
   }, [teacherId]);
 
-  // В resetAssignmentForm, exampleCode вече съдържа шаблона
   const resetAssignmentForm = () => {
     setAssignmentForm({
       title: "",
@@ -356,11 +432,6 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
     }
 
     try {
-      console.log("📝 Saving assignment with exampleCode:", {
-        length: assignmentForm.exampleCode?.length,
-        preview: assignmentForm.exampleCode?.substring(0, 100)
-      });
-
       const assignmentData = {
         title: assignmentForm.title,
         description: assignmentForm.description,
@@ -390,13 +461,9 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
       if (editingAssignment) {
         await updateDoc(doc(db, "assignments", editingAssignment.id), assignmentData);
         setUploadStatus("✅ " + (t?.('assignment_updated') || "Assignment updated successfully!"));
-        console.log("✅ Assignment updated with ID:", editingAssignment.id);
       } else {
         const docRef = await addDoc(collection(db, "assignments"), assignmentData);
         setUploadStatus("✅ " + (t?.('assignment_created') || "Assignment created successfully!"));
-        console.log("✅ Assignment created with ID:", docRef.id);
-        
-        // ИЗПРАТЕТЕ НОТИФИКАЦИИ САМО ПРИ НОВО ЗАДАНИЕ (НЕ ПРИ РЕДАКТИРАНЕ)
         await sendAssignmentNotifications(assignmentForm.title, docRef.id);
       }
 
@@ -474,30 +541,108 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
     });
   };
 
+  const toggleAssignmentDetails = (id: string) => {
+    setSelectedAssignment(selectedAssignment === id ? null : id);
+  };
+
+  // Филтриране и сортиране
+  const filteredAssignments = assignments
+    .filter(a => {
+      if (filterStatus === 'active') return a.status === 'active' && !a.isOverdue;
+      if (filterStatus === 'overdue') return a.isOverdue;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'dueDate') {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      if (sortBy === 'completionRate') {
+        return b.stats.completionRate - a.stats.completionRate;
+      }
+      if (sortBy === 'submissions') {
+        return b.stats.totalSubmissions - a.stats.totalSubmissions;
+      }
+      return 0;
+    });
+
+  // Обща статистика
+  const totalStats = {
+    total: assignments.length,
+    active: assignments.filter(a => a.status === 'active' && !a.isOverdue).length,
+    overdue: assignments.filter(a => a.isOverdue).length,
+    totalSubmissions: assignments.reduce((sum, a) => sum + a.stats.totalSubmissions, 0),
+    averageCompletion: assignments.length > 0 
+      ? assignments.reduce((sum, a) => sum + a.stats.completionRate, 0) / assignments.length 
+      : 0
+  };
+
+  // Помощна функция за цветове според трудност
+  const getDifficultyColor = (difficulty: string) => {
+    switch(difficulty) {
+      case 'easy': return 'text-green-600 dark:text-green-400';
+      case 'medium': return 'text-orange-600 dark:text-orange-400';
+      case 'hard': return 'text-red-600 dark:text-red-400';
+      default: return 'text-gray-600 dark:text-gray-400';
+    }
+  };
+
+  // Помощна функция за цветове според статус
+  const getStatusColor = (status: string, isOverdue: boolean) => {
+    if (isOverdue) return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/20';
+    if (status === 'active') return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/20';
+    return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-500/20';
+  };
+
+  if (!isTeacherOrAdmin) {
+    return (
+      <div className={`rounded-2xl p-12 border text-center ${
+        theme === 'dark'
+          ? 'bg-gray-900/80 border-white/10'
+          : 'bg-white border-gray-200'
+      }`}>
+        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-xl font-bold mb-2">
+          {t?.('access_denied') || "Access Denied"}
+        </h3>
+        <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          {t?.('teacher_only') || "Only teachers can access this section."}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="mb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold">{t?.('all_assignments') || "All Assignments"}</h2>
-          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-            {t?.('manage_create_assignments') || "Manage and create new assignments"}
-          </p>
-        </div>
-        
-        {isTeacherOrAdmin && (
-          <button
-            onClick={() => {
-              setEditingAssignment(null);
-              resetAssignmentForm();
-              setShowForm(true);
-            }}
-            className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            {t?.('add_assignment') || "Add Assignment"}
-          </button>
-        )}
+    <div className="space-y-6">
+      {/* Header със статистика */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <StatsCard
+          title={t?.('total_assignments') || "Total Assignments"}
+          value={totalStats.total}
+          color="blue"
+          theme={theme}
+          t={t}
+        />
+        <StatsCard
+          title={t?.('active_assignments') || "Active Assignments"}
+          value={totalStats.active}
+          color="green"
+          theme={theme}
+          t={t}
+        />
+        <StatsCard
+          title={t?.('overdue_assignments') || "Overdue"}
+          value={totalStats.overdue}
+          color="orange"
+          theme={theme}
+          t={t}
+        />
+        <StatsCard
+          title={t?.('total_submissions') || "Total Submissions"}
+          value={totalStats.totalSubmissions}
+          color="blue"
+          theme={theme}
+          t={t}
+        />
       </div>
 
       {/* Status Message */}
@@ -511,12 +656,78 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
         </div>
       )}
 
+      {/* Контроли за филтриране и сортиране */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'all'
+                ? 'bg-blue-500 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            }`}
+          >
+            {t?.('all') || "All"} ({assignments.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('active')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'active'
+                ? 'bg-blue-500 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            }`}
+          >
+            {t?.('active') || "Active"} ({totalStats.active})
+          </button>
+          <button
+            onClick={() => setFilterStatus('overdue')}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              filterStatus === 'overdue'
+                ? 'bg-blue-500 text-white'
+                : theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+            }`}
+          >
+            {t?.('overdue') || "Overdue"} ({totalStats.overdue})
+          </button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className={`px-3 py-1.5 rounded-lg text-sm ${
+              theme === 'dark' 
+                ? 'bg-gray-800 border-gray-700 text-gray-100' 
+                : 'bg-white border-gray-300 text-gray-900'
+            } border`}
+          >
+            <option value="dueDate">{t?.('sort_by_due_date') || "Sort by Due Date"}</option>
+            <option value="completionRate">{t?.('sort_by_completion') || "Sort by Completion"}</option>
+            <option value="submissions">{t?.('sort_by_submissions') || "Sort by Submissions"}</option>
+          </select>
+
+          {isTeacherOrAdmin && (
+            <button
+              onClick={() => {
+                setEditingAssignment(null);
+                resetAssignmentForm();
+                setShowForm(true);
+              }}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {t?.('add_assignment') || "Add Assignment"}
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Loading State */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
-      ) : assignments.length === 0 ? (
+      ) : filteredAssignments.length === 0 ? (
         <EmptyState 
           theme={theme} 
           isTeacherOrAdmin={isTeacherOrAdmin}
@@ -528,15 +739,19 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
           t={t}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {assignments.map((assignment) => (
-            <AssignmentCard
+        <div className="space-y-4">
+          {filteredAssignments.map((assignment) => (
+            <AssignmentListItem
               key={assignment.id}
               assignment={assignment}
               theme={theme}
               isTeacherOrAdmin={isTeacherOrAdmin}
               onEdit={() => handleEditAssignment(assignment)}
               onDelete={() => handleDeleteAssignment(assignment.id)}
+              onToggleDetails={() => toggleAssignmentDetails(assignment.id)}
+              isExpanded={selectedAssignment === assignment.id}
+              getDifficultyColor={getDifficultyColor}
+              getStatusColor={getStatusColor}
               t={t}
             />
           ))}
@@ -567,12 +782,209 @@ export default function TeacherAssignments({ teacherId, isTeacherOrAdmin, onStat
   );
 }
 
+// Компонент за статистическа карта
+function StatsCard({ title, value, color, theme}: StatsCardProps) {
+  const colorClasses = {
+    blue: theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600',
+    green: theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600',
+    orange: theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600',
+  };
+
+  const getIcon = () => {
+    switch(color) {
+      case 'blue': return <BarChart className="w-5 h-5" />;
+      case 'green': return <CheckCircle className="w-5 h-5" />;
+      case 'orange': return <AlertTriangle className="w-5 h-5" />;
+      default: return <BarChart className="w-5 h-5" />;
+    }
+  };
+
+  return (
+    <div className={`rounded-2xl p-6 border ${
+      theme === 'dark'
+        ? 'bg-gray-900/80 border-white/10'
+        : 'bg-white border-gray-200'
+    }`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm opacity-70">{title}</span>
+        <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
+          {getIcon()}
+        </div>
+      </div>
+      <div className="text-2xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+// Компонент за списъчен елемент
+function AssignmentListItem({ assignment, theme, isTeacherOrAdmin, onEdit, onDelete, onToggleDetails, isExpanded, getDifficultyColor, getStatusColor, t }: any) {
+  return (
+    <motion.div
+      layout
+      className={`rounded-2xl border overflow-hidden ${
+        theme === 'dark'
+          ? 'bg-gray-900/80 border-white/10'
+          : 'bg-white border-gray-200'
+      }`}
+    >
+      {/* Основен ред */}
+      <div 
+        className="p-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        onClick={onToggleDetails}
+      >
+        <div className="flex items-center gap-4">
+          {/* Заглавие */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-bold truncate">{assignment.title}</h3>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(assignment.status, assignment.isOverdue)}`}>
+                {assignment.isOverdue 
+                  ? (t?.('overdue') || "Overdue")
+                  : (t?.(assignment.status) || assignment.status)}
+              </span>
+            </div>
+            <p className="text-sm opacity-70 truncate">
+              {assignment.topic} • {assignment.subject}
+            </p>
+          </div>
+
+          {/* Статистика */}
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <div className="text-xs opacity-70">{t?.('submissions') || "Submissions"}</div>
+              <div className="font-bold text-sm">{assignment.stats.totalSubmissions}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs opacity-70">{t?.('completed') || "Completed"}</div>
+              <div className="font-bold text-sm text-green-600 dark:text-green-400">{assignment.stats.completedCount}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs opacity-70">{t?.('completion') || "Completion"}</div>
+              <div className="font-bold text-sm">{assignment.stats.completionRate.toFixed(0)}%</div>
+            </div>
+          </div>
+
+          {/* Краен срок */}
+          <div className={`text-right min-w-[100px] ${
+            assignment.isOverdue ? 'text-red-600 dark:text-red-400' : 
+            assignment.daysLeft < 3 ? 'text-orange-600 dark:text-orange-400' : ''
+          }`}>
+            <div className="text-xs opacity-70">{t?.('due') || "Due"}</div>
+            <div className="font-bold text-sm">{new Date(assignment.dueDate).toLocaleDateString()}</div>
+            <div className="text-xs">
+              {assignment.isOverdue 
+                ? t?.('overdue') || "Overdue"
+                : `${assignment.daysLeft} ${t?.('days_left') || "days"}`
+              }
+            </div>
+          </div>
+
+          {/* Difficulty */}
+          <div className={`font-medium text-sm ${getDifficultyColor(assignment.difficulty)} min-w-[50px]`}>
+            {t?.(assignment.difficulty) || assignment.difficulty}
+          </div>
+
+          {/* Действия - с ИКОНИ! */}
+          {isTeacherOrAdmin && (
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={onEdit}
+                className={`p-1.5 rounded-lg ${
+                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                }`}
+                title={t?.('edit') || 'Edit'}
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onDelete}
+                className={`p-1.5 rounded-lg ${
+                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                }`}
+                title={t?.('delete') || 'Delete'}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onToggleDetails}
+                className={`p-1.5 rounded-lg ${
+                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                }`}
+                title={isExpanded ? (t?.('collapse') || 'Collapse') : (t?.('expand') || 'Expand')}
+              >
+                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Детайли (разширени) */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className={`border-t ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}
+          >
+            <div className="p-4 space-y-4">
+              {/* Подробна статистика */}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <div className="text-xs opacity-70 mb-1">{t?.('average_score') || "Average Score"}</div>
+                  <div className="text-lg font-bold">{assignment.stats.averageScore.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70 mb-1">{t?.('in_progress') || "In Progress"}</div>
+                  <div className="text-lg font-bold">{assignment.stats.inProgressCount}</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70 mb-1">{t?.('graded') || "Graded"}</div>
+                  <div className="text-lg font-bold">{assignment.stats.gradedCount}</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70 mb-1">{t?.('requirements') || "Requirements"}</div>
+                  <div className="text-sm">
+                    <div>{t?.('facts') || "Facts"}: {assignment.requirements.minFacts}</div>
+                    <div>{t?.('rules') || "Rules"}: {assignment.requirements.minRules}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Описание */}
+              <div>
+                <div className="text-sm font-medium mb-2">{t?.('description') || "Description"}</div>
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {assignment.description}
+                </p>
+              </div>
+
+              {/* Инструкции */}
+              <div>
+                <div className="text-sm font-medium mb-2">{t?.('instructions') || "Instructions"}</div>
+                <ol className={`list-decimal list-inside space-y-1 text-sm ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  {assignment.instructions.map((inst: string, idx: number) => (
+                    <li key={idx}>{inst}</li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 // Компонент за празно състояние
 function EmptyState({ theme, isTeacherOrAdmin, onCreateClick, t }: any) {
   return (
     <div className={`rounded-2xl p-12 border text-center ${
       theme === 'dark'
-        ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
+        ? 'bg-gray-900/80 border-white/10'
         : 'bg-white border-gray-200'
     }`}>
       <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -583,125 +995,13 @@ function EmptyState({ theme, isTeacherOrAdmin, onCreateClick, t }: any) {
       {isTeacherOrAdmin && (
         <button
           onClick={onCreateClick}
-          className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium"
+          className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium flex items-center gap-2 mx-auto"
         >
-          <Plus className="w-4 h-4 inline mr-2" />
+          <Plus className="w-4 h-4" />
           {t?.('create_first_assignment') || "Create First Assignment"}
         </button>
       )}
     </div>
-  );
-}
-
-// Компонент за карта на assignment
-function AssignmentCard({ assignment, theme, isTeacherOrAdmin, onEdit, onDelete, t }: any) {
-  const getCategoryIcon = (category: string) => {
-    switch(category) {
-      case 'Design': return '🎨';
-      case 'Programming': return '💻';
-      case 'Algorithms': return '🧠';
-      case 'Data Science': return '📊';
-      default: return '🤖';
-    }
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch(difficulty) {
-      case 'easy': return 'bg-green-500/20 text-green-500';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-500';
-      case 'hard': return 'bg-red-500/20 text-red-500';
-      default: return 'bg-gray-500/20 text-gray-500';
-    }
-  };
-
-  return (
-    <motion.div
-      whileHover={{ scale: 1.02, translateY: -5 }}
-      className={`rounded-2xl p-6 border ${
-        theme === 'dark'
-          ? 'bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-white/10'
-          : 'bg-white border-gray-200'
-      } backdrop-blur-xl`}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-            assignment.category === 'Design' ? 'bg-pink-500/20 text-pink-500' :
-            assignment.category === 'Programming' ? 'bg-blue-500/20 text-blue-500' :
-            'bg-green-500/20 text-green-500'
-          }`}>
-            {getCategoryIcon(assignment.category)}
-          </div>
-          <div>
-            <h3 className="font-bold">{assignment.title}</h3>
-            <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {assignment.category}
-            </span>
-          </div>
-        </div>
-        <span className={`px-2 py-1 rounded text-xs ${getDifficultyColor(assignment.difficulty)}`}>
-          {assignment.difficulty}
-        </span>
-      </div>
-
-      <p className={`mb-4 line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-        {assignment.description}
-      </p>
-
-      <div className="space-y-3 mb-6">
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-          <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-            {t?.('due') || "Due"}: {assignment.dueDate}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-          <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-            {t?.('difficulty') || "Difficulty"}: {assignment.difficulty}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Star className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`} />
-          <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>
-            {t?.('points') || "Points"}: {assignment.points}
-          </span>
-        </div>
-      </div>
-
-      {isTeacherOrAdmin ? (
-        <div className="flex gap-2">
-          <button
-            onClick={onEdit}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-              theme === 'dark' 
-                ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400' 
-                : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
-            }`}
-          >
-            <Edit className="w-4 h-4 inline mr-1" /> {t?.('edit') || "Edit"}
-          </button>
-          <button
-            onClick={onDelete}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-              theme === 'dark' 
-                ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400' 
-                : 'bg-red-100 hover:bg-red-200 text-red-600'
-            }`}
-          >
-            <Trash2 className="w-4 h-4 inline mr-1" /> {t?.('delete') || "Delete"}
-          </button>
-        </div>
-      ) : (
-        <button className={`w-full py-2 rounded-lg text-sm font-medium ${
-          theme === 'dark' 
-            ? 'bg-white/5 hover:bg-white/10' 
-            : 'bg-gray-100 hover:bg-gray-200'
-        }`}>
-          <Eye className="w-4 h-4 inline mr-1" /> {assignment.actionText || t?.('view') || "View"}
-        </button>
-      )}
-    </motion.div>
   );
 }
 
@@ -737,7 +1037,7 @@ function AssignmentFormModal({
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                <FileTextIcon className="w-5 h-5 text-green-400" />
+                <FileTextIcon className="w-5 h-5 text-green-500" />
               </div>
               <div>
                 <h3 className="text-xl font-bold">
@@ -752,6 +1052,7 @@ function AssignmentFormModal({
               className={`p-2 rounded-lg ${
                 theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
               } transition-colors`}
+              title={t?.('close') || 'Close'}
             >
               <X className="w-5 h-5" />
             </button>
@@ -888,13 +1189,13 @@ function AssignmentFormModal({
                 <button
                   type="button"
                   onClick={onAddInstruction}
-                  className={`px-3 py-1 rounded-lg text-sm ${
+                  className={`px-3 py-1 rounded-lg text-sm flex items-center gap-1 ${
                     theme === 'dark' 
                       ? 'bg-white/5 hover:bg-white/10' 
                       : 'bg-gray-100 hover:bg-gray-200'
                   }`}
                 >
-                  <Plus className="w-4 h-4 inline mr-1" /> 
+                  <Plus className="w-4 h-4" />
                   {t?.('add_instruction') || "Add Instruction"}
                 </button>
               </div>
@@ -925,6 +1226,7 @@ function AssignmentFormModal({
                           ? 'hover:bg-white/10 text-red-400' 
                           : 'hover:bg-gray-200 text-red-500'
                       }`}
+                      title={t?.('remove') || 'Remove'}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -949,10 +1251,11 @@ function AssignmentFormModal({
                         : theme === 'dark' ? 'border-white/10' : 'border-gray-300'
                     }`}
                     onClick={() => setAssignmentForm({...assignmentForm, backgroundImage: image})}
+                    title={`${t?.('option') || 'Option'} ${index + 1}`}
                   >
                     <img 
                       src={image} 
-                      alt={`Option ${index + 1}`} 
+                      alt={`${t?.('option') || 'Option'} ${index + 1}`} 
                       className="w-full h-20 object-cover"
                     />
                   </div>
@@ -1085,7 +1388,7 @@ function AssignmentFormModal({
                     <span className={`px-4 py-2 rounded-lg ${
                       assignmentForm.difficulty === diff 
                         ? diff === 'easy' ? 'bg-green-500 text-white' :
-                          diff === 'medium' ? 'bg-yellow-500 text-white' :
+                          diff === 'medium' ? 'bg-orange-500 text-white' :
                           'bg-red-500 text-white'
                         : theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
                     }`}>
@@ -1116,7 +1419,7 @@ function AssignmentFormModal({
               />
             </div>
 
-            {/* Example Code - вече има шаблон по подразбиране! */}
+            {/* Example Code */}
             <div>
               <label className="block text-sm font-medium mb-2">
                 <FileCode className="w-4 h-4 inline mr-2" /> 
@@ -1154,9 +1457,9 @@ function AssignmentFormModal({
               <button
                 onClick={onSave}
                 disabled={!assignmentForm.title || !assignmentForm.objective}
-                className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <CheckCircle className="w-5 h-5 inline mr-2" />
+                <CheckCircle className="w-5 h-5" />
                 {editingAssignment 
                   ? t?.('save_changes') || "Save Changes" 
                   : t?.('create_assignment') || "Create Assignment"}

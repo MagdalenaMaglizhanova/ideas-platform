@@ -8,7 +8,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import Features from './components/Features';
 import Dashboard from './components/Dashboard';
-import DigitalBulgariaInitiative from './components/DigitalBulgariaInitiative'; // Импортиране на новия компонент
+import DigitalBulgariaInitiative from './components/DigitalBulgariaInitiative';
 import Footer from './components/Footer';
 import Background from './components/Background';
 import TeacherDashboard from './components/TeacherDashboard';
@@ -22,7 +22,6 @@ import PrologGuide from './components/PrologGuide';
 import DemoPrologChat from './components/DemoPrologChat';
 import AboutUs from './components/AboutUs';
 import TeacherPending from './components/TeacherPending';
-
 
 const teamPhotos = {
   pic1: '/images/Picture1.png',
@@ -137,6 +136,15 @@ const AppContent = () => {
         <Route path="/demo-prolog-chat" element={<DemoPrologChat />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        
+        {/* ⭐ ПРЕНАСОЧВАНЕ ЗА СТАРИТЕ ПЪТИЩА ⭐ */}
+        <Route path="/dashboard/teacher" element={<Navigate to="/teacher-dashboard" replace />} />
+        <Route path="/dashboard/teacher/*" element={<Navigate to="/teacher-dashboard" replace />} />
+        <Route path="/dashboard/student" element={<Navigate to="/students-dashboard" replace />} />
+        <Route path="/dashboard/student/*" element={<Navigate to="/students-dashboard" replace />} />
+        <Route path="/dashboard/admin" element={<Navigate to="/admin-dashboard" replace />} />
+        <Route path="/dashboard/admin/*" element={<Navigate to="/admin-dashboard" replace />} />
+        
         {/* Маршрут за чакащи одобрение учители */}
         <Route path="/teacher/pending" element={
           <ProtectedRoute requiredRole="teacher">
@@ -163,7 +171,6 @@ const AppContent = () => {
             <LessonPlanner />
           </ProtectedRoute>
         } />
-        
         
         {/* Защитени маршрути за админи */}
         <Route path="/admin-dashboard" element={
