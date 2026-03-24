@@ -227,7 +227,7 @@ console.log(language)
     },
     { 
       id: "balkan", 
-      label: t('balkan') || 'Central Balkan', 
+      label: t('mountains') || 'Mountains',  
       color: "#7BDF7B"
     }
   ];

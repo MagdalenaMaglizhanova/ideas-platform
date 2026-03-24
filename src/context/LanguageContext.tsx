@@ -436,6 +436,7 @@ stats_icon_activity: string;
   no_lessons: string;
   recent_lessons: string;
   create_first: string;
+  mountains:string;
   
   // Съобщения и поща
   mailbox: string;
@@ -2164,6 +2165,7 @@ evaluation: "Evaluation",
   normal: "Normal",
   low: "Low",
   priority: "Priority",
+  mountains: "Mountains",
   
   // Статистики и време
   no_grades_data: "No grades data available",
@@ -4496,6 +4498,7 @@ about_us:"За нас",
     dark_mode: "Тъмен режим",
     light_mode: "Светъл режим",
     view_template: "Виж шаблон",
+    mountains: "Планини",
     
     // Нови преводи за липсващите ключове
     what_to_learn: "Какво да научите",
@@ -5949,6 +5952,7 @@ stats_icon_activity: "📈",
   members: "miembros",
   general: "General",
   view_challenges: "Ver Desafíos",
+  mountains: "Montañas",
   active_challenges: "Desafíos Activos",
   no_challenges_yet: "Aún no hay desafíos",
   no_challenges_description: "Crea tu primer desafío o espera a que otros comiencen uno",
