@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronRight, Terminal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -19,7 +19,7 @@ const Hero = () => {
           <motion.span
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="w-2 h-2 rounded-full bg-blue-400" // Променено от green-400 на blue-400
+            className="w-2 h-2 rounded-full bg-blue-400"
           />
           <span className="text-sm">{t('innovation_platform') || 'Иновационна платформа'}</span>
           <motion.div
@@ -49,7 +49,7 @@ const Hero = () => {
         >
           {t('hero_title_part1') || 'Transform Education'}
           <br />
-          <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-white bg-clip-text text-transparent"> {/* Променено от green/emerald на blue/cyan */}
+          <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-white bg-clip-text text-transparent">
             {t('hero_title_part2') || 'with AI-Powered Learning'}
           </span>
         </motion.h1>
@@ -75,7 +75,7 @@ const Hero = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-full font-semibold text-white hover:shadow-xl hover:shadow-blue-500/30 transition-all flex items-center gap-2 group" // Променено от green/emerald на blue/cyan
+              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-full font-semibold text-white hover:shadow-xl hover:shadow-blue-500/30 transition-all flex items-center gap-2 group"
             >
               <span>{t('get_started_free') || 'Get Started Free'}</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -87,14 +87,19 @@ const Hero = () => {
             target="_blank" 
             rel="noopener noreferrer"
           >
+          </a>
+
+          {/* НОВ БУТОН - Prolog Compiler */}
+          <Link to="/prolog-compiler">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full font-semibold hover:bg-white/10 transition-all"
+              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-white hover:shadow-xl hover:shadow-purple-500/30 transition-all flex items-center gap-2 group"
             >
-              {t('view_demos') || 'View Demos'}
+              <Terminal className="w-5 h-5" />
+              <span>Try Prolog Compiler</span>
             </motion.button>
-          </a>
+          </Link>
         </motion.div>
       </div>
     </div>

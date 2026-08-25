@@ -85,7 +85,7 @@ const Features = () => {
             
             {/* Бутон - ОРАНЖЕВ (същия градиент като admin/pending badges) */}
             <motion.button
-              onClick={() => navigate('/prolog-guide')}
+              onClick={() => navigate('/demo-prolog-chat')}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="w-full px-6 py-4 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-xl font-semibold text-white hover:shadow-xl hover:shadow-orange-500/30 transition-all flex items-center justify-center gap-3 group"

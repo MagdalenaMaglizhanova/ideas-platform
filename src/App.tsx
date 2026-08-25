@@ -22,6 +22,7 @@ import PrologGuide from './components/PrologGuide';
 import DemoPrologChat from './components/DemoPrologChat';
 import AboutUs from './components/AboutUs';
 import TeacherPending from './components/TeacherPending';
+import PrologCompiler from './components/PrologCompiler';
 
 const teamPhotos = {
   pic1: '/images/Picture1.png',
@@ -144,6 +145,7 @@ const AppContent = () => {
         <Route path="/dashboard/student/*" element={<Navigate to="/students-dashboard" replace />} />
         <Route path="/dashboard/admin" element={<Navigate to="/admin-dashboard" replace />} />
         <Route path="/dashboard/admin/*" element={<Navigate to="/admin-dashboard" replace />} />
+        <Route path="/prolog-compiler" element={<PrologCompiler />} />
         
         {/* Маршрут за чакащи одобрение учители */}
         <Route path="/teacher/pending" element={
