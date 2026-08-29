@@ -97,7 +97,7 @@ const Hero = () => {
               className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-white hover:shadow-xl hover:shadow-purple-500/30 transition-all flex items-center gap-2 group"
             >
               <Terminal className="w-5 h-5" />
-              <span>Try Prolog Compiler</span>
+              <span>Try Prolog</span>
             </motion.button>
           </Link>
         </motion.div>

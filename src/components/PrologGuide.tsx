@@ -16,7 +16,7 @@ import { useLanguage } from "../context/LanguageContext";
 export default function PrologGuide() {
   const { theme } = useTheme();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('basics');
+  const [activeTab, setActiveTab] = useState('tutorials');
 
   // Theme classes - подобрен контраст за светлата тема
   const themeClasses = {
@@ -65,50 +65,70 @@ export default function PrologGuide() {
   const currentTheme = themeClasses[theme];
 
   // Learning resources
-  const learningResources = [
-    {
-      title: "SWI-Prolog Documentation",
-      description: "Official documentation and manual",
-      icon: <BookOpen className="w-5 h-5" />,
-      url: "https://www.swi-prolog.org/pldoc/doc_for?object=manual",
-      color: "from-blue-500 to-cyan-500"
-    },
-    {
-      title: "Learn Prolog Now!",
-      description: "Free online textbook",
-      icon: <Book className="w-5 h-5" />,
-      url: "http://www.learnprolognow.org/",
-      color: "from-green-500 to-emerald-500"
-    },
-    {
-      title: "SWISH Online IDE",
-      description: "Run Prolog in browser",
-      icon: <Cpu className="w-5 h-5" />,
-      url: "https://swish.swi-prolog.org/",
-      color: "from-purple-500 to-pink-500"
-    },
-    {
-      title: "Prolog Problems",
-      description: "99 Prolog problems",
-      icon: <Puzzle className="w-5 h-5" />,
-      url: "https://www.ic.unicamp.br/~meidanis/courses/mc336/2009s2/prolog/problemas/",
-      color: "from-amber-500 to-orange-500"
-    },
-    {
-      title: "Advent of Code",
-      description: "Solve puzzles in Prolog",
-      icon: <GanttChartSquare className="w-5 h-5" />,
-      url: "https://adventofcode.com/",
-      color: "from-red-500 to-rose-500"
-    },
-    {
-      title: "GitHub Examples",
-      description: "Open source Prolog projects",
-      icon: <Code className="w-5 h-5" />,
-      url: "https://github.com/topics/prolog",
-      color: "from-indigo-500 to-blue-500"
-    }
-  ];
+  // Learning resources
+const learningResources = [
+  // --- Интерактивни инструменти за логика (от Logica) ---
+  {
+    title: "Logica - Logic Tools Suite",
+    description: "Collection of interactive logic tools: Truth Tables, Proof Editors, Unifier & more",
+    icon: <Lightbulb className="w-5 h-5" />,
+    url: "http://logic.stanford.edu/logica/homepage/index.php",
+    color: "from-amber-500 to-orange-500",
+    category: "Interactive Tools"
+  },
+  // --- Основни Prolog ресурси ---
+  {
+    title: "SWI-Prolog Documentation",
+    description: "Official documentation and manual",
+    icon: <BookOpen className="w-5 h-5" />,
+    url: "https://www.swi-prolog.org/pldoc/doc_for?object=manual",
+    color: "from-blue-500 to-cyan-500",
+    category: "Documentation"
+  },
+  {
+    title: "Learn Prolog Now!",
+    description: "Free online textbook",
+    icon: <Book className="w-5 h-5" />,
+    url: "http://www.learnprolognow.org/",
+    color: "from-green-500 to-emerald-500",
+    category: "Tutorials"
+  },
+  // --- Онлайн среди за изпълнение ---
+  {
+    title: "SWISH Online IDE",
+    description: "Run Prolog in browser",
+    icon: <Cpu className="w-5 h-5" />,
+    url: "https://swish.swi-prolog.org/",
+    color: "from-purple-500 to-pink-500",
+    category: "Online Tools"
+  },
+  // --- Задачи и предизвикателства ---
+  {
+    title: "Prolog Problems",
+    description: "99 Prolog problems",
+    icon: <Puzzle className="w-5 h-5" />,
+    url: "https://www.ic.unicamp.br/~meidanis/courses/mc336/2009s2/prolog/problemas/",
+    color: "from-amber-500 to-orange-500",
+    category: "Exercises"
+  },
+  {
+    title: "Advent of Code",
+    description: "Solve puzzles in Prolog",
+    icon: <GanttChartSquare className="w-5 h-5" />,
+    url: "https://adventofcode.com/",
+    color: "from-red-500 to-rose-500",
+    category: "Exercises"
+  },
+  // --- Примери и проекти ---
+  {
+    title: "GitHub Examples",
+    description: "Open source Prolog projects",
+    icon: <Code className="w-5 h-5" />,
+    url: "https://github.com/topics/prolog",
+    color: "from-indigo-500 to-blue-500",
+    category: "Code"
+  }
+];
 
   // Interactive Question component
   const InteractiveQuestion = ({ question, answer }: { question: string; answer: string }) => {
@@ -176,12 +196,11 @@ export default function PrologGuide() {
           </p>
         </motion.div>
 
-        {/* Navigation tabs */}
+        {/* Navigation tabs - removed "Tutorials" tab, renamed "Basics" to "Tutorials" */}
         <div className="flex flex-wrap justify-center gap-2 mb-12">
           {[
-            { id: 'basics', label: "Basics", icon: <BookOpen className="w-4 h-4" /> },
+            { id: 'tutorials', label: "Tutorials", icon: <BookOpen className="w-4 h-4" /> },
             { id: 'examples', label: "Examples", icon: <Code className="w-4 h-4" /> },
-            { id: 'tutorials', label: "Tutorials", icon: <Lightbulb className="w-4 h-4" /> },
             { id: 'resources', label: "Resources", icon: <ExternalLink className="w-4 h-4" /> }
           ].map((tab) => (
             <button
@@ -201,9 +220,9 @@ export default function PrologGuide() {
 
         {/* Content based on active tab */}
         <AnimatePresence mode="wait">
-          {activeTab === 'basics' && (
+          {activeTab === 'tutorials' && (
             <motion.div
-              key="basics"
+              key="tutorials"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -558,464 +577,6 @@ export default function PrologGuide() {
                     <InteractiveQuestion question="Carol is a parent of Emma" answer="Yes" />
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'tutorials' && (
-            <motion.div
-              key="tutorials"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="max-w-4xl mx-auto space-y-8"
-            >
-              {/* Header */}
-              <div className={`text-center p-8 rounded-2xl border ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <h2 className={`text-3xl font-bold mb-4 ${currentTheme.text}`}>Advanced Prolog Tutorials</h2>
-                <p className={`text-lg ${currentTheme.textSecondary}`}>
-                  Explore advanced topics and complex concepts in Prolog programming. 
-                  Each tutorial includes detailed explanations, code examples, and practical exercises.
-                </p>
-              </div>
-
-              {/* Tutorial 1: Advanced Program Structure */}
-              <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                  theme === 'dark' ? 'from-indigo-900/30 to-blue-900/30' : 'from-indigo-50 to-blue-50'
-                }`}>
-                  <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      theme === 'dark' ? 'bg-indigo-500 text-white' : 'bg-indigo-600 text-white'
-                    }`}>
-                      1
-                    </span>
-                    Advanced Program Structure
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className={currentTheme.textSecondary}>
-                    Explore complex Prolog program structures including modules, meta-programming, and advanced control flow techniques.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <a 
-                      href="/prolog-guide/tutorial/1/modules"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' 
-                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Module System</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/1/meta"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' 
-                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Meta-Interpreters</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/1/control"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' 
-                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Control Flow</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/1/dcg"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' 
-                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>DCG Advanced</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tutorial 2: Constraint Logic Programming */}
-              <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                  theme === 'dark' ? 'from-purple-900/30 to-pink-900/30' : 'from-purple-50 to-pink-50'
-                }`}>
-                  <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      theme === 'dark' ? 'bg-purple-500 text-white' : 'bg-purple-600 text-white'
-                    }`}>
-                      2
-                    </span>
-                    Constraint Logic Programming
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className={currentTheme.textSecondary}>
-                    Learn about CLP(FD) for solving complex constraint satisfaction problems efficiently.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <a 
-                      href="/prolog-guide/tutorial/2/clpfd"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' 
-                          : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>CLP(FD) Basics</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/2/propagation"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' 
-                          : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Propagation</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/2/scheduling"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' 
-                          : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Scheduling</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/2/optimization"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' 
-                          : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Optimization</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tutorial 3: Expert Systems Development */}
-              <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                  theme === 'dark' ? 'from-green-900/30 to-emerald-900/30' : 'from-green-50 to-emerald-50'
-                }`}>
-                  <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      theme === 'dark' ? 'bg-green-500 text-white' : 'bg-green-600 text-white'
-                    }`}>
-                      3
-                    </span>
-                    Expert Systems Development
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className={currentTheme.textSecondary}>
-                    Build sophisticated expert systems with forward and backward chaining, uncertainty handling, and explanation facilities.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <a 
-                      href="/prolog-guide/tutorial/3/forward"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Forward Chaining</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/3/backward"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Backward Chaining</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/3/uncertainty"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Uncertainty</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/3/explanation"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Explanation</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tutorial 4: Natural Language Processing */}
-              <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                  theme === 'dark' ? 'from-amber-900/30 to-yellow-900/30' : 'from-amber-50 to-yellow-50'
-                }`}>
-                  <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      theme === 'dark' ? 'bg-amber-500 text-white' : 'bg-amber-600 text-white'
-                    }`}>
-                      4
-                    </span>
-                    Natural Language Processing
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className={currentTheme.textSecondary}>
-                    Advanced NLP techniques using Prolog including parsing, semantic analysis, and language generation.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <a 
-                      href="/prolog-guide/tutorial/4/dcg-advanced"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' 
-                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>DCG Advanced</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/4/semantic"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' 
-                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Semantic Parsing</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/4/generation"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' 
-                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Language Generation</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/4/translation"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' 
-                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Translation</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tutorial 5: Prolog for AI Research */}
-              <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                  theme === 'dark' ? 'from-red-900/30 to-rose-900/30' : 'from-red-50 to-rose-50'
-                }`}>
-                  <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      theme === 'dark' ? 'bg-red-500 text-white' : 'bg-red-600 text-white'
-                    }`}>
-                      5
-                    </span>
-                    Prolog for AI Research
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className={currentTheme.textSecondary}>
-                    Explore cutting-edge applications of Prolog in artificial intelligence research and cognitive modeling.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <a 
-                      href="/prolog-guide/tutorial/5/cognitive"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                          : 'bg-red-100 text-red-700 hover:bg-red-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Cognitive Modeling</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/5/theorem"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                          : 'bg-red-100 text-red-700 hover:bg-red-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Theorem Proving</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/5/planning"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                          : 'bg-red-100 text-red-700 hover:bg-red-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Planning</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/5/ml"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                          : 'bg-red-100 text-red-700 hover:bg-red-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Machine Learning</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tutorial 6: High-Performance Prolog */}
-              <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                  theme === 'dark' ? 'from-cyan-900/30 to-teal-900/30' : 'from-cyan-50 to-teal-50'
-                }`}>
-                  <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      theme === 'dark' ? 'bg-cyan-500 text-white' : 'bg-cyan-600 text-white'
-                    }`}>
-                      6
-                    </span>
-                    High-Performance Prolog
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className={currentTheme.textSecondary}>
-                    Learn optimization techniques, indexing strategies, and performance tuning for large-scale Prolog applications.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <a 
-                      href="/prolog-guide/tutorial/6/optimization"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' 
-                          : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Optimization</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/6/indexing"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' 
-                          : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Indexing</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/6/memory"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' 
-                          : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Memory Management</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href="/prolog-guide/tutorial/6/parallel"
-                      className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        theme === 'dark' 
-                          ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' 
-                          : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                      } transition-colors`}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <span>Parallel Execution</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className={`text-center p-6 rounded-2xl border ${currentTheme.card} ${currentTheme.cardHover}`}>
-                <p className={currentTheme.textSecondary}>
-                  More advanced tutorials and specialized topics coming soon. Stay tuned!
-                </p>
               </div>
             </motion.div>
           )}
