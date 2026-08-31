@@ -2,19 +2,22 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Users, UserCheck, UserX, 
-  BarChart3, Activity, Zap,  Clock,
+  BarChart3, Activity, Zap, Clock,
   TrendingUp, Database, Folder, Shield, 
   RefreshCw, Eye, Trash2, CheckCircle, 
   XCircle, Building, Award, Download,
   Plus, X, Search, 
   UserCog, FileCode, GraduationCap,
   Home, Crown, 
-   Upload, 
+  Upload, 
   ChevronRight, 
   Copy, ExternalLink, FolderPlus,
   UserPlus, 
-   File, Code,
-   Key, BookOpen, Puzzle
+  File, Code,
+  Key, BookOpen, Puzzle,
+  ChevronDown, ChevronUp,
+  Video, Image, Tag, FileText,
+  AlertCircle, Settings
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -147,6 +150,36 @@ interface ActivityLog {
   color: string;
 }
 
+// LESSON INTERFACES
+interface LessonTranslation {
+  id: string;
+  lesson_id: string;
+  language: 'en' | 'bg' | 'es';
+  title: string;
+  content: string;
+  description?: string;
+  video_url?: string;
+  duration?: string;
+  example_code?: string;
+  example_output?: string;
+  tags?: string[];
+  image_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface Lesson {
+  id: string;
+  slug: string;
+  lesson_number: number;
+  sublesson_number?: number;
+  order_index: number;
+  type: 'video' | 'text' | 'puzzle' | 'extra';
+  created_at: string;
+  updated_at: string;
+  translations: LessonTranslation[];
+}
+
 export default function AdminDashboard() {
   const { user: currentUser, userData } = useAuth();
   const { theme } = useTheme();
@@ -173,6 +206,97 @@ export default function AdminDashboard() {
     storageUsed: '0 MB'
   });
   
+  // LESSONS STATE
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [showLessonModal, setShowLessonModal] = useState<boolean>(false);
+  const [lessonSearchQuery, setLessonSearchQuery] = useState<string>("");
+  const [lessonTypeFilter, setLessonTypeFilter] = useState<string>("all");
+  
+  // IMAGE UPLOAD STATE
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadingForLanguage, setUploadingForLanguage] = useState<string | null>(null);
+  
+  // VIDEO UPLOAD STATE
+  const [uploadingVideo, setUploadingVideo] = useState<boolean>(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
+  const [uploadingVideoForLanguage, setUploadingVideoForLanguage] = useState<string | null>(null);
+  
+  // LESSON FORM STATE
+  const [lessonFormData, setLessonFormData] = useState<{
+    slug: string;
+    lessonNumber: number;
+    sublessonNumber?: number;
+    orderIndex: number;
+    type: 'video' | 'text' | 'puzzle' | 'extra';
+    translations: {
+      en: { 
+        title: string; 
+        content: string; 
+        description: string; 
+        videoUrl: string; 
+        duration: string;
+        exampleCode: string;
+        exampleOutput: string;
+        tags: string[];
+        imageUrl: string;
+      };
+      bg: { 
+        title: string; 
+        content: string; 
+        description: string; 
+        videoUrl: string; 
+        duration: string;
+        exampleCode: string;
+        exampleOutput: string;
+        tags: string[];
+        imageUrl: string;
+      };
+      es: { 
+        title: string; 
+        content: string; 
+        description: string; 
+        videoUrl: string; 
+        duration: string;
+        exampleCode: string;
+        exampleOutput: string;
+        tags: string[];
+        imageUrl: string;
+      };
+    };
+  }>({
+    slug: '',
+    lessonNumber: 1,
+    sublessonNumber: undefined,
+    orderIndex: 0,
+    type: 'text',
+    translations: {
+      en: { title: '', content: '', description: '', videoUrl: '', duration: '', exampleCode: '', exampleOutput: '', tags: [], imageUrl: '' },
+      bg: { title: '', content: '', description: '', videoUrl: '', duration: '', exampleCode: '', exampleOutput: '', tags: [], imageUrl: '' },
+      es: { title: '', content: '', description: '', videoUrl: '', duration: '', exampleCode: '', exampleOutput: '', tags: [], imageUrl: '' }
+    }
+  });
+
+  // FORM UI STATE
+  const [activeLanguageTab, setActiveLanguageTab] = useState<'en' | 'bg' | 'es'>('en');
+  const [expandedSections, setExpandedSections] = useState<{
+    basic: boolean;
+    content: boolean;
+    media: boolean;
+    advanced: boolean;
+  }>({
+    basic: true,
+    content: true,
+    media: false,
+    advanced: false
+  });
+  const [formErrors, setFormErrors] = useState<{
+    slug?: string;
+    title?: string;
+    content?: string;
+  }>({});
+
   // Form states
   const [newFolderName, setNewFolderName] = useState<string>('');
   const [bucketResult, setBucketResult] = useState<string>('');
@@ -275,6 +399,7 @@ console.log(selectedFile, showFileModal)
       checkAdminAccess();
     }
   }, [currentUser, userData]);
+  
 
   const loadAllData = async () => {
     try {
@@ -313,6 +438,9 @@ console.log(selectedFile, showFileModal)
       // Load files from Supabase
       await loadSupabaseFiles();
       
+      // Load lessons from Supabase
+      await loadLessons();
+      
       // Load activity logs
       await loadActivityLogs();
       
@@ -329,6 +457,488 @@ console.log(selectedFile, showFileModal)
       setLoading(false);
     }
   };
+
+  // ============================================
+  // IMAGE UPLOAD FUNCTIONS
+  // ============================================
+
+  const uploadLessonImage = async (file: File, language: string) => {
+    try {
+      setUploadingImage(true);
+      setUploadingForLanguage(language);
+      setUploadProgress(0);
+
+      // Генерираме уникално име за файла
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `lessons/images/${fileName}`;
+
+      // Качваме файла
+      const { error } = await supabase.storage
+        .from('prolog-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      setUploadProgress(100);
+
+      // Взимаме публичния URL
+      const { data: urlData } = supabase.storage
+        .from('prolog-files')
+        .getPublicUrl(filePath);
+
+      const imageUrl = urlData.publicUrl;
+
+      // Добавяме изображението в съдържанието на текущия език
+      const markdownImage = `\n\n![${file.name}](${imageUrl})\n`;
+      
+      setLessonFormData(prev => ({
+        ...prev,
+        translations: {
+          ...prev.translations,
+          [language]: {
+            ...prev.translations[language as 'en' | 'bg' | 'es'],
+            content: prev.translations[language as 'en' | 'bg' | 'es'].content + markdownImage,
+            imageUrl: imageUrl
+          }
+        }
+      }));
+
+      setBucketResult(`✅ Image "${file.name}" uploaded successfully!`);
+      setUploadingImage(false);
+      setUploadingForLanguage(null);
+      setUploadProgress(0);
+
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      setBucketResult(`❌ Error uploading image: ${error.message}`);
+      setUploadingImage(false);
+      setUploadingForLanguage(null);
+      setUploadProgress(0);
+    }
+  };
+
+  // ============================================
+  // VIDEO UPLOAD FUNCTIONS
+  // ============================================
+
+  const uploadLessonVideo = async (file: File, language: string) => {
+    try {
+      setUploadingVideo(true);
+      setUploadingVideoForLanguage(language);
+      setVideoUploadProgress(0);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `lessons/videos/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from('prolog-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      setVideoUploadProgress(100);
+
+      const { data: urlData } = supabase.storage
+        .from('prolog-files')
+        .getPublicUrl(filePath);
+
+      const videoUrl = urlData.publicUrl;
+
+      setLessonFormData(prev => ({
+        ...prev,
+        translations: {
+          ...prev.translations,
+          [language]: {
+            ...prev.translations[language as 'en' | 'bg' | 'es'],
+            videoUrl: videoUrl
+          }
+        }
+      }));
+
+      setBucketResult(`✅ Video "${file.name}" uploaded successfully!`);
+      setUploadingVideo(false);
+      setUploadingVideoForLanguage(null);
+      setVideoUploadProgress(0);
+
+    } catch (error: any) {
+      console.error('Error uploading video:', error);
+      setBucketResult(`❌ Error uploading video: ${error.message}`);
+      setUploadingVideo(false);
+      setUploadingVideoForLanguage(null);
+      setVideoUploadProgress(0);
+    }
+  };
+
+  // ============================================
+  // FORM VALIDATION
+  // ============================================
+
+  const validateLessonForm = (): boolean => {
+    const errors: typeof formErrors = {};
+    let isValid = true;
+
+    if (!lessonFormData.slug.trim()) {
+      errors.slug = 'Slug is required';
+      isValid = false;
+    }
+
+    if (!lessonFormData.translations.en.title.trim()) {
+      errors.title = 'English title is required';
+      isValid = false;
+    }
+
+    if (!lessonFormData.translations.en.content.trim()) {
+      errors.content = 'English content is required';
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
+
+  // ============================================
+  // TOGGLE SECTIONS
+  // ============================================
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // ============================================
+  // LANGUAGE HELPERS
+  // ============================================
+
+  const languageFlags = {
+    en: '🇬🇧',
+    bg: '🇧🇬',
+    es: '🇪🇸'
+  };
+
+  const languageNames = {
+    en: 'English',
+    bg: 'Български',
+    es: 'Español'
+  };
+
+  const getLanguageStatus = (lang: 'en' | 'bg' | 'es') => {
+    const t = lessonFormData.translations[lang];
+    const fields = [t.title, t.content];
+    const filled = fields.filter(f => f && f.trim().length > 0).length;
+    return { filled, total: fields.length };
+  };
+
+  // ============================================
+  // LESSONS MANAGEMENT FUNCTIONS
+  // ============================================
+
+  const loadLessons = async () => {
+    try {
+      const { data: lessonsData, error: lessonsError } = await supabase
+        .from('lessons')
+        .select(`
+          *,
+          translations:lesson_translations(*)
+        `)
+        .order('order_index', { ascending: true });
+
+      if (lessonsError) throw lessonsError;
+
+      setLessons(lessonsData || []);
+    } catch (error) {
+      console.error('Error loading lessons:', error);
+    }
+  };
+
+  const resetLessonForm = () => {
+    setLessonFormData({
+      slug: '',
+      lessonNumber: 1,
+      sublessonNumber: undefined,
+      orderIndex: 0,
+      type: 'text',
+      translations: {
+        en: { title: '', content: '', description: '', videoUrl: '', duration: '', exampleCode: '', exampleOutput: '', tags: [], imageUrl: '' },
+        bg: { title: '', content: '', description: '', videoUrl: '', duration: '', exampleCode: '', exampleOutput: '', tags: [], imageUrl: '' },
+        es: { title: '', content: '', description: '', videoUrl: '', duration: '', exampleCode: '', exampleOutput: '', tags: [], imageUrl: '' }
+      }
+    });
+    setEditingLesson(null);
+    setFormErrors({});
+  };
+
+  const saveLesson = async () => {
+    if (!validateLessonForm()) {
+      setBucketResult('❌ Please fix the errors before saving');
+      return;
+    }
+
+    try {
+      // Validate
+      if (!lessonFormData.slug.trim()) {
+        setBucketResult('❌ Please enter a slug');
+        return;
+      }
+      if (!lessonFormData.translations.en.title.trim()) {
+        setBucketResult('❌ Please enter an English title');
+        return;
+      }
+      if (!lessonFormData.translations.en.content.trim()) {
+        setBucketResult('❌ Please enter English content');
+        return;
+      }
+
+      // 1. Create or update the lesson
+      const lessonPayload = {
+        slug: lessonFormData.slug,
+        lesson_number: lessonFormData.lessonNumber,
+        sublesson_number: lessonFormData.sublessonNumber || null,
+        order_index: lessonFormData.orderIndex,
+        type: lessonFormData.type,
+        updated_at: new Date().toISOString()
+      };
+
+      let lessonId: string;
+
+      if (editingLesson) {
+        // Update existing lesson
+        const { error: updateError } = await supabase
+          .from('lessons')
+          .update(lessonPayload)
+          .eq('id', editingLesson.id);
+
+        if (updateError) throw updateError;
+        lessonId = editingLesson.id;
+      } else {
+        // Create new lesson
+        const { data: newLesson, error: insertError } = await supabase
+          .from('lessons')
+          .insert({
+            ...lessonPayload,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        lessonId = newLesson.id;
+      }
+
+      // 2. Save translations
+      const languages = ['en', 'bg', 'es'] as const;
+      for (const lang of languages) {
+        const translation = lessonFormData.translations[lang];
+        
+        if (editingLesson) {
+          // Update translation
+          const existingTranslation = editingLesson.translations.find(t => t.language === lang);
+          if (existingTranslation) {
+            const { error: updateTransError } = await supabase
+              .from('lesson_translations')
+              .update({
+                title: translation.title || `${lang === 'en' ? 'Untitled' : ''}`,
+                content: translation.content || '',
+                description: translation.description || null,
+                video_url: translation.videoUrl || null,
+                duration: translation.duration || null,
+                example_code: translation.exampleCode || null,
+                example_output: translation.exampleOutput || null,
+                tags: translation.tags || [],
+                image_url: translation.imageUrl || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingTranslation.id);
+
+            if (updateTransError) throw updateTransError;
+          } else {
+            // Create new translation
+            const { error: insertTransError } = await supabase
+              .from('lesson_translations')
+              .insert({
+                lesson_id: lessonId,
+                language: lang,
+                title: translation.title || `${lang === 'en' ? 'Untitled' : ''}`,
+                content: translation.content || '',
+                description: translation.description || null,
+                video_url: translation.videoUrl || null,
+                duration: translation.duration || null,
+                example_code: translation.exampleCode || null,
+                example_output: translation.exampleOutput || null,
+                tags: translation.tags || [],
+                image_url: translation.imageUrl || null
+              });
+
+            if (insertTransError) throw insertTransError;
+          }
+        } else {
+          // Create translation for new lesson
+          const { error: insertTransError } = await supabase
+            .from('lesson_translations')
+            .insert({
+              lesson_id: lessonId,
+              language: lang,
+              title: translation.title || `${lang === 'en' ? 'Untitled' : ''}`,
+              content: translation.content || '',
+              description: translation.description || null,
+              video_url: translation.videoUrl || null,
+              duration: translation.duration || null,
+              example_code: translation.exampleCode || null,
+              example_output: translation.exampleOutput || null,
+              tags: translation.tags || [],
+              image_url: translation.imageUrl || null
+            });
+
+          if (insertTransError) throw insertTransError;
+        }
+      }
+
+      // 3. Add activity log
+      await addActivityLog({
+        action: editingLesson ? 'Updated lesson' : 'Created new lesson',
+        actionType: editingLesson ? 'lesson_updated' : 'lesson_created',
+        target: lessonFormData.translations.en.title || lessonFormData.slug,
+        details: `${editingLesson ? 'Updated' : 'Created'} lesson "${lessonFormData.slug}"`
+      });
+
+      // 4. Close modal and reload
+      setShowLessonModal(false);
+      resetLessonForm();
+      await loadLessons();
+      setBucketResult(`✅ Lesson "${lessonFormData.slug}" saved successfully!`);
+
+    } catch (error: any) {
+      console.error('Error saving lesson:', error);
+      setBucketResult(`❌ Error saving lesson: ${error.message}`);
+    }
+  };
+
+  const deleteLesson = async (lesson: Lesson) => {
+    const englishTitle = lesson.translations.find(t => t.language === 'en')?.title || lesson.slug;
+    if (!confirm(`Delete lesson "${englishTitle}"? This will delete all translations.`)) {
+      return;
+    }
+
+    try {
+      // Delete translations (cascade)
+      const { error: deleteTransError } = await supabase
+        .from('lesson_translations')
+        .delete()
+        .eq('lesson_id', lesson.id);
+
+      if (deleteTransError) throw deleteTransError;
+
+      // Delete lesson
+      const { error: deleteError } = await supabase
+        .from('lessons')
+        .delete()
+        .eq('id', lesson.id);
+
+      if (deleteError) throw deleteError;
+
+      await addActivityLog({
+        action: 'Deleted lesson',
+        actionType: 'lesson_deleted',
+        target: lesson.slug,
+        details: `Deleted lesson "${lesson.slug}"`
+      });
+
+      await loadLessons();
+      setBucketResult(`✅ Lesson "${englishTitle}" deleted successfully!`);
+    } catch (error: any) {
+      console.error('Error deleting lesson:', error);
+      setBucketResult(`❌ Error deleting lesson: ${error.message}`);
+    }
+  };
+
+  const editLesson = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    
+    const getTranslation = (lang: 'en' | 'bg' | 'es') => {
+      return lesson.translations.find(t => t.language === lang) || {
+        title: '',
+        content: '',
+        description: '',
+        video_url: '',
+        duration: '',
+        example_code: '',
+        example_output: '',
+        tags: [],
+        image_url: ''
+      };
+    };
+
+    const en = getTranslation('en');
+    const bg = getTranslation('bg');
+    const es = getTranslation('es');
+
+    setLessonFormData({
+      slug: lesson.slug,
+      lessonNumber: lesson.lesson_number,
+      sublessonNumber: lesson.sublesson_number || undefined,
+      orderIndex: lesson.order_index,
+      type: lesson.type,
+      translations: {
+        en: { 
+          title: en.title || '', 
+          content: en.content || '', 
+          description: en.description || '', 
+          videoUrl: en.video_url || '', 
+          duration: en.duration || '',
+          exampleCode: en.example_code || '',
+          exampleOutput: en.example_output || '',
+          tags: en.tags || [],
+          imageUrl: en.image_url || ''
+        },
+        bg: { 
+          title: bg.title || '', 
+          content: bg.content || '', 
+          description: bg.description || '', 
+          videoUrl: bg.video_url || '', 
+          duration: bg.duration || '',
+          exampleCode: bg.example_code || '',
+          exampleOutput: bg.example_output || '',
+          tags: bg.tags || [],
+          imageUrl: bg.image_url || ''
+        },
+        es: { 
+          title: es.title || '', 
+          content: es.content || '', 
+          description: es.description || '', 
+          videoUrl: es.video_url || '', 
+          duration: es.duration || '',
+          exampleCode: es.example_code || '',
+          exampleOutput: es.example_output || '',
+          tags: es.tags || [],
+          imageUrl: es.image_url || ''
+        }
+      }
+    });
+    setShowLessonModal(true);
+  };
+
+  const filteredLessons = lessons.filter(lesson => {
+    const englishTitle = lesson.translations.find(t => t.language === 'en')?.title || lesson.slug;
+    const matchesSearch = englishTitle.toLowerCase().includes(lessonSearchQuery.toLowerCase()) ||
+                          lesson.slug.toLowerCase().includes(lessonSearchQuery.toLowerCase());
+    const matchesType = lessonTypeFilter === 'all' || lesson.type === lessonTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const mainLessons = filteredLessons;
+
+  // ============================================
+  // END LESSONS MANAGEMENT
+  // ============================================
 
   const loadActivityLogs = async () => {
     try {
@@ -515,6 +1125,9 @@ console.log(selectedFile, showFileModal)
       case 'user_updated': return <UserCog className="w-4 h-4" />;
       case 'teacher_approved': return <UserCheck className="w-4 h-4" />;
       case 'teacher_rejected': return <UserX className="w-4 h-4" />;
+      case 'lesson_created': return <BookOpen className="w-4 h-4" />;
+      case 'lesson_updated': return <BookOpen className="w-4 h-4" />;
+      case 'lesson_deleted': return <Trash2 className="w-4 h-4" />;
       default: return <Activity className="w-4 h-4" />;
     }
   };
@@ -533,6 +1146,9 @@ console.log(selectedFile, showFileModal)
       case 'user_updated': return 'amber';
       case 'teacher_approved': return 'green';
       case 'teacher_rejected': return 'red';
+      case 'lesson_created': return 'indigo';
+      case 'lesson_updated': return 'amber';
+      case 'lesson_deleted': return 'red';
       default: return 'gray';
     }
   };
@@ -635,182 +1251,214 @@ console.log(selectedFile, showFileModal)
   };
 
   const refreshSupabaseData = async () => {
-    try {
-      // List all items in root
-      const { data: rootItems, error } = await supabase.storage
-        .from("prolog-files")
-        .list("", { limit: 1000 });
+  try {
+    setBucketResult('🔄 Loading storage data...');
+    console.log('🔍 Directly fetching from bucket: prolog-files');
 
-      if (error) throw error;
+    // Директно листване без проверки
+    const { data: rootItems, error } = await supabase.storage
+      .from("prolog-files")
+      .list("", { limit: 1000 });
 
-      if (!rootItems || rootItems.length === 0) {
-        setSupabaseFolders([]);
-        setSupabaseStats({
-          totalFiles: 0,
-          totalFolders: 0,
-          totalSize: 0,
-          lastUpdated: null,
-          storageUsed: '0 MB'
-        });
-        setSupabaseFiles([]);
-        return;
-      }
-
-      const allFiles: SupabaseFile[] = [];
-      const foldersMap = new Map<string, SupabaseFolder>();
-      let totalSize = 0;
-      let lastUpdated: number | null = null;
+    if (error) {
+      console.error('❌ Error:', error);
       
-      // Process each item
-      for (const item of rootItems) {
-        if (!item.name) continue;
+      // Опитайте с друго име на bucket
+      const alternativeNames = ['prolog_files', 'prologfiles', 'lessons', 'files'];
+      
+      for (const altName of alternativeNames) {
+        console.log(`🔄 Trying alternative bucket: ${altName}`);
+        const { data: altData, error: altError } = await supabase.storage
+          .from(altName)
+          .list("", { limit: 10 });
         
-        if (item.id === null) { // It's a folder
-          const folderName = item.name;
-          
-          // Get files from this folder
-          const { data: folderFiles, error: folderError } = await supabase.storage
-            .from("prolog-files")
-            .list(folderName, { limit: 1000 });
-          
-          const folderFileList: SupabaseFile[] = [];
-          
-          if (!folderError && folderFiles) {
-            const prologFilesInFolder = folderFiles.filter(file => 
-              file.name && !file.name.startsWith('.') && file.id !== null
-            );
-            
-            prologFilesInFolder.forEach(file => {
-              const metadata = file.metadata || {};
-              const size = typeof metadata.size === 'number' ? metadata.size : 0;
-              const mimetype = typeof metadata.mimetype === 'string' ? metadata.mimetype : 'application/x-prolog';
-              
-              const supabaseFile: SupabaseFile = {
-                name: file.name || '',
-                id: file.id || Math.random().toString(36).substring(2),
-                created_at: file.created_at || new Date().toISOString(),
-                updated_at: file.updated_at || new Date().toISOString(),
-                size: size,
-                folder: folderName,
-                fullPath: `${folderName}/${file.name}`,
-                metadata: { size, mimetype }
-              };
-              
-              folderFileList.push(supabaseFile);
-              allFiles.push(supabaseFile);
-              
-              totalSize += size;
-              
-              if (file.created_at) {
-                const fileDate = new Date(file.created_at).getTime();
-                if (!lastUpdated || fileDate > lastUpdated) {
-                  lastUpdated = fileDate;
-                }
-              }
-            });
-          }
-          
-          const folderSize = folderFileList.reduce((sum, file) => sum + file.size, 0);
-          
-          foldersMap.set(folderName, {
-            name: folderName,
-            fileCount: folderFileList.length,
-            size: folderSize,
-            files: folderFileList,
-            lastModified: folderFileList.length > 0 
-              ? new Date(Math.max(...folderFileList.map(f => new Date(f.created_at).getTime()))).toISOString()
-              : undefined
-          });
-        } else if (!item.name.startsWith('.')) {
-          const metadata = item.metadata || {};
-          const size = typeof metadata.size === 'number' ? metadata.size : 0;
-          const mimetype = typeof metadata.mimetype === 'string' ? metadata.mimetype : 'application/x-prolog';
-          
-          const file: SupabaseFile = {
-            name: item.name || '',
-            id: item.id || Math.random().toString(36).substring(2),
-            created_at: item.created_at || new Date().toISOString(),
-            updated_at: item.updated_at || new Date().toISOString(),
-            size: size,
-            folder: 'root',
-            fullPath: item.name || '',
-            metadata: { size, mimetype }
-          };
-          
-          allFiles.push(file);
-          totalSize += size;
-          
-          if (item.created_at) {
-            const fileDate = new Date(item.created_at).getTime();
-            if (!lastUpdated || fileDate > lastUpdated) {
-              lastUpdated = fileDate;
-            }
-          }
+        if (!altError && altData) {
+          console.log(`✅ Found bucket: ${altName}`);
+          // Тук можете да обработите данните
+          setBucketResult(`✅ Connected to bucket: ${altName}`);
+          return;
         }
       }
       
-      const folderData = Array.from(foldersMap.values());
-      
-      setSupabaseFiles(allFiles);
-      setSupabaseFolders(folderData);
-      
-      const storageUsed = totalSize < 1024 * 1024 
-        ? `${(totalSize / 1024).toFixed(2)} KB`
-        : totalSize < 1024 * 1024 * 1024
-        ? `${(totalSize / (1024 * 1024)).toFixed(2)} MB`
-        : `${(totalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-      
-      setSupabaseStats({
-        totalFiles: allFiles.length,
-        totalFolders: folderData.length,
-        totalSize: totalSize,
-        lastUpdated: lastUpdated,
-        storageUsed: storageUsed
-      });
-      
-      setBucketResult(`✅ Data refreshed. Found ${folderData.length} folders with ${allFiles.length} files.`);
-      
-    } catch (error: any) {
-      console.error("Error loading Supabase files:", error);
-      setBucketResult(`❌ Error refreshing data: ${error.message}`);
+      setBucketResult(`❌ Error: ${error.message}. Please check bucket name.`);
+      return;
     }
-  };
 
-  const viewFolderFiles = async (folderName: string) => {
-    try {
-      const folder = supabaseFolders.find(f => f.name === folderName);
-      
-      if (folder && folder.files) {
-        setSelectedFolder(folderName);
-        setFolderFiles(folder.files);
-      } else {
-        const { data: files, error } = await supabase.storage
-          .from('prolog-files')
-          .list(folderName);
-        
-        if (error) throw error;
-        
-        const supabaseFiles: SupabaseFile[] = (files || [])
-          .filter(file => file.name && !file.name.startsWith('.') && file.id)
-          .map(file => ({
-            name: file.name || '',
-            id: file.id || Math.random().toString(36).substring(2),
-            created_at: file.created_at || new Date().toISOString(),
-            updated_at: file.updated_at || new Date().toISOString(),
-            size: file.metadata?.size || 0,
-            folder: folderName,
-            fullPath: `${folderName}/${file.name}`,
-            metadata: file.metadata
-          }));
-        
-        setSelectedFolder(folderName);
-        setFolderFiles(supabaseFiles);
-      }
-      
-    } catch (error: any) {
-      setBucketResult(`❌ Error loading folder ${folderName}: ${error.message}`);
+    console.log('✅ Success! Items:', rootItems?.length || 0);
+    
+    // Обработка на rootItems
+    if (!rootItems || rootItems.length === 0) {
+      setSupabaseFolders([]);
+      setSupabaseStats({
+        totalFiles: 0,
+        totalFolders: 0,
+        totalSize: 0,
+        lastUpdated: null,
+        storageUsed: '0 MB'
+      });
+      setBucketResult('✅ Connected. No files found.');
+      return;
     }
-  };
+
+    // Тук идва обработката на файловете (същата като преди)
+    const allFiles: SupabaseFile[] = [];
+    const foldersMap = new Map<string, SupabaseFolder>();
+    let totalSize = 0;
+
+    for (const item of rootItems) {
+      if (!item.name) continue;
+      if (item.name.startsWith('.')) continue;
+
+      // Проверка дали е папка
+      const isFolder = item.id === null || item.id === undefined;
+
+      if (isFolder) {
+        const folderName = item.name;
+        console.log(`📁 Processing folder: ${folderName}`);
+        
+        const { data: folderFiles, error: folderError } = await supabase.storage
+          .from("prolog-files")
+          .list(folderName, { limit: 1000 });
+        
+        const folderFileList: SupabaseFile[] = [];
+        
+        if (!folderError && folderFiles) {
+          const validFiles = folderFiles.filter(file => 
+            file.name && !file.name.startsWith('.') && file.id !== null && file.id !== undefined
+          );
+          
+          validFiles.forEach(file => {
+            const size = file.metadata?.size || 0;
+            folderFileList.push({
+              name: file.name || '',
+              id: file.id || Math.random().toString(36).substring(2),
+              created_at: file.created_at || new Date().toISOString(),
+              updated_at: file.updated_at || new Date().toISOString(),
+              size: size,
+              folder: folderName,
+              fullPath: `${folderName}/${file.name}`,
+              metadata: file.metadata || {}
+            });
+            totalSize += size;
+          });
+        }
+        
+        foldersMap.set(folderName, {
+          name: folderName,
+          fileCount: folderFileList.length,
+          size: folderFileList.reduce((sum, f) => sum + f.size, 0),
+          files: folderFileList
+        });
+        
+        allFiles.push(...folderFileList);
+      } else {
+        // Файл в root
+        const size = item.metadata?.size || 0;
+        allFiles.push({
+          name: item.name,
+          id: item.id || Math.random().toString(36).substring(2),
+          created_at: item.created_at || new Date().toISOString(),
+          updated_at: item.updated_at || new Date().toISOString(),
+          size: size,
+          folder: 'root',
+          fullPath: item.name,
+          metadata: item.metadata || {}
+        });
+        totalSize += size;
+      }
+    }
+
+    const folderData = Array.from(foldersMap.values());
+    
+    console.log(`📊 Found ${folderData.length} folders, ${allFiles.length} files`);
+    
+    setSupabaseFiles(allFiles);
+    setSupabaseFolders(folderData);
+    
+    const storageUsed = totalSize < 1024 * 1024 
+      ? `${(totalSize / 1024).toFixed(2)} KB`
+      : `${(totalSize / (1024 * 1024)).toFixed(2)} MB`;
+    
+    setSupabaseStats({
+      totalFiles: allFiles.length,
+      totalFolders: folderData.length,
+      totalSize: totalSize,
+      lastUpdated: Date.now(),
+      storageUsed: storageUsed
+    });
+    
+    setBucketResult(`✅ Found ${folderData.length} folders with ${allFiles.length} files`);
+
+  } catch (error: any) {
+    console.error("❌ Error:", error);
+    setBucketResult(`❌ Error: ${error.message}`);
+  }
+};
+
+
+// ============================================
+// ОБНОВЕНА ФУНКЦИЯ ЗА ВИЗУАЛИЗИРАНЕ НА ПАПКИ
+// ============================================
+
+const viewFolderFiles = async (folderName: string) => {
+  try {
+    console.log(`📁 Opening folder: ${folderName}`);
+    
+    // Първо проверяваме дали имаме кеширани файлове за тази папка
+    const folder = supabaseFolders.find(f => f.name === folderName);
+    
+    if (folder && folder.files && folder.files.length > 0) {
+      console.log(`  Using cached files: ${folder.files.length} files`);
+      setSelectedFolder(folderName);
+      setFolderFiles(folder.files);
+      return;
+    }
+
+    // Ако няма кеш, зареждаме от Supabase
+    console.log(`  Fetching files from Supabase for: ${folderName}`);
+    const { data: files, error } = await supabase.storage
+      .from('prolog-files')
+      .list(folderName, { limit: 1000 });
+    
+    if (error) throw error;
+    
+    console.log(`  Found ${files?.length || 0} items in ${folderName}`);
+    
+    const supabaseFiles: SupabaseFile[] = (files || [])
+      .filter(file => 
+        file.name && 
+        !file.name.startsWith('.') && 
+        file.id !== null &&
+        file.id !== undefined
+      )
+      .map(file => ({
+        name: file.name || '',
+        id: file.id || Math.random().toString(36).substring(2),
+        created_at: file.created_at || new Date().toISOString(),
+        updated_at: file.updated_at || new Date().toISOString(),
+        size: file.metadata?.size || 0,
+        folder: folderName,
+        fullPath: `${folderName}/${file.name}`,
+        metadata: file.metadata || {}
+      }));
+    
+    setSelectedFolder(folderName);
+    setFolderFiles(supabaseFiles);
+    
+    if (supabaseFiles.length === 0) {
+      setBucketResult(`📂 Folder "${folderName}" is empty`);
+    } else {
+      setBucketResult(`📄 Found ${supabaseFiles.length} files in "${folderName}"`);
+    }
+    
+  } catch (error: any) {
+    console.error(`❌ Error loading folder ${folderName}:`, error);
+    setBucketResult(`❌ Error loading folder: ${error.message}`);
+    setSelectedFolder(null);
+    setFolderFiles([]);
+  }
+};
+
 
   const viewFileContent = async (file: SupabaseFile) => {
     try {
@@ -913,44 +1561,21 @@ console.log(selectedFile, showFileModal)
   };
 
   const loadSupabaseFiles = async () => {
-    try {
-      await refreshSupabaseData();
-    } catch (error) {
-      console.error("Error loading Supabase files:", error);
-      // Fallback to codes data
-      const filesFromCodes = prologCodes.filter(code => 
-        code.fileName || code.filePath || code.originalFileName || code.storedFileName
-      );
-      
-      const fallbackFiles: SupabaseFile[] = filesFromCodes.map((code, index) => {
-        const fileName = code.fileName || code.originalFileName || code.storedFileName || code.title || `file-${index}.pl`;
-        let folder = code.folder || 'submissions';
-        
-        if (code.filePath && code.filePath.includes('/')) {
-          const pathParts = code.filePath.split('/');
-          if (pathParts.length > 1) {
-            folder = pathParts[0];
-          }
-        }
-        
-        return {
-          name: fileName,
-          id: code.id || `fallback-${index}`,
-          created_at: code.createdAt?.toString() || new Date().toISOString(),
-          updated_at: code.createdAt?.toString() || new Date().toISOString(),
-          size: code.code?.length || 0,
-          folder: folder,
-          fullPath: code.filePath || fileName,
-          metadata: { 
-            size: code.code?.length || 0, 
-            mimetype: 'application/x-prolog' 
-          }
-        };
-      });
-      
-      setSupabaseFiles(fallbackFiles);
-    }
-  };
+  try {
+    await refreshSupabaseData();
+  } catch (error) {
+    console.error("Error loading Supabase files:", error);
+    setSupabaseFolders([]);
+    setSupabaseFiles([]);
+    setSupabaseStats({
+      totalFiles: 0,
+      totalFolders: 0,
+      totalSize: 0,
+      lastUpdated: null,
+      storageUsed: '0 MB'
+    });
+  }
+};
 
   const viewCodeInNewTab = (code: PrologCode) => {
     const codeBlob = new Blob([code.code], { type: 'text/plain' });
@@ -1203,6 +1828,12 @@ console.log(selectedFile, showFileModal)
       badge: supabaseStats.totalFiles
     },
     { 
+      id: "lessons", 
+      label: "Lessons", 
+      icon: <BookOpen className="w-5 h-5" />,
+      badge: lessons.length
+    },
+    { 
       id: "activity", 
       label: "Activity", 
       icon: <Activity className="w-5 h-5" />,
@@ -1390,7 +2021,7 @@ console.log(selectedFile, showFileModal)
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Zap className="w-5 h-5" /> Quick Actions
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <button 
                   onClick={() => setSelectedView("teachers")}
                   disabled={pendingTeachers.length === 0}
@@ -1422,6 +2053,21 @@ console.log(selectedFile, showFileModal)
                   <div className="font-medium">Manage Storage</div>
                   <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                     {supabaseStats.totalFiles} files
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setSelectedView("lessons")}
+                  className={`p-4 rounded-xl border text-left hover:scale-[1.02] transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <BookOpen className="w-6 h-6 text-purple-500 mb-2" />
+                  <div className="font-medium">Manage Lessons</div>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {lessons.length} lessons
                   </div>
                 </button>
 
@@ -1832,7 +2478,7 @@ console.log(selectedFile, showFileModal)
           </div>
         )}
 
-        {/* Storage View - ПОДОБРЕНА ВЕРСИЯ */}
+        {/* Storage View */}
         {selectedView === "storage" && (
           <div className="space-y-8">
             {/* Create Folder */}
@@ -2103,7 +2749,874 @@ console.log(selectedFile, showFileModal)
           </div>
         )}
 
-        {/* Activity View - ПОДОБРЕНА ВЕРСИЯ */}
+        {/* ============================================ */}
+        {/* LESSONS VIEW - ОБНОВЕНА ВЕРСИЯ */}
+        {/* ============================================ */}
+        {selectedView === "lessons" && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <BookOpen className="w-6 h-6" /> Lesson Management
+                </h2>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {filteredLessons.length} lessons found
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Search lessons..."
+                    value={lessonSearchQuery}
+                    onChange={(e) => setLessonSearchQuery(e.target.value)}
+                    className={`pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border-white/10' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  />
+                </div>
+                
+                <select 
+                  value={lessonTypeFilter}
+                  onChange={(e) => setLessonTypeFilter(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border-white/10' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="all">All Types</option>
+                  <option value="text">Text</option>
+                  <option value="video">Video</option>
+                  <option value="puzzle">Puzzle</option>
+                  <option value="extra">Extra</option>
+                </select>
+                
+                <button
+                  onClick={() => {
+                    resetLessonForm();
+                    setShowLessonModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> New Lesson
+                </button>
+              </div>
+            </div>
+
+            {/* Lessons Grid */}
+            {mainLessons.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {mainLessons.map((lesson) => {
+                  const enTranslation = lesson.translations.find(t => t.language === 'en');
+                  const bgTranslation = lesson.translations.find(t => t.language === 'bg');
+                  const subLessons = filteredLessons.filter(l => l.lesson_number === lesson.lesson_number && l.sublesson_number && l.sublesson_number > 0);
+                  
+                  return (
+                    <div key={lesson.id} className={`rounded-2xl p-6 border backdrop-blur-xl ${currentTheme.card}`}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              lesson.type === 'video' ? 'bg-red-500/20 text-red-500' :
+                              lesson.type === 'text' ? 'bg-blue-500/20 text-blue-500' :
+                              lesson.type === 'puzzle' ? 'bg-amber-500/20 text-amber-500' :
+                              'bg-purple-500/20 text-purple-500'
+                            }`}>
+                              {lesson.type}
+                            </span>
+                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                              #{lesson.lesson_number}
+                              {subLessons.length > 0 && (
+                                <span className="ml-1 text-purple-400">({subLessons.length} sub-pages)</span>
+                              )}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-lg">
+                            {enTranslation?.title || lesson.slug}
+                          </h4>
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            slug: {lesson.slug}
+                          </div>
+                          {bgTranslation?.title && (
+                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                              🇧🇬 {bgTranslation.title}
+                            </div>
+                          )}
+                          {enTranslation?.tags && enTranslation.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {enTranslation.tags.slice(0, 3).map((tag, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                                  #{tag}
+                                </span>
+                              ))}
+                              {enTranslation.tags.length > 3 && (
+                                <span className="text-xs text-gray-500">+{enTranslation.tags.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+                          {enTranslation?.image_url && (
+                            <div className="mt-2">
+                              <img 
+                                src={enTranslation.image_url} 
+                                alt={enTranslation.title}
+                                className="w-full h-20 object-cover rounded-lg"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => editLesson(lesson)}
+                            className={`p-2 rounded-lg ${
+                              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                            } transition-colors`}
+                            title="Edit"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteLesson(lesson)}
+                            className={`p-2 rounded-lg ${
+                              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                            } transition-colors text-red-500`}
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className={`mb-4 p-3 rounded-lg text-sm ${
+                        theme === 'dark' ? 'bg-black/30' : 'bg-gray-100'
+                      }`}>
+                        <div className="line-clamp-3">
+                          {enTranslation?.content?.substring(0, 150) || 'No content'}...
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs">
+                        <div className={theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}>
+                          Order: {lesson.order_index}
+                          {subLessons.length > 0 && (
+                            <span className="ml-2 text-purple-400">{subLessons.length} sub-pages</span>
+                          )}
+                        </div>
+                        <div className={theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}>
+                          {new Date(lesson.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={`rounded-2xl p-12 border backdrop-blur-xl text-center ${currentTheme.card}`}>
+                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <h3 className="text-xl font-bold mb-2">No Lessons Found</h3>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  Create your first lesson by clicking the "New Lesson" button above.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* LESSON MODAL - ПРОФЕСИОНАЛНА ВЕРСИЯ */}
+        {/* ============================================ */}
+        {showLessonModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className={`rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col ${currentTheme.card}`}>
+              {/* Header */}
+              <div className="p-6 border-b flex items-center justify-between sticky top-0 bg-inherit z-10">
+                <div>
+                  <h3 className="text-2xl font-bold flex items-center gap-3">
+                    <BookOpen className="w-6 h-6 text-purple-400" />
+                    {editingLesson ? 'Edit Lesson' : 'Create New Lesson'}
+                  </h3>
+                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {editingLesson ? `Editing: ${editingLesson.slug}` : 'Fill in the lesson details below'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowLessonModal(false);
+                    resetLessonForm();
+                    setFormErrors({});
+                  }}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* ===== SECTION 1: BASIC SETTINGS ===== */}
+                <div className={`rounded-xl border ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'} overflow-hidden`}>
+                  <button
+                    onClick={() => toggleSection('basic')}
+                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <Settings className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <span className="font-medium">Basic Settings</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'}`}>
+                        Required
+                      </span>
+                    </div>
+                    {expandedSections.basic ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  
+                  {expandedSections.basic && (
+                    <div className="p-4 pt-0 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Slug (URL identifier) *
+                          </label>
+                          <input
+                            type="text"
+                            value={lessonFormData.slug}
+                            onChange={(e) => {
+                              setLessonFormData(prev => ({ ...prev, slug: e.target.value }));
+                              if (formErrors.slug) setFormErrors(prev => ({ ...prev, slug: undefined }));
+                            }}
+                            placeholder="e.g., introduction-to-facts"
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                              formErrors.slug ? 'border-red-500' : ''
+                            } ${theme === 'dark' 
+                              ? 'bg-white/5 border-white/10' 
+                              : 'bg-white border-gray-300'
+                            }`}
+                          />
+                          {formErrors.slug && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> {formErrors.slug}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Lesson Type *
+                          </label>
+                          <select
+  value={lessonFormData.type}
+  onChange={(e) => setLessonFormData(prev => ({ ...prev, type: e.target.value as any }))}
+  className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+    theme === 'dark' 
+      ? 'bg-gray-700 border-gray-600 text-white' 
+      : 'bg-white border-gray-300 text-gray-900'
+  }`}
+>
+  <option value="text" className={theme === 'dark' ? 'bg-gray-700 text-white' : ''}>📝 Text</option>
+  <option value="video" className={theme === 'dark' ? 'bg-gray-700 text-white' : ''}>🎬 Video</option>
+  <option value="puzzle" className={theme === 'dark' ? 'bg-gray-700 text-white' : ''}>🧩 Puzzle</option>
+  <option value="extra" className={theme === 'dark' ? 'bg-gray-700 text-white' : ''}>⭐ Extra</option>
+</select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Lesson Number *
+                          </label>
+                          <input
+                            type="number"
+                            value={lessonFormData.lessonNumber}
+                            onChange={(e) => setLessonFormData(prev => ({ ...prev, lessonNumber: parseInt(e.target.value) || 1 }))}
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                              theme === 'dark' 
+                                ? 'bg-white/5 border-white/10' 
+                                : 'bg-white border-gray-300'
+                            }`}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Sub-Lesson Number
+                          </label>
+                          <input
+                            type="number"
+                            value={lessonFormData.sublessonNumber || ''}
+                            onChange={(e) => setLessonFormData(prev => ({ 
+                              ...prev, 
+                              sublessonNumber: e.target.value ? parseInt(e.target.value) : undefined 
+                            }))}
+                            placeholder="Optional"
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                              theme === 'dark' 
+                                ? 'bg-white/5 border-white/10' 
+                                : 'bg-white border-gray-300'
+                            }`}
+                          />
+                          <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                            Use 1, 2, 3... for sub-pages
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Order Index *
+                          </label>
+                          <input
+                            type="number"
+                            value={lessonFormData.orderIndex}
+                            onChange={(e) => setLessonFormData(prev => ({ ...prev, orderIndex: parseInt(e.target.value) || 0 }))}
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                              theme === 'dark' 
+                                ? 'bg-white/5 border-white/10' 
+                                : 'bg-white border-gray-300'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ===== SECTION 2: CONTENT ===== */}
+                <div className={`rounded-xl border ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'} overflow-hidden`}>
+                  <button
+                    onClick={() => toggleSection('content')}
+                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                        <FileText className="w-4 h-4 text-green-400" />
+                      </div>
+                      <span className="font-medium">Content</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'}`}>
+                        Required
+                      </span>
+                    </div>
+                    {expandedSections.content ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  
+                  {expandedSections.content && (
+                    <div className="p-4 pt-0">
+                      {/* Language Tabs */}
+                      <div className="flex gap-2 border-b mb-4">
+                        {(['en', 'bg', 'es'] as const).map((lang) => {
+                          const status = getLanguageStatus(lang);
+                          const isActive = activeLanguageTab === lang;
+                          const isComplete = status.filled === status.total;
+                          
+                          return (
+                            <button
+                              key={lang}
+                              onClick={() => setActiveLanguageTab(lang)}
+                              className={`px-4 py-2.5 font-medium transition-all flex items-center gap-2 ${
+                                isActive
+                                  ? 'border-b-2 border-purple-500 text-purple-500'
+                                  : theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                              }`}
+                            >
+                              <span>{languageFlags[lang]}</span>
+                              <span>{languageNames[lang]}</span>
+                              {isComplete && (
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                              )}
+                              {lang === 'en' && <span className="text-red-500 text-xs">*</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Language Content */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Title {activeLanguageTab === 'en' && '*'}
+                          </label>
+                          <input
+                            type="text"
+                            value={lessonFormData.translations[activeLanguageTab].title}
+                            onChange={(e) => {
+                              setLessonFormData(prev => ({
+                                ...prev,
+                                translations: {
+                                  ...prev.translations,
+                                  [activeLanguageTab]: { 
+                                    ...prev.translations[activeLanguageTab], 
+                                    title: e.target.value 
+                                  }
+                                }
+                              }));
+                              if (formErrors.title && activeLanguageTab === 'en') {
+                                setFormErrors(prev => ({ ...prev, title: undefined }));
+                              }
+                            }}
+                            placeholder={`Title (${activeLanguageTab})`}
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                              formErrors.title && activeLanguageTab === 'en' ? 'border-red-500' : ''
+                            } ${theme === 'dark' 
+                              ? 'bg-white/5 border-white/10' 
+                              : 'bg-white border-gray-300'
+                            }`}
+                          />
+                          {formErrors.title && activeLanguageTab === 'en' && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> {formErrors.title}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Description
+                          </label>
+                          <input
+                            type="text"
+                            value={lessonFormData.translations[activeLanguageTab].description || ''}
+                            onChange={(e) => setLessonFormData(prev => ({
+                              ...prev,
+                              translations: {
+                                ...prev.translations,
+                                [activeLanguageTab]: { 
+                                  ...prev.translations[activeLanguageTab], 
+                                  description: e.target.value 
+                                }
+                              }
+                            }))}
+                            placeholder="Brief description (optional)"
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                              theme === 'dark' 
+                                ? 'bg-white/5 border-white/10' 
+                                : 'bg-white border-gray-300'
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Content (Markdown) {activeLanguageTab === 'en' && '*'}
+                          </label>
+                          <textarea
+                            value={lessonFormData.translations[activeLanguageTab].content}
+                            onChange={(e) => {
+                              setLessonFormData(prev => ({
+                                ...prev,
+                                translations: {
+                                  ...prev.translations,
+                                  [activeLanguageTab]: { 
+                                    ...prev.translations[activeLanguageTab], 
+                                    content: e.target.value 
+                                  }
+                                }
+                              }));
+                              if (formErrors.content && activeLanguageTab === 'en') {
+                                setFormErrors(prev => ({ ...prev, content: undefined }));
+                              }
+                            }}
+                            placeholder={`Write your lesson content in Markdown (${activeLanguageTab})`}
+                            rows={8}
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-mono text-sm ${
+                              formErrors.content && activeLanguageTab === 'en' ? 'border-red-500' : ''
+                            } ${theme === 'dark' 
+                              ? 'bg-white/5 border-white/10' 
+                              : 'bg-white border-gray-300'
+                            }`}
+                          />
+                          {formErrors.content && activeLanguageTab === 'en' && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> {formErrors.content}
+                            </p>
+                          )}
+                          <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                            Supports Markdown formatting. Images can be added via the Media section below.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ===== SECTION 3: MEDIA ===== */}
+                <div className={`rounded-xl border ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'} overflow-hidden`}>
+                  <button
+                    onClick={() => toggleSection('media')}
+                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <Image className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <span className="font-medium">Media</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'}`}>
+                        Optional
+                      </span>
+                    </div>
+                    {expandedSections.media ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  
+                  {expandedSections.media && (
+                    <div className="p-4 pt-0 space-y-4">
+                      {/* Image Upload */}
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          <Image className="w-4 h-4 inline mr-1" /> Image
+                        </label>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id={`image-upload-${activeLanguageTab}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                uploadLessonImage(file, activeLanguageTab);
+                              }
+                              e.target.value = '';
+                            }}
+                            className="hidden"
+                            disabled={uploadingImage}
+                          />
+                          <label
+                            htmlFor={`image-upload-${activeLanguageTab}`}
+                            className={`px-4 py-2 rounded-lg cursor-pointer flex items-center gap-2 text-sm transition-all ${
+                              uploadingImage && uploadingForLanguage === activeLanguageTab
+                                ? 'bg-gray-500 cursor-not-allowed opacity-50' 
+                                : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:shadow-lg text-white'
+                            }`}
+                          >
+                            {uploadingImage && uploadingForLanguage === activeLanguageTab ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                {uploadProgress}%
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4" />
+                                Upload Image
+                              </>
+                            )}
+                          </label>
+                          {lessonFormData.translations[activeLanguageTab].imageUrl && (
+                            <div className="flex items-center gap-2">
+                              <img 
+                                src={lessonFormData.translations[activeLanguageTab].imageUrl} 
+                                alt="Preview" 
+                                className="w-16 h-16 object-cover rounded-lg border"
+                              />
+                              <button
+                                onClick={() => {
+                                  setLessonFormData(prev => ({
+                                    ...prev,
+                                    translations: {
+                                      ...prev.translations,
+                                      [activeLanguageTab]: { 
+                                        ...prev.translations[activeLanguageTab], 
+                                        imageUrl: '' 
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="text-red-500 hover:text-red-600 p-1 rounded-lg hover:bg-red-500/10"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                          {!lessonFormData.translations[activeLanguageTab].imageUrl && (
+                            <input
+                              type="text"
+                              value={lessonFormData.translations[activeLanguageTab].imageUrl || ''}
+                              onChange={(e) => setLessonFormData(prev => ({
+                                ...prev,
+                                translations: {
+                                  ...prev.translations,
+                                  [activeLanguageTab]: { 
+                                    ...prev.translations[activeLanguageTab], 
+                                    imageUrl: e.target.value 
+                                  }
+                                }
+                              }))}
+                              placeholder="Or enter image URL"
+                              className={`flex-1 min-w-[200px] px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm ${
+                                theme === 'dark' 
+                                  ? 'bg-white/5 border-white/10' 
+                                  : 'bg-white border-gray-300'
+                              }`}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Video Upload */}
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          <Video className="w-4 h-4 inline mr-1" /> Video
+                        </label>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="file"
+                            accept="video/*"
+                            id={`video-upload-${activeLanguageTab}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                uploadLessonVideo(file, activeLanguageTab);
+                              }
+                              e.target.value = '';
+                            }}
+                            className="hidden"
+                            disabled={uploadingVideo}
+                          />
+                          <label
+                            htmlFor={`video-upload-${activeLanguageTab}`}
+                            className={`px-4 py-2 rounded-lg cursor-pointer flex items-center gap-2 text-sm transition-all ${
+                              uploadingVideo && uploadingVideoForLanguage === activeLanguageTab
+                                ? 'bg-gray-500 cursor-not-allowed opacity-50' 
+                                : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-lg text-white'
+                            }`}
+                          >
+                            {uploadingVideo && uploadingVideoForLanguage === activeLanguageTab ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                {videoUploadProgress}%
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4" />
+                                Upload Video
+                              </>
+                            )}
+                          </label>
+                          {lessonFormData.translations[activeLanguageTab].videoUrl && (
+                            <div className="flex items-center gap-2 flex-1">
+                              <span className={`text-sm truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {lessonFormData.translations[activeLanguageTab].videoUrl}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setLessonFormData(prev => ({
+                                    ...prev,
+                                    translations: {
+                                      ...prev.translations,
+                                      [activeLanguageTab]: { 
+                                        ...prev.translations[activeLanguageTab], 
+                                        videoUrl: '' 
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="text-red-500 hover:text-red-600 p-1 rounded-lg hover:bg-red-500/10"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                          {!lessonFormData.translations[activeLanguageTab].videoUrl && (
+                            <input
+                              type="text"
+                              value={lessonFormData.translations[activeLanguageTab].videoUrl || ''}
+                              onChange={(e) => setLessonFormData(prev => ({
+                                ...prev,
+                                translations: {
+                                  ...prev.translations,
+                                  [activeLanguageTab]: { 
+                                    ...prev.translations[activeLanguageTab], 
+                                    videoUrl: e.target.value 
+                                  }
+                                }
+                              }))}
+                              placeholder="Or enter video URL (YouTube, Vimeo, etc.)"
+                              className={`flex-1 min-w-[200px] px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm ${
+                                theme === 'dark' 
+                                  ? 'bg-white/5 border-white/10' 
+                                  : 'bg-white border-gray-300'
+                              }`}
+                            />
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={lessonFormData.translations[activeLanguageTab].duration || ''}
+                          onChange={(e) => setLessonFormData(prev => ({
+                            ...prev,
+                            translations: {
+                              ...prev.translations,
+                              [activeLanguageTab]: { 
+                                ...prev.translations[activeLanguageTab], 
+                                duration: e.target.value 
+                              }
+                            }
+                          }))}
+                          placeholder="Duration e.g. 5:30"
+                          className={`w-full mt-2 px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm ${
+                            theme === 'dark' 
+                              ? 'bg-white/5 border-white/10' 
+                              : 'bg-white border-gray-300'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ===== SECTION 4: ADVANCED ===== */}
+                <div className={`rounded-xl border ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'} overflow-hidden`}>
+                  <button
+                    onClick={() => toggleSection('advanced')}
+                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <Tag className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <span className="font-medium">Advanced</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'}`}>
+                        Optional
+                      </span>
+                    </div>
+                    {expandedSections.advanced ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  
+                  {expandedSections.advanced && (
+                    <div className="p-4 pt-0 space-y-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Tags
+                        </label>
+                        <input
+                          type="text"
+                          value={lessonFormData.translations[activeLanguageTab].tags?.join(', ') || ''}
+                          onChange={(e) => setLessonFormData(prev => ({
+                            ...prev,
+                            translations: {
+                              ...prev.translations,
+                              [activeLanguageTab]: { 
+                                ...prev.translations[activeLanguageTab], 
+                                tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                              }
+                            }
+                          }))}
+                          placeholder="e.g. facts, basics, recursion"
+                          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${
+                            theme === 'dark' 
+                              ? 'bg-white/5 border-white/10' 
+                              : 'bg-white border-gray-300'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Example Code
+                          </label>
+                          <textarea
+                            value={lessonFormData.translations[activeLanguageTab].exampleCode || ''}
+                            onChange={(e) => setLessonFormData(prev => ({
+                              ...prev,
+                              translations: {
+                                ...prev.translations,
+                                [activeLanguageTab]: { 
+                                  ...prev.translations[activeLanguageTab], 
+                                  exampleCode: e.target.value 
+                                }
+                              }
+                            }))}
+                            placeholder="Prolog code example"
+                            rows={4}
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-mono text-sm ${
+                              theme === 'dark' 
+                                ? 'bg-gray-900 border-gray-700 text-gray-100' 
+                                : 'bg-gray-900 border-gray-700 text-gray-100'
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Expected Output
+                          </label>
+                          <textarea
+                            value={lessonFormData.translations[activeLanguageTab].exampleOutput || ''}
+                            onChange={(e) => setLessonFormData(prev => ({
+                              ...prev,
+                              translations: {
+                                ...prev.translations,
+                                [activeLanguageTab]: { 
+                                  ...prev.translations[activeLanguageTab], 
+                                  exampleOutput: e.target.value 
+                                }
+                              }
+                            }))}
+                            placeholder="Expected output"
+                            rows={4}
+                            className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-mono text-sm ${
+                              theme === 'dark' 
+                                ? 'bg-gray-900 border-gray-700 text-gray-100' 
+                                : 'bg-gray-900 border-gray-700 text-gray-100'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t flex justify-between items-center sticky bottom-0 bg-inherit">
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {editingLesson ? 'Updating existing lesson' : 'Creating new lesson'}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowLessonModal(false);
+                      resetLessonForm();
+                      setFormErrors({});
+                    }}
+                    className="px-6 py-2 rounded-lg border hover:bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveLesson}
+                    className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium flex items-center gap-2 hover:shadow-lg transition-shadow"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    {editingLesson ? 'Update Lesson' : 'Create Lesson'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Activity View */}
         {selectedView === "activity" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-6">
@@ -2187,10 +3700,10 @@ console.log(selectedFile, showFileModal)
                   </div>
                   <div>
                     <div className="text-2xl font-bold">
-                      {activityLogs.filter(l => l.actionType.includes('code') || l.actionType.includes('assignment')).length}
+                      {activityLogs.filter(l => l.actionType.includes('code') || l.actionType.includes('assignment') || l.actionType.includes('lesson')).length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Code Submissions
+                      Content Activities
                     </div>
                   </div>
                 </div>
@@ -2242,6 +3755,7 @@ console.log(selectedFile, showFileModal)
                         log.color === 'purple' ? 'bg-purple-500/20 text-purple-500' :
                         log.color === 'cyan' ? 'bg-cyan-500/20 text-cyan-500' :
                         log.color === 'indigo' ? 'bg-indigo-500/20 text-indigo-500' :
+                        log.color === 'amber' ? 'bg-amber-500/20 text-amber-500' :
                         'bg-gray-500/20 text-gray-500'
                       }`}>
                         {log.icon}
@@ -2263,7 +3777,7 @@ console.log(selectedFile, showFileModal)
                         <div className="mb-3">
                           <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
                             log.actionType.includes('user') ? 'bg-blue-500/20 text-blue-500' :
-                            log.actionType.includes('code') ? 'bg-green-500/20 text-green-500' :
+                            log.actionType.includes('code') || log.actionType.includes('assignment') || log.actionType.includes('lesson') ? 'bg-green-500/20 text-green-500' :
                             log.actionType.includes('file') ? 'bg-cyan-500/20 text-cyan-500' :
                             log.actionType.includes('login') ? 'bg-purple-500/20 text-purple-500' :
                             'bg-gray-500/20 text-gray-500'

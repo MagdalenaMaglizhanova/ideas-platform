@@ -1632,7 +1632,31 @@ messages_processed: string;
   activity_new_materials: string;
   activity_user_registered: string;
   minutes_ago: string;
-  
+  // ============================================
+// PrologGuide - НОВИ КЛЮЧОВЕ
+// ============================================
+tutorials: string;
+examples: string;
+resources: string;
+prolog_guide_intro_title: string;
+prolog_guide_intro_desc: string;
+lessons_videos: string;
+extra: string;
+puzzle: string;
+video: string;
+
+no_lessons_desc: string;
+back_to_lessons: string;
+previous: string;
+next: string;
+visit: string;
+
+output: string;
+language: string;
+
+
+
+
   // Статуси за потребители
   warning: string;
   inactive: string;
@@ -1653,6 +1677,24 @@ messages_processed: string;
   catch_block_error: string;
   option: string;
   loading_assignments: string;
+  videos: string;         // "Videos"
+  puzzles: string;        // "Puzzles"
+  extras: string;         // "Extras"
+ 
+  
+  // Типове уроци
+ 
+  
+  // Съобщения за липса на съдържание
+  no_videos: string;           // "No Videos Available"
+  no_videos_desc: string;      // "Check back later for video lessons."
+  no_puzzles: string;          // "No Puzzles Available"
+  no_puzzles_desc: string;     // "Check back later for puzzles."
+  no_extras: string;           // "No Extra Content Available"
+  no_extras_desc: string;      // "Check back later for extra content."
+
+  introduction_title: string;  // "Introduction to Logic Programming"
+  introduction_description: string; // "This structured course will guide you..."
   
   // Добави тези ключове в интерфейса TranslationKeys:
   status_completed: string;
@@ -1677,15 +1719,102 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 // Преводите с правилната типизация
 const translations: Translations = {
   en: {
+    // ============================================
+// PrologGuide
+// ============================================
+
+"tutorials": "Tutorials",
+  "videos": "Videos",
+  "puzzles": "Puzzles",
+  "extras": "Extras",
+  "examples": "Examples",
+  "resources": "Resources",
+  
+  "video": "Video",
+  "puzzle": "Puzzle",
+  "extra": "Extra",
+  
+  "no_videos": "No Videos Available",
+  "no_videos_desc": "Check back later for video lessons.",
+  "no_puzzles": "No Puzzles Available",
+  "no_puzzles_desc": "Check back later for puzzles.",
+  "no_extras": "No Extra Content Available",
+  "no_extras_desc": "Check back later for extra content.",
+  "no_lessons": "No Lessons Available",
+  "no_lessons_desc": "Check back later for new lessons.",
+  
+  "back_to_lessons": "Back to lessons",
+  "previous": "Previous",
+  "next": "Next",
+  "visit": "Visit",
+  "lesson": "Lesson",
+  "example": "Example",
+  "output": "Output",
+  "duration": "Duration",
+  "language": "Language",
+  "lessons_videos": "Lessons & Videos",
+  "introduction_title": "Introduction to Logic Programming",
+  "introduction_description": "This structured course will guide you through the fundamental concepts of logic programming and Prolog. Each lesson combines theory with practical exercises.",
+
+prolog_guide_intro_title: "Introduction to Logic Programming",
+prolog_guide_intro_desc: "This structured course will guide you through the fundamental concepts of logic programming and Prolog. Each lesson combines theory with practical exercises.",
+
+
+
+// ============================================
+// Допълнителна информация
+// ============================================
+platform_activity: "Platform Activity",
+this_month: "This Month",
+data_security: "Data Security",
+
+// ============================================
+// Активности
+// ============================================
+activity_new_school: "New school added to the platform",
+activity_knowledge_base: "Knowledge base updated",
+activity_new_materials: "New educational materials uploaded",
+activity_user_registered: "User registered",
+minutes_ago: "minutes ago",
+
+// ============================================
+// Статуси за потребители
+// ============================================
+warning: "Warning",
+inactive: "Inactive",
+
+// ============================================
+// Учителски инструкции
+// ============================================
+teacher_name: "Teacher Name",
+secure_login: "Secure Login",
+security_description: "Your data is encrypted and protected",
+
+// ============================================
+// Статистика
+// ============================================
+total_students: "Total Students",
+total_files: "Total Files",
+no_uploads: "No uploads yet",
+
+// ============================================
+// Други
+// ============================================
+not_pl_file: "File is not a .pl file",
+upload_successful: "Upload successful",
+catch_block_error: "An error occurred",
+option: "Option",
+loading_assignments: "Loading assignments...",
+loading_solutions: "Loading your solutions...",
+challenge_id: "Challenge ID",
+challenge_not_loaded: "Challenge not loaded",
+solution_status: "Solution Status",
+your_grade: "Your Grade",
     new_challenge: "New Challenge",
   new_challenge_notification: "New Challenge",
   new_challenge_available: "New challenge available",
   new_assignment_notification: "New Assignment",
-  loading_solutions: "Loading your solutions...",
-  challenge_id: "Challenge ID",
-  challenge_not_loaded: "Challenge not loaded",
-  solution_status: "Solution Status",
-  your_grade: "Your Grade",
+
   view_feedback: "View Feedback",
   evaluated_by: "Evaluated by",
   code_copied: "Code copied to clipboard!",
@@ -1811,15 +1940,10 @@ stats_icon_activity: "📈",
   logout: "Logout",
   contact_admin: "Contact Us",
   estimated_approval_time: "Approval usually takes 24-48 hours on business days",
-  no_uploads: "No uploads",
+
   code_updated: "Code updated",
   upload_error: "Upload error",
-  not_pl_file: "Not a Prolog file",
-  upload_successful: "Upload successful",
-  catch_block_error: "Error occurred",
-  option: "Option",
-  loading_assignments: "Loading assignments",
-  total_students: "Total Students",
+
   direct_message: "direct_message",
   pending_request: "pending_request",
   
@@ -2021,9 +2145,7 @@ stats_icon_activity: "📈",
     no_lessons_available: "No lessons available",
     no_lessons_for_topic: "There are no lessons available for this topic yet",
     
-    // Уроци и детайли
-    lesson: "lesson",
-    duration: "Duration",
+  
     course_lessons: "Course Lessons",
     
     // Prolog Guide
@@ -2097,9 +2219,7 @@ create_first_lesson: "Create first lesson",
   no_communities: "No communities yet",
   community_activity: "Community Activity",
   no_community_activity: "No community activity",
-  
-  // Уроци
-  no_lessons: "No lessons yet",
+ 
   recent_lessons: "Recent Lessons",
   create_first: "Create First",
   
@@ -2375,8 +2495,7 @@ evaluation: "Evaluation",
     register_description: "Start your journey in AI-powered STEM education and explore interactive programming concepts.",
     start_journey: "Start your STEM learning journey today",
     send_updates: "Send me educational resources and updates",
-    secure_login: "Secure & Encrypted",
-    security_description: "Your data is protected with end-to-end encryption",
+   
     student_account: "Student Account",
 practice_makes_perfect: "Practice Makes Perfect",
 practice_makes_perfect_desc: "Try solving 3 new Prolog problems this week to improve your skills",
@@ -2590,17 +2709,9 @@ growth_trend_schools: "Schools Growth Trend",
 growth_trend_knowledge: "Knowledge Bases Growth Trend",
 growth_trend_education: "Materials Growth Trend",
 last_7_days: "Last 7 days",
-platform_activity: "Platform Activity",
-this_month: "this month",
-data_security: "Data Security",
+
 recent_activity: "Recent Activity",
-activity_new_school: "New school joined",
-activity_knowledge_base: "New math knowledge base created",
-activity_new_materials: "New educational materials uploaded",
-activity_user_registered: "24 new users registered",
-minutes_ago: "min ago",
-warning: "Warning",
-inactive: "Inactive",
+
     lessons: "Lessons",
     prolog: "Prolog",
 create_knowledge_title: "Create Knowledge Bases",
@@ -2846,7 +2957,7 @@ total_assignments_count: 'Total Assignments',
     save_draft: 'Save Draft',
     clear: 'Clear',
     write_prolog_code: 'Write your Prolog code here...',
-    example: 'Example',
+   
     upload_code_button: 'Upload Code',
     clear_editor: 'Clear Editor',
     upload_success: 'Code uploaded successfully!',
@@ -3257,13 +3368,53 @@ sent_notifications: "Sent notifications",
     completed_assignments: 'Completed Assignments',
     in_progress_assignments: 'In Progress Assignments',
     
-    // Учителски инструкции
-    teacher_name: 'Teacher Name',
-    total_files: 'Total Files',
+  
     user: 'User',
     message_to_all_desc: 'This message will be sent to all users on the platform',
   },
   bg: {
+     // Заглавия на табовете
+  "tutorials": "Уроци",
+  "videos": "Видеа",
+  "puzzles": "Пъзели",
+  "extras": "Екстра",
+  "examples": "Примери",
+  "resources": "Ресурси",
+  
+  // Типове уроци
+  "video": "Видео",
+  "puzzle": "Пъзел",
+  "extra": "Екстра",
+  
+  // Съобщения за липса на съдържание
+  "no_videos": "Няма налични видеа",
+  "no_videos_desc": "Проверете по-късно за видео уроци.",
+  "no_puzzles": "Няма налични пъзели",
+  "no_puzzles_desc": "Проверете по-късно за пъзели.",
+  "no_extras": "Няма налично екстра съдържание",
+  "no_extras_desc": "Проверете по-късно за екстра съдържание.",
+  "no_lessons": "Няма налични уроци",
+  "no_lessons_desc": "Проверете по-късно за нови уроци.",
+  
+  // Навигация
+  "back_to_lessons": "Назад към уроците",
+  "previous": "Предишен",
+  "next": "Следващ",
+  "visit": "Посети",
+  "lesson": "Урок",
+  
+  // Други
+  "example": "Пример",
+  "output": "Изход",
+  "duration": "Продължителност",
+  "language": "Език",
+  "lessons_videos": "Уроци и видеа",
+  "introduction_title": "Въведение в Логическото Програмиране",
+  "introduction_description": "Този структуриран курс ще ви преведе през основните концепции на логическото програмиране и Prolog. Всеки урок съчетава теория с практически упражнения.",
+  
+  // Prolog Guide описания
+  "prolog_guide_subtitle": "Овладейте логическото програмиране чрез интерактивни примери",
+  "prolog_guide_description": "Prolog е език за логическо програмиране, свързан с изкуствения интелект и компютърната лингвистика. Това изчерпателно ръководство покрива основни концепции чрез практически, реални примери.",
     unlisted: "Непубликуван",
   has_been_published: "Е публикуван",
   open_in_assignments: "Отвори в Заданията",
@@ -3686,14 +3837,11 @@ stats_icon_activity: "📈",
     no_lessons_available: "Няма налични уроци",
     no_lessons_for_topic: "Все още няма налични уроци за тази тема",
     
-    // Уроци и детайли
-    lesson: "урок",
-    duration: "Продължителност",
+    
     course_lessons: "Уроци по курса",
     
     // Prolog Guide
-    prolog_guide_subtitle: "Научете логическо програмиране с интерактивни примери",
-    prolog_guide_description: "Prolog е език за логическо програмиране, свързан с изкуствен интелект и изчислителна лингвистика. Това ръководство ще ви помогне да овладеете програмирането на Prolog чрез практически примери и уроци.",
+    
     
     // Табове
     tab_basics: "Основи",
@@ -4009,7 +4157,7 @@ create_first_lesson: "Създай първият си урок",
   no_community_activity: "Няма активност в общността",
   
   // Уроци
-  no_lessons: "Все още няма уроци",
+ 
   recent_lessons: "Скорошни уроци",
   create_first: "Създай първи",
   
@@ -4351,7 +4499,7 @@ create_first_lesson: "Създай първият си урок",
     
     add_lesson: "Добави урок",
     write_prolog_code: 'Напишете Prolog код тук...',
-    example: 'Пример',
+   
     upload_code_button: 'Качи код',
     clear_editor: 'Изчисти редактор',
     upload_success: 'Кодът е качен успешно!',
@@ -4846,9 +4994,123 @@ from: "от",
     // Учителски инструкции
     teacher_name: 'Име на учител',
     total_files: 'Общо файлове',
-    select_domain_to_view_code:"Изберете предметна област, за да видите примери на Prolog код"
+    select_domain_to_view_code:"Изберете предметна област, за да видите примери на Prolog код",
+    // ============================================
+// PrologGuide
+
+prolog_guide_intro_title: "Въведение в Логическото Програмиране",
+prolog_guide_intro_desc: "Този структуриран курс ще ви преведе през основните концепции на логическото програмиране и Prolog. Всеки урок съчетава теория с практически упражнения.",
+
+
+
+
+
+
+
+
+
+
   },
   es: {
+    // ============================================
+// PrologGuide
+// ============================================
+// Заглавия на табовете
+  "tutorials": "Tutoriales",
+  "videos": "Vídeos",
+  "puzzles": "Rompecabezas",
+  "extras": "Extras",
+  "examples": "Ejemplos",
+  "resources": "Recursos",
+  
+  // Типове уроци
+  "video": "Vídeo",
+  "puzzle": "Rompecabezas",
+  "extra": "Extra",
+  
+  // Съобщения за липса на съдържание
+  "no_videos": "No hay vídeos disponibles",
+  "no_videos_desc": "Vuelva más tarde para ver lecciones en vídeo.",
+  "no_puzzles": "No hay rompecabezas disponibles",
+  "no_puzzles_desc": "Vuelva más tarde para ver rompecabezas.",
+  "no_extras": "No hay contenido extra disponible",
+  "no_extras_desc": "Vuelva más tarde para ver contenido extra.",
+  "no_lessons": "No hay lecciones disponibles",
+  "no_lessons_desc": "Vuelva más tarde para ver nuevas lecciones.",
+  
+  // Навигация
+  "back_to_lessons": "Volver a las lecciones",
+  "previous": "Anterior",
+  "next": "Siguiente",
+  "visit": "Visitar",
+  "lesson": "Lección",
+  
+  // Други
+  "example": "Ejemplo",
+  "output": "Salida",
+  "duration": "Duración",
+  "language": "Idioma",
+  "lessons_videos": "Lecciones y Vídeos",
+  "introduction_title": "Introducción a la Programación Lógica",
+  "introduction_description": "Este curso estructurado le guiará a través de los conceptos fundamentales de la programación lógica y Prolog. Cada lección combina teoría con ejercicios prácticos.",
+  
+  // Prolog Guide описания
+  "prolog_guide_subtitle": "Domina la programación lógica a través de ejemplos interactivos",
+  "prolog_guide_description": "Prolog es un lenguaje de programación lógica asociado con la inteligencia artificial y la lingüística computacional. Esta guía completa cubre conceptos fundamentales a través de ejemplos prácticos del mundo real.",
+
+prolog_guide_intro_title: "Introducción a la Programación Lógica",
+prolog_guide_intro_desc: "Este curso estructurado te guiará a través de los conceptos fundamentales de la programación lógica y Prolog. Cada lección combina teoría con ejercicios prácticos.",
+
+
+// ============================================
+// Допълнителна информация
+// ============================================
+platform_activity: "Actividad de la Plataforma",
+this_month: "Este Mes",
+data_security: "Seguridad de Datos",
+
+// ============================================
+// Активности
+// ============================================
+activity_new_school: "Nueva escuela añadida a la plataforma",
+activity_knowledge_base: "Base de conocimiento actualizada",
+activity_new_materials: "Nuevos materiales educativos subidos",
+activity_user_registered: "Usuario registrado",
+minutes_ago: "minutos atrás",
+
+// ============================================
+// Статуси за потребители
+// ============================================
+warning: "Advertencia",
+inactive: "Inactivo",
+
+// ============================================
+// Учителски инструкции
+// ============================================
+teacher_name: "Nombre del Profesor",
+secure_login: "Inicio de Sesión Seguro",
+security_description: "Tus datos están encriptados y protegidos",
+
+// ============================================
+// Статистика
+// ============================================
+total_students: "Total de Estudiantes",
+total_files: "Total de Archivos",
+no_uploads: "Aún no hay archivos subidos",
+
+// ============================================
+// Други
+// ============================================
+not_pl_file: "El archivo no es un archivo .pl",
+upload_successful: "Carga exitosa",
+catch_block_error: "Ocurrió un error",
+option: "Opción",
+loading_assignments: "Cargando tareas...",
+loading_solutions: "Cargando tus soluciones...",
+challenge_id: "ID del desafío",
+challenge_not_loaded: "Desafío no cargado",
+solution_status: "Estado de la solución",
+your_grade: "Tu calificación",
     select_domain_to_view_code:"Elige un dominio de conocimiento para ver ejemplos de código Prolog",
     select_file_to_grade: "Seleccionar archivo para calificar",
     // В обекта translations.es добавете:
@@ -4884,8 +5146,7 @@ use_feature_1: "Búsqueda rápida en bases de conocimiento",
 use_feature_2: "Recomendaciones personalizadas",
 use_feature_3: "Acceso a la comunidad de conocimiento",
 start_using: "Comenzar a Usar",
-secure_login: "Seguro & Encriptado",
-    security_description: "Sus datos están protegidos con encriptación de extremo a extremo",
+
 total_knowledge_bases: "Bases de Conocimiento",
 active_creators: "Creadores Activos",
 educational_topics: "Temas Educativos",
@@ -4934,14 +5195,10 @@ challenge_view_submissions:"Ver envíos",
     logout: 'Cerrar sesión',
     innovation_platform: 'Plataforma de innovación',
     admin_dashboard: 'Panel de Administración',
-    no_uploads: 'Sin archivos subidos',
+
 code_updated: '¡Código actualizado exitosamente!',
 upload_error: '¡Error subiendo código!',
-not_pl_file: 'No es un archivo .pl:',
-upload_successful: 'Subida exitosa',
-catch_block_error: 'Error en bloque catch:',
-option: 'Opción',
-loading_assignments: 'Cargando tareas...',
+
 new_join_request: 'Nueva solicitud de unión a la comunidad',
     // Home page преводи
     ideas_acronym: 'Sistema Inteligente de Análisis Educativo de Datos',
@@ -4977,7 +5234,7 @@ new_join_request: 'Nueva solicitud de unión a la comunidad',
   refresh_status: "Verificar Estado",
   contact_admin: "Contáctenos",
   estimated_approval_time: "La aprobación generalmente tarda 24-48 horas en días hábiles",
-  total_students: "Total Estudiantes",
+  
     features_title_part1: 'Todo lo que necesitas para enseñar',
     features_title_part2: 'IA y Programación Lógica',
     features_description: 'Herramientas y recursos integrales diseñados específicamente para la educación STEM',
@@ -5100,7 +5357,7 @@ new_join_request: 'Nueva solicitud de unión a la comunidad',
     save_draft: 'Guardar Borrador',
     clear: 'Limpiar',
     write_prolog_code: 'Escribe tu código Prolog aquí...',
-    example: 'Ejemplo',
+   
     upload_code_button: 'Subir Código',
     clear_editor: 'Limpiar Editor',
     upload_success: '¡Código subido exitosamente!',
@@ -5279,11 +5536,7 @@ create_first_lesson: "Crear la primera lección",
   new_challenge_notification: "Nuevo desafío",
   new_challenge_available: "Nuevo desafío disponible",
   new_assignment_notification: "Nueva tarea",
-  loading_solutions: "Cargando tus soluciones...",
-  challenge_id: "ID del desafío",
-  challenge_not_loaded: "Desafío no cargado",
-  solution_status: "Estado de la solución",
-  your_grade: "Tu calificación",
+ 
   view_feedback: "Ver comentarios",
   evaluated_by: "Evaluado por",
   code_copied: "¡Código copiado al portapapeles!",
@@ -5453,17 +5706,14 @@ prolog_demo:"Demostración de Prolog",
     no_lessons_available: "No hay lecciones disponibles",
     no_lessons_for_topic: "No hay lecciones disponibles para este tema todavía",
     
-    // Уроци и детайли
-    lesson: "lección",
-    duration: "Duración",
+
     course_lessons: "Lecciones del Curso",
      no_permission_delete: "No tienes permiso para eliminar este mensaje",
   message_deleted: "Mensaje eliminado exitosamente",
   messages_processed: "Mensajes procesados",
     
     // Prolog Guide
-    prolog_guide_subtitle: "Aprende programación lógica con ejemplos interactivos",
-    prolog_guide_description: "Prolog es un lenguaje de programación lógica asociado con inteligencia artificial y lingüística computacional. Esta guía te ayudará a dominar la programación Prolog a través de ejemplos prácticos y tutoriales.",
+    
     
     // Табове
     tab_basics: "Básicos",
@@ -5562,9 +5812,7 @@ evaluation: "Evaluación",
   no_communities: "Aún no hay comunidades",
   community_activity: "Actividad de la Comunidad",
   no_community_activity: "Sin actividad en la comunidad",
-  
-  // Уроци
-  no_lessons: "Aún no hay lecciones",
+
   recent_lessons: "Lecciones Recientes",
   create_first: "Crear Primero",
   
@@ -6028,14 +6276,7 @@ growth_trend_schools: "Tendencia de Crecimiento de Escuelas",
 growth_trend_knowledge: "Tendencia de Crecimiento de Bases",
 growth_trend_education: "Tendencia de Crecimiento de Materiales",
 last_7_days: "Últimos 7 días",
-platform_activity: "Actividad de la Plataforma",
-this_month: "este mes",
-data_security: "Seguridad de Datos",
-activity_new_school: "Nueva escuela se unió",
-activity_knowledge_base: "Nueva base de conocimiento de matemáticas creada",
-activity_new_materials: "Nuevos materiales educativos subidos",
-activity_user_registered: "24 nuevos usuarios registrados",
-minutes_ago: "min",
+
     no_domain_selected: 'Sin Dominio Seleccionado',
     select_domain_to_view: 'Seleccione un dominio de la barra lateral para ver sus archivos de código.',
     no_code_files_for: 'No hay archivos de código para',
@@ -6430,13 +6671,7 @@ mark_as_completed: "Marcar como Completado",
   system: "Sistema",
   no_notifications: "No hay notificaciones",
     
-    // Статуси за потребители
-    warning: 'Advertencia',
-    inactive: 'Inactivo',
-    
-    // Учителски инструкции
-    teacher_name: 'Nombre del Profesor',
-    total_files: 'Total de Archivos',
+ 
   }
 };
 
