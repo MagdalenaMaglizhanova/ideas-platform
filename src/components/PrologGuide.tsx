@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   Video,
   Star,
-  
 } from 'lucide-react';
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -55,7 +54,6 @@ export default function PrologGuide() {
   const [loading, setLoading] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
-  // Theme classes
   const themeClasses = {
     light: {
       background: "bg-gray-50",
@@ -105,10 +103,8 @@ export default function PrologGuide() {
 
   const currentTheme = themeClasses[theme];
 
-  // Функция за конвертиране на YouTube URL към embed формат
   const getEmbedUrl = (url: string) => {
     if (!url) return '';
-    
     const youtubeDomains = [
       'https://www.youtube.com/',
       'https://youtube.com/',
@@ -117,19 +113,13 @@ export default function PrologGuide() {
       'www.youtube.com/',
       'youtube.com/'
     ];
-    
-    if (youtubeDomains.includes(url) || youtubeDomains.includes(url + '/')) {
-      return '';
-    }
-    
+    if (youtubeDomains.includes(url) || youtubeDomains.includes(url + '/')) return '';
     if (url.includes('/embed/')) {
       const id = url.split('/embed/')[1]?.split('?')[0] || '';
       if (id && id.length > 5) return url;
       return '';
     }
-    
     let videoId = '';
-    
     if (url.includes('watch?v=')) {
       videoId = url.split('v=')[1]?.split('&')[0] || '';
     } else if (url.includes('youtu.be/')) {
@@ -141,28 +131,8 @@ export default function PrologGuide() {
     } else if (url.includes('/v/')) {
       videoId = url.split('/v/')[1]?.split('?')[0] || '';
     }
-    
-    if (!videoId || videoId.length < 5) {
-      return '';
-    }
-    
+    if (!videoId || videoId.length < 5) return '';
     return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=0&enablejsapi=1`;
-  };
-
-  const getFirstContentLine = (content?: string) => {
-    if (!content) return '';
-    return content
-      .split('\n')
-      .map(line => line.trim())
-      .find(line => line.length > 0) || '';
-  };
-
-  const getContentWithoutFirstLine = (content?: string) => {
-    if (!content) return '';
-    const lines = content.split('\n');
-    const firstNonEmptyIndex = lines.findIndex(line => line.trim().length > 0);
-    if (firstNonEmptyIndex === -1) return '';
-    return lines.slice(firstNonEmptyIndex + 1).join('\n').trim();
   };
 
   useEffect(() => {
@@ -172,8 +142,7 @@ export default function PrologGuide() {
   const loadLessons = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading lessons for language:', language);
-
+      // Зареждаме всички уроци, включително и с lesson_number = 0 (сентинел)
       const { data: lessonsData, error: lessonsError } = await supabase
         .from('lessons')
         .select(`
@@ -182,12 +151,8 @@ export default function PrologGuide() {
         `)
         .eq('translations.language', language)
         .order('order_index', { ascending: true });
-
       if (lessonsError) throw lessonsError;
-
-      console.log('✅ Loaded lessons:', lessonsData?.length || 0);
       setLessons(lessonsData || []);
-      
     } catch (error: any) {
       console.error('❌ Error loading lessons:', error);
     } finally {
@@ -198,7 +163,6 @@ export default function PrologGuide() {
   const openLesson = (lesson: Lesson) => {
     setSelectedLesson(lesson);
     setActiveTab('tutorials');
-
     window.setTimeout(() => {
       document.getElementById('tutorial-lesson-content')?.scrollIntoView({
         behavior: 'smooth',
@@ -209,7 +173,6 @@ export default function PrologGuide() {
 
   const closeLesson = () => {
     setSelectedLesson(null);
-
     window.setTimeout(() => {
       document.getElementById('tutorial-lessons-list')?.scrollIntoView({
         behavior: 'smooth',
@@ -218,7 +181,10 @@ export default function PrologGuide() {
     }, 0);
   };
 
-  const navigableLessons = [...lessons].sort((a, b) => a.order_index - b.order_index);
+  // Навигационни уроци – изключваме сентинела (lesson_number = 0)
+  const navigableLessons = [...lessons]
+    .filter(l => l.lesson_number > 0)
+    .sort((a, b) => a.order_index - b.order_index);
 
   const selectedLessonIndex = selectedLesson
     ? navigableLessons.findIndex(lesson => lesson.id === selectedLesson.id)
@@ -255,9 +221,17 @@ export default function PrologGuide() {
     return lesson.translations.find(t => t.language === language) || lesson.translations[0];
   };
 
-  const mainLessons = Array.from(
-    new Map(lessons.map(lesson => [lesson.lesson_number, lesson])).values()
-  );
+  // Главни уроци – изключваме сентинела (lesson_number = 0)
+  const mainLessons = lessons
+    .filter(lesson =>
+      (lesson.sublesson_number === null || lesson.sublesson_number === undefined) &&
+      lesson.lesson_number > 0
+    )
+    .sort((a, b) => a.lesson_number - b.lesson_number);
+
+  // Заглавие на курса от сентинела (lesson_number = 0)
+  const courseInfoLesson = lessons.find(l => l.lesson_number === 0);
+  const courseTitle = courseInfoLesson ? getTranslation(courseInfoLesson)?.title : null;
 
   const getSubLessonsForMain = (mainLesson: Lesson) => {
     return lessons
@@ -267,27 +241,25 @@ export default function PrologGuide() {
 
   const getExtraLessons = (lessonNumber: number) => {
     return lessons
-      .filter(l => l.lesson_number === lessonNumber && l.type === 'extra')
+      .filter(l => l.lesson_number === lessonNumber && l.type === 'extra' && l.lesson_number > 0)
       .sort((a, b) => (a.sublesson_number || 0) - (b.sublesson_number || 0));
   };
 
   const getPuzzleLessons = (lessonNumber: number) => {
     return lessons
-      .filter(l => l.lesson_number === lessonNumber && l.type === 'puzzle')
+      .filter(l => l.lesson_number === lessonNumber && l.type === 'puzzle' && l.lesson_number > 0)
       .sort((a, b) => (a.sublesson_number || 0) - (b.sublesson_number || 0));
   };
 
-
-
   const getAllPuzzleLessons = () => {
     return lessons
-      .filter(l => l.type === 'puzzle')
+      .filter(l => l.type === 'puzzle' && l.lesson_number > 0)
       .sort((a, b) => a.order_index - b.order_index);
   };
 
   const getAllExtraLessons = () => {
     return lessons
-      .filter(l => l.type === 'extra')
+      .filter(l => l.type === 'extra' && l.lesson_number > 0)
       .sort((a, b) => a.order_index - b.order_index);
   };
 
@@ -434,9 +406,6 @@ export default function PrologGuide() {
     no_extras_desc: t('no_extras_desc') || 'Check back later for extra content.',
   };
 
-  // Компонент за показване само на видео уроци (само видеото, без текст)
-  
-
   const PuzzlesTab = () => {
     const puzzleLessons = getAllPuzzleLessons();
     const [showSolutions, setShowSolutions] = useState<Record<string, boolean>>({});
@@ -467,7 +436,6 @@ export default function PrologGuide() {
         <div className="space-y-6">
           {puzzleLessons.map((lesson) => {
             const translation = getTranslation(lesson);
-            const firstLine = getFirstContentLine(translation?.content);
             const isSolutionShown = showSolutions[lesson.id] || false;
 
             return (
@@ -488,11 +456,6 @@ export default function PrologGuide() {
                       </span>
                       {translation?.title || lesson.slug}
                     </h3>
-                    {firstLine && (
-                      <p className={`mt-2 ml-11 text-lg font-semibold ${currentTheme.textSecondary}`}>
-                        {firstLine}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -582,7 +545,6 @@ export default function PrologGuide() {
         <div className="space-y-6">
           {extraLessons.map((lesson) => {
             const translation = getTranslation(lesson);
-            const firstLine = getFirstContentLine(translation?.content);
 
             return (
               <div
@@ -602,11 +564,6 @@ export default function PrologGuide() {
                       </span>
                       {translation?.title || lesson.slug}
                     </h3>
-                    {firstLine && (
-                      <p className={`mt-2 ml-11 text-lg font-semibold ${currentTheme.textSecondary}`}>
-                        {firstLine}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -673,7 +630,6 @@ export default function PrologGuide() {
               </p>
             </div>
           </div>
-          
           <p className={`text-xl max-w-3xl mx-auto ${currentTheme.textSecondary}`}>
             {t?.('prolog_guide_description') || "Prolog is a logic programming language associated with artificial intelligence and computational linguistics. This comprehensive guide covers fundamental concepts through practical, real-world examples."}
           </p>
@@ -718,223 +674,206 @@ export default function PrologGuide() {
             >
               {!selectedLesson ? (
                 <>
-                  <div
-                    id="tutorial-lessons-list"
-                    className={`text-center p-8 rounded-2xl border ${currentTheme.card} ${currentTheme.cardHover} mb-8`}
-                  >
-                    <h2 className={`text-3xl font-bold mb-4 ${currentTheme.text}`}>
-                      {translations.introduction_title}
-                    </h2>
-                    <p className={`text-lg ${currentTheme.textSecondary}`}>
-                      {translations.introduction_description}
-                    </p>
-                  </div>
-
-                  <div className="space-y-6">
-                    {mainLessons.map((mainLesson) => {
-                      const translation = getTranslation(mainLesson);
-                      const subLessons = getSubLessonsForMain(mainLesson);
-                      const extraLessons = getExtraLessons(mainLesson.lesson_number);
-                      const puzzleLessons = getPuzzleLessons(mainLesson.lesson_number);
-                      const firstLine = getFirstContentLine(translation?.content);
-                      const hasSubLessons = subLessons.length > 0;
-
-                      return (
+                  <div id="tutorial-lessons-list" className="space-y-6">
+                    {mainLessons.length > 0 ? (
+                      <div className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}>
+                        {/* Хедър на целия курс – използваме courseTitle от сентинела или fallback */}
                         <div
-                          key={mainLesson.id}
-                          className={`rounded-2xl border overflow-hidden ${currentTheme.card} ${currentTheme.cardHover}`}
+                          className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
+                            theme === 'dark'
+                              ? 'from-blue-900/30 to-cyan-900/30'
+                              : 'from-blue-50 to-cyan-50'
+                          }`}
                         >
-                          <div
-                            className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
-                              theme === 'dark'
-                                ? 'from-blue-900/30 to-cyan-900/30'
-                                : 'from-blue-50 to-cyan-50'
-                            }`}
-                          >
-                            <div>
-                              <h3 className={`text-2xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
-                                <span
-                                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                    theme === 'dark'
-                                      ? 'bg-blue-500 text-white'
-                                      : 'bg-blue-600 text-white'
-                                  }`}
-                                >
-                                  {mainLesson.lesson_number}
-                                </span>
-                                {translation?.title || mainLesson.slug}
-                              </h3>
-                              {firstLine && !hasSubLessons && (
-                                <p className={`mt-2 ml-11 text-lg font-semibold ${currentTheme.textSecondary}`}>
-                                  {firstLine}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="p-6 space-y-6">
-                            <div>
-                              <h4 className={`font-semibold flex items-center gap-2 mb-3 ${currentTheme.text}`}>
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
-                                  }`}
-                                ></span>
-                                {translations.lessons_videos}
-                              </h4>
-
-                              <ul className="space-y-2 pl-4">
-                                {subLessons.map((subLesson) => {
-                                  const subTranslation = getTranslation(subLesson);
-                                  const subFirstLine = getFirstContentLine(subTranslation?.content);
-
-                                  return (
-                                    <li key={subLesson.id} className="flex items-center gap-3 text-sm">
-                                      <span
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono ${
-                                          theme === 'dark'
-                                            ? 'bg-gray-700 text-gray-300'
-                                            : 'bg-gray-100 text-gray-600'
-                                        }`}
-                                      >
-                                        {mainLesson.lesson_number}.{subLesson.sublesson_number}
-                                      </span>
-
-                                      <button
-                                        onClick={() => openLesson(subLesson)}
-                                        className={`${currentTheme.link} transition-colors flex items-center gap-1 hover:underline`}
-                                      >
-                                        {subFirstLine || subTranslation?.title || subLesson.slug}
-                                        <Link2 className="w-3 h-3 opacity-50" />
-                                      </button>
-
-                                      {subLesson.type === 'video' && (
-                                        <span
-                                          className={`ml-auto text-xs px-2 py-0.5 rounded ${
-                                            theme === 'dark'
-                                              ? 'bg-red-500/20 text-red-400'
-                                              : 'bg-red-100 text-red-600'
-                                          }`}
-                                        >
-                                          <Video className="w-3 h-3 inline mr-1" />
-                                          {translations.video}
-                                        </span>
-                                      )}
-                                      {subLesson.type === 'puzzle' && (
-                                        <span
-                                          className={`ml-auto text-xs px-2 py-0.5 rounded ${
-                                            theme === 'dark'
-                                              ? 'bg-amber-500/20 text-amber-400'
-                                              : 'bg-amber-100 text-amber-600'
-                                          }`}
-                                        >
-                                          <Puzzle className="w-3 h-3 inline mr-1" />
-                                          {translations.puzzle}
-                                        </span>
-                                      )}
-                                      {subLesson.type === 'extra' && (
-                                        <span
-                                          className={`ml-auto text-xs px-2 py-0.5 rounded ${
-                                            theme === 'dark'
-                                              ? 'bg-purple-500/20 text-purple-400'
-                                              : 'bg-purple-100 text-purple-600'
-                                          }`}
-                                        >
-                                          <Star className="w-3 h-3 inline mr-1" />
-                                          {translations.extra}
-                                        </span>
-                                      )}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </div>
-
-                            {(extraLessons.length > 0 || puzzleLessons.length > 0) && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-dashed">
-                                {extraLessons.length > 0 && (
-                                  <div>
-                                    <h4
-                                      className={`font-semibold flex items-center gap-2 mb-2 text-sm ${currentTheme.text}`}
-                                    >
-                                      <span
-                                        className={`w-1.5 h-1.5 rounded-full ${
-                                          theme === 'dark' ? 'bg-purple-400' : 'bg-purple-600'
-                                        }`}
-                                      ></span>
-                                      {translations.extra}
-                                    </h4>
-
-                                    <ul className="space-y-1 pl-4">
-                                      {extraLessons.map((extra) => {
-                                        const extraTranslation = getTranslation(extra);
-                                        const extraFirstLine = getFirstContentLine(extraTranslation?.content);
-
-                                        return (
-                                          <li
-                                            key={extra.id}
-                                            className={`text-sm flex items-center gap-2 ${currentTheme.textSecondary}`}
-                                          >
-                                            <span className="text-xs">•</span>
-                                            <button
-                                              onClick={() => openLesson(extra)}
-                                              className={`${currentTheme.link} transition-colors flex items-center gap-1 hover:underline`}
-                                            >
-                                              {extraFirstLine || extraTranslation?.title || extra.slug}
-                                              <Link2 className="w-3 h-3 opacity-50" />
-                                            </button>
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  </div>
-                                )}
-
-                                {puzzleLessons.length > 0 && (
-                                  <div>
-                                    <h4
-                                      className={`font-semibold flex items-center gap-2 mb-2 text-sm ${currentTheme.text}`}
-                                    >
-                                      <span
-                                        className={`w-1.5 h-1.5 rounded-full ${
-                                          theme === 'dark' ? 'bg-amber-400' : 'bg-amber-600'
-                                        }`}
-                                      ></span>
-                                      {translations.puzzle}
-                                    </h4>
-
-                                    <ul className="space-y-1 pl-4">
-                                      {puzzleLessons.map((puzzle) => {
-                                        const puzzleTranslation = getTranslation(puzzle);
-                                        const puzzleFirstLine = getFirstContentLine(puzzleTranslation?.content);
-
-                                        return (
-                                          <li
-                                            key={puzzle.id}
-                                            className={`text-sm flex items-center gap-2 ${currentTheme.textSecondary}`}
-                                          >
-                                            <span className="text-xs">•</span>
-                                            <button
-                                              onClick={() => openLesson(puzzle)}
-                                              className={`${currentTheme.link} transition-colors flex items-center gap-1 hover:underline`}
-                                            >
-                                              {puzzleFirstLine || puzzleTranslation?.title || puzzle.slug}
-                                              <Link2 className="w-3 h-3 opacity-50" />
-                                            </button>
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          <h2 className={`text-2xl font-bold ${currentTheme.text}`}>
+                            {courseTitle || translations.introduction_title}
+                          </h2>
                         </div>
-                      );
-                    })}
 
-                    {mainLessons.length === 0 && (
+                        {/* Съдържание – всички главни уроци (без сентинела) */}
+                        <div className="p-6 space-y-8">
+                          {mainLessons.map((mainLesson) => {
+                            const translation = getTranslation(mainLesson);
+                            const subLessons = getSubLessonsForMain(mainLesson);
+                            const extraLessons = getExtraLessons(mainLesson.lesson_number);
+                            const puzzleLessons = getPuzzleLessons(mainLesson.lesson_number);
+
+                            return (
+                              <div key={mainLesson.id} className="border-b last:border-b-0 pb-6 last:pb-0">
+                                <h3 className={`text-xl font-bold flex items-center gap-3 ${currentTheme.text}`}>
+                                  <span
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                      theme === 'dark'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-blue-600 text-white'
+                                    }`}
+                                  >
+                                    {mainLesson.lesson_number}
+                                  </span>
+                                  {translation?.title || mainLesson.slug}
+                                </h3>
+
+                                {/* Подуроци */}
+                                <div className="mt-4">
+                                  <h4 className={`font-semibold flex items-center gap-2 mb-3 ${currentTheme.text}`}>
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                                      }`}
+                                    ></span>
+                                    {translations.lessons_videos}
+                                  </h4>
+
+                                  <ul className="space-y-2 pl-4">
+                                    {subLessons.map((subLesson) => {
+                                      const subTranslation = getTranslation(subLesson);
+
+                                      return (
+                                        <li key={subLesson.id} className="flex items-center gap-3 text-sm">
+                                          <span
+                                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono ${
+                                              theme === 'dark'
+                                                ? 'bg-gray-700 text-gray-300'
+                                                : 'bg-gray-100 text-gray-600'
+                                            }`}
+                                          >
+                                            {mainLesson.lesson_number}.{subLesson.sublesson_number}
+                                          </span>
+
+                                          <button
+                                            onClick={() => openLesson(subLesson)}
+                                            className={`${currentTheme.link} transition-colors flex items-center gap-1 hover:underline`}
+                                          >
+                                            {subTranslation?.title || subLesson.slug}
+                                            <Link2 className="w-3 h-3 opacity-50" />
+                                          </button>
+
+                                          {subLesson.type === 'video' && (
+                                            <span
+                                              className={`ml-auto text-xs px-2 py-0.5 rounded ${
+                                                theme === 'dark'
+                                                  ? 'bg-red-500/20 text-red-400'
+                                                  : 'bg-red-100 text-red-600'
+                                              }`}
+                                            >
+                                              <Video className="w-3 h-3 inline mr-1" />
+                                              {translations.video}
+                                            </span>
+                                          )}
+                                          {subLesson.type === 'puzzle' && (
+                                            <span
+                                              className={`ml-auto text-xs px-2 py-0.5 rounded ${
+                                                theme === 'dark'
+                                                  ? 'bg-amber-500/20 text-amber-400'
+                                                  : 'bg-amber-100 text-amber-600'
+                                              }`}
+                                            >
+                                              <Puzzle className="w-3 h-3 inline mr-1" />
+                                              {translations.puzzle}
+                                            </span>
+                                          )}
+                                          {subLesson.type === 'extra' && (
+                                            <span
+                                              className={`ml-auto text-xs px-2 py-0.5 rounded ${
+                                                theme === 'dark'
+                                                  ? 'bg-purple-500/20 text-purple-400'
+                                                  : 'bg-purple-100 text-purple-600'
+                                              }`}
+                                            >
+                                              <Star className="w-3 h-3 inline mr-1" />
+                                              {translations.extra}
+                                            </span>
+                                          )}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+
+                                  {/* Допълнителни секции – Extra & Puzzle */}
+                                  {(extraLessons.length > 0 || puzzleLessons.length > 0) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-dashed">
+                                      {extraLessons.length > 0 && (
+                                        <div>
+                                          <h4
+                                            className={`font-semibold flex items-center gap-2 mb-2 text-sm ${currentTheme.text}`}
+                                          >
+                                            <span
+                                              className={`w-1.5 h-1.5 rounded-full ${
+                                                theme === 'dark' ? 'bg-purple-400' : 'bg-purple-600'
+                                              }`}
+                                            ></span>
+                                            {translations.extra}
+                                          </h4>
+
+                                          <ul className="space-y-1 pl-4">
+                                            {extraLessons.map((extra) => {
+                                              const extraTranslation = getTranslation(extra);
+
+                                              return (
+                                                <li
+                                                  key={extra.id}
+                                                  className={`text-sm flex items-center gap-2 ${currentTheme.textSecondary}`}
+                                                >
+                                                  <span className="text-xs">•</span>
+                                                  <button
+                                                    onClick={() => openLesson(extra)}
+                                                    className={`${currentTheme.link} transition-colors flex items-center gap-1 hover:underline`}
+                                                  >
+                                                    {extraTranslation?.title || extra.slug}
+                                                    <Link2 className="w-3 h-3 opacity-50" />
+                                                  </button>
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {puzzleLessons.length > 0 && (
+                                        <div>
+                                          <h4
+                                            className={`font-semibold flex items-center gap-2 mb-2 text-sm ${currentTheme.text}`}
+                                          >
+                                            <span
+                                              className={`w-1.5 h-1.5 rounded-full ${
+                                                theme === 'dark' ? 'bg-amber-400' : 'bg-amber-600'
+                                              }`}
+                                            ></span>
+                                            {translations.puzzle}
+                                          </h4>
+
+                                          <ul className="space-y-1 pl-4">
+                                            {puzzleLessons.map((puzzle) => {
+                                              const puzzleTranslation = getTranslation(puzzle);
+
+                                              return (
+                                                <li
+                                                  key={puzzle.id}
+                                                  className={`text-sm flex items-center gap-2 ${currentTheme.textSecondary}`}
+                                                >
+                                                  <span className="text-xs">•</span>
+                                                  <button
+                                                    onClick={() => openLesson(puzzle)}
+                                                    className={`${currentTheme.link} transition-colors flex items-center gap-1 hover:underline`}
+                                                  >
+                                                    {puzzleTranslation?.title || puzzle.slug}
+                                                    <Link2 className="w-3 h-3 opacity-50" />
+                                                  </button>
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
                       <div className={`text-center p-12 rounded-2xl border ${currentTheme.card}`}>
                         <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
                         <h3 className={`text-xl font-bold mb-2 ${currentTheme.text}`}>
@@ -956,6 +895,7 @@ export default function PrologGuide() {
                   exit={{ opacity: 0, x: -20 }}
                   className={`rounded-2xl border overflow-hidden ${currentTheme.card}`}
                 >
+                  {/* ... остава същият като досега ... */}
                   <div
                     className={`p-6 border-b ${
                       theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
@@ -998,9 +938,11 @@ export default function PrologGuide() {
                       </button>
                     </div>
 
-                    <h2 className={`text-3xl font-bold ${currentTheme.text}`}>
-                      {getFirstContentLine(selectedTranslation?.content) || selectedTranslation?.title}
-                    </h2>
+                    {selectedTranslation?.title && (
+                      <h1 className={`text-3xl lg:text-4xl font-bold mt-4 ${currentTheme.text}`}>
+                        {selectedTranslation.title}
+                      </h1>
+                    )}
 
                     {selectedTranslation?.description && (
                       <p className={`mt-2 ${currentTheme.textSecondary}`}>
@@ -1010,7 +952,6 @@ export default function PrologGuide() {
                   </div>
 
                   <div className="p-6">
-                    {/* В TUTORIALS таба - показваме ВИДЕОТО + ТЕКСТА заедно */}
                     {selectedLesson.type === 'video' && selectedTranslation?.video_url && (
                       (() => {
                         const embedUrl = getEmbedUrl(selectedTranslation.video_url || '');
@@ -1048,7 +989,6 @@ export default function PrologGuide() {
                       })()
                     )}
 
-                    {/* Показваме съдържанието (текста) за всички типове уроци в Tutorials таба */}
                     <div className={`prose max-w-none ${currentTheme.text}`}>
                       <ReactMarkdown
                         components={{
@@ -1120,7 +1060,7 @@ export default function PrologGuide() {
                           ),
                         }}
                       >
-                        {getContentWithoutFirstLine(selectedTranslation?.content)}
+                        {selectedTranslation?.content}
                       </ReactMarkdown>
                     </div>
 
